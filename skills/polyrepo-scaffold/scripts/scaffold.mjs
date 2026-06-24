@@ -214,7 +214,45 @@ export function filterAgentsMd(templateContent, selectedModules) {
       continue;
     }
 
-    result.push(line);
+   result.push(line);
+ }
+ return result.join('\n');
+}
+
+// 把一行插入 Module Map 表:按反引号内模块名字母序排序,重名跳过
+export function insertIntoModuleMap(content, newRow, moduleName) {
+  const lines = content.split('\n');
+  let tableStart = -1;
+  let separatorIdx = -1;
+  let tableEnd = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('| Module |')) tableStart = i;
+    if (tableStart !== -1 && separatorIdx === -1 && /^\|[-:|]+\|/.test(lines[i])) {
+      separatorIdx = i;
+    }
+    // 表尾判定从分隔符下一行开始,避免把分隔符行本身误判为非数据行
+    if (separatorIdx !== -1 && tableEnd === -1 && i > separatorIdx) {
+      if (!lines[i].match(/^\| .* \| .* \|/)) {
+        tableEnd = i - 1;
+        break;
+      }
+    }
   }
-  return result.join('\n');
+  if (tableEnd === -1 && separatorIdx !== -1) tableEnd = lines.length - 1;
+  if (tableStart === -1 || separatorIdx === -1) return content;
+
+  const dataRows = lines.slice(separatorIdx + 1, tableEnd + 1);
+  const alreadyExists = dataRows.some((row) => row.includes(`\`${moduleName}\``));
+  if (alreadyExists) return content;
+
+  dataRows.push(newRow);
+  dataRows.sort((a, b) => {
+    const nameA = a.match(/`([^`]+)`/)?.[1] || '';
+    const nameB = b.match(/`([^`]+)`/)?.[1] || '';
+    return nameA.localeCompare(nameB);
+  });
+
+  lines.splice(separatorIdx + 1, tableEnd - separatorIdx, ...dataRows);
+  return lines.join('\n');
 }

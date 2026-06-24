@@ -9,6 +9,7 @@ import {
   gitInit,
   createModule,
   filterAgentsMd,
+  insertIntoModuleMap,
 } from './scaffold.mjs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -180,4 +181,33 @@ test('filterAgentsMd keeps selected block markers, drops unselected blocks', () 
   assert.ok(!out.includes('web body'));
   assert.ok(!out.includes('BEGIN MODULE'));
   assert.ok(!out.includes('END MODULE'));
+});
+
+const MAP_FIXTURE = [
+  '### Module Map',
+  '',
+  '| Module | Role |',
+  '|---|---|',
+  '| `myapp-server` | Server application |',
+  '| `myapp-spec-center` | SSOT |',
+  '',
+  '> note after table',
+].join('\n');
+
+test('insertIntoModuleMap inserts row in alphabetical order', () => {
+  const out = insertIntoModuleMap(MAP_FIXTURE, '| `myapp-api` | Api application |', 'myapp-api');
+  const lines = out.split('\n');
+  const dataRows = lines.filter((l) => l.startsWith('| `myapp-'));
+  // 字母序:api < server < spec-center
+  assert.deepEqual(dataRows, [
+    '| `myapp-api` | Api application |',
+    '| `myapp-server` | Server application |',
+    '| `myapp-spec-center` | SSOT |',
+  ]);
+  assert.ok(out.includes('> note after table')); // 表后内容保留
+});
+
+test('insertIntoModuleMap is idempotent for duplicate module', () => {
+  const out = insertIntoModuleMap(MAP_FIXTURE, '| `myapp-server` | dup |', 'myapp-server');
+  assert.equal(out, MAP_FIXTURE); // 重名不插入,原样返回
 });
