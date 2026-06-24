@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node (scripts are zero-dependency, but ignore accidental installs)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Tooling
+# skills-lock.json (lockfile for installed skills) SHOULD be committed;
+# .agents/ holds the downloaded skill cache, treat like node_modules.
+.agents/
+
+# Logs & temp
+*.log
+/tmp/
