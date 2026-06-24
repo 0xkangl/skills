@@ -1,5 +1,5 @@
 // polyrepo-scaffold 零依赖脚手架脚本。仅用 node: 内置模块。
-import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync, mkdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join, basename, extname } from 'node:path';
@@ -358,5 +358,55 @@ export function syncAgentsMd(workspaceDir, projectName, modules) {
   const customModules = modules.filter((m) => m.isCustom);
   if (customModules.length > 0) {
     mergeAgentsMd(workspaceDir, projectName, customModules);
+  }
+}
+
+const SPEC_CENTER_NAME = 'spec-center';
+
+// init 子命令编排
+export function runInit(flags) {
+  const name = flags.name;
+  if (!name) throw new Error('init requires --name');
+  const nameCheck = validateProjectName(name);
+  if (nameCheck !== true) throw new Error(`Invalid project name "${name}": ${nameCheck}`);
+
+  const dir = resolve(flags.dir || `./${name}`);
+  if (existsSync(dir) && readdirSync(dir).length > 0) {
+    throw new Error(`Target directory not empty: ${dir}`);
+  }
+
+  const parsed = parseModuleList(flags.modules || '', []);
+  // spec-center 始终包含,且置顶;过滤掉用户误传的 spec-center
+  const modules = [
+    { name: SPEC_CENTER_NAME, templateRef: SPEC_CENTER_NAME, isCustom: false },
+    ...parsed.modules.filter((m) => m.name !== SPEC_CENTER_NAME),
+  ];
+
+  if (flags.dryRun) {
+    return { mode: 'init', dryRun: true, dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
+  }
+
+  mkdirSync(dir, { recursive: true });
+  copyAndReplace('root', dir, { PROJECT: name });
+  for (const mod of modules) {
+    const modDir = join(dir, `${name}-${mod.name}`);
+    createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
+  }
+  syncAgentsMd(dir, name, modules);
+
+  return { mode: 'init', dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
+}
+
+// 汇总输出(简洁单行,便于转述)
+export function printSummary(r) {
+  if (r.dryRun) {
+    console.log(`[dry-run] ${r.mode}: ${r.dir} (project ${r.name})`);
+    console.log(`[dry-run] modules: ${r.modules.join(', ') || '(none)'}`);
+  } else {
+    console.log(`${r.mode}: ${r.dir} (project ${r.name})`);
+    console.log(`${r.mode === 'init' ? 'created' : 'added'}: ${r.modules.join(', ') || '(none)'}`);
+  }
+  for (const s of r.skipped || []) {
+    console.log(`skipped: ${s.entry} (${s.reason})`);
   }
 }

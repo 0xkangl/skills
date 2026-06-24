@@ -16,6 +16,7 @@ import {
   buildModuleRole,
   buildModuleTreeEntry,
   syncAgentsMd,
+  runInit,
 } from './scaffold.mjs';
 import { writeFileSync as writeFileToDisk } from 'node:fs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
@@ -316,6 +317,48 @@ test('mergeAgentsMd merges modules into Module Map + tree of an on-disk file', (
     const out = fsReadFileSync(join(scDir, 'AGENTS.md'), 'utf-8');
     assert.ok(out.includes('| `myapp-api-gateway` | Api-gateway application |'));
     assert.ok(out.includes('myapp-api-gateway/'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runInit always includes spec-center and creates module dirs', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    const r = runInit({ name: 'myapp', dir: ws, modules: 'server,web' });
+    assert.equal(r.mode, 'init');
+    assert.deepEqual(r.modules.sort(), ['server', 'spec-center', 'web'].sort());
+    assert.ok(existsSync(join(ws, 'AGENTS.md')));            // root 模板
+    assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
+    assert.ok(existsSync(join(ws, 'myapp-server', 'AGENTS.md')));
+    assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
+    assert.ok(existsSync(join(ws, 'myapp-server', '.git'))); // 默认建 git
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runInit rejects invalid name and non-empty dir', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    assert.throws(() => runInit({ name: 'Bad', dir: join(dir, 'x') }), /Invalid project name/);
+    // 非空目录
+    const ws = join(dir, 'taken');
+    runInit({ name: 'myapp', dir: ws, modules: '', noGit: true });
+    assert.throws(() => runInit({ name: 'myapp', dir: ws, modules: '', noGit: true }), /not empty/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runInit dry-run writes nothing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    const r = runInit({ name: 'myapp', dir: ws, modules: 'server', dryRun: true });
+    assert.equal(r.dryRun, true);
+    assert.ok(!existsSync(ws)); // 未落盘
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
