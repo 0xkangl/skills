@@ -1,6 +1,6 @@
 ---
 name: code-conventions
-description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, or building Go backend services. Routes to the matching convention document before implementing.
+description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, or building Go backend services. Routes to the matching convention document before implementing.
 ---
 
 # Code Conventions
@@ -27,6 +27,7 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 |---|---|---|
 | [references/golang/go-project.md](references/golang/go-project.md) | 所有 Go 后端服务 | 项目结构：目录布局、分层架构 |
 | [references/golang/go-style.md](references/golang/go-style.md) | 所有 Go 后端服务 | 风格与惯用法：命名、控制流、错误、接口、并发（基于 Effective Go） |
+| [references/golang/go-error-handling.md](references/golang/go-error-handling.md) | 所有 Go 后端服务 | 错误处理：`HTTPError` 接口、`AppError` 载体、分层错误流、堆栈捕获、单一响应出口 |
 | [references/golang/go-tools.md](references/golang/go-tools.md) | 所有 Go 后端服务 | 开发工具：air、golangci-lint、goimports、govulncheck、migrate、配置文件、Makefile 目标 |
 | [references/golang/go-testing.md](references/golang/go-testing.md) | 所有 Go 后端服务 | Go 测试：表驱动测试、httptest、build tag、接口 mock、覆盖率命令 |
 | [references/golang/go-validation.md](references/golang/go-validation.md) | 所有 Go 微服务 | 输入校验：库选型、字段规则、错误格式、自定义校验器 |

@@ -201,7 +201,7 @@ if v, ok := m[key]; ok {
 
 ## 6. Errors
 
-This section extends [error-codes.md](../error-codes.md) and handler error mapping with Go idioms.
+This section covers Go-language error idioms: value semantics, wrapping, and panic discipline. The project's end-to-end error flow (the `HTTPError` interface, `AppError` carrier, layered handling, single response exit) is specified in [go-error-handling.md](go-error-handling.md).
 
 ### 6.1 Error Values
 
@@ -214,7 +214,7 @@ This section extends [error-codes.md](../error-codes.md) and handler error mappi
 
 - Package-level sentinel errors use `Err` prefix: `var ErrNotFound = errors.New("not found")`.
 - Typed errors (e.g. with extra fields) implement `Error() string` and are inspected with `errors.As`.
-- Map domain errors to `pkg/apperror` in handlers; services and repositories return domain/`error` types, not HTTP details.
+- End-to-end error flow (repository → service → handler → `response.Error()`) and the `pkg/apperror` `AppError` / `HTTPError` design are specified in [go-error-handling.md](go-error-handling.md). Handlers MUST NOT map errors (no `mapXxxErr()`); errors carry their own HTTP semantics.
 
 ### 6.3 Prohibited Patterns
 
@@ -324,3 +324,4 @@ Use sparingly — only when breakage must be caught at compile time (e.g. code g
 | HTTP errors and envelopes | [http-constitution.md](../http-constitution.md) |
 | Structured logging | [observability.md](../observability.md) |
 | Error code registry | [error-codes.md](../error-codes.md) |
+| End-to-end error flow | [go-error-handling.md](go-error-handling.md) |
