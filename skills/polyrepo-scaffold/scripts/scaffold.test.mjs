@@ -8,6 +8,7 @@ import {
   copyAndReplace,
   gitInit,
   createModule,
+  filterAgentsMd,
 } from './scaffold.mjs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -147,4 +148,36 @@ test('createModule honors noGit', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+const MARKER_FIXTURE = [
+  'Line top',
+  '<!-- MODULE:client -->| `x-client` | Client |',
+  '<!-- MODULE:server -->| `x-server` | Server |',
+  '| `x-spec-center` | SSOT |',
+  '<!-- BEGIN MODULE:server -->### Server',
+  'server body',
+  '<!-- END MODULE:server -->',
+  '<!-- BEGIN MODULE:web -->### Web',
+  'web body',
+  '<!-- END MODULE:web -->',
+  'Line bottom',
+].join('\n');
+
+test('filterAgentsMd keeps selected single-line markers, drops others', () => {
+  const out = filterAgentsMd(MARKER_FIXTURE, ['server']);
+  assert.ok(out.includes('| `x-server` | Server |'));   // 选中 → 保留且去标记
+  assert.ok(!out.includes('| `x-client` | Client |'));   // 未选 → 整行删除
+  assert.ok(!out.includes('<!-- MODULE:server -->'));    // 标记被去掉
+  assert.ok(out.includes('| `x-spec-center` | SSOT |')); // 无标记行恒保留
+});
+
+test('filterAgentsMd keeps selected block markers, drops unselected blocks', () => {
+  const out = filterAgentsMd(MARKER_FIXTURE, ['server']);
+  assert.ok(out.includes('### Server'));
+  assert.ok(out.includes('server body'));
+  assert.ok(!out.includes('### Web'));   // web 块整段删除
+  assert.ok(!out.includes('web body'));
+  assert.ok(!out.includes('BEGIN MODULE'));
+  assert.ok(!out.includes('END MODULE'));
 });

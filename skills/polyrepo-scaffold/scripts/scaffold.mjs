@@ -171,3 +171,50 @@ export function createModule(templateRef, modDir, projectName, mod, opts = {}) {
   copyAndReplace(templateRef, modDir, vars);
   if (!opts.noGit) gitInit(modDir, mod.name);
 }
+
+const MODULE_MARKER = /<!-- MODULE:([a-z0-9-]+) -->/;
+const BEGIN_MARKER = /<!-- BEGIN MODULE:([a-z0-9-]+) -->/;
+const END_MARKER = /<!-- END MODULE:([a-z0-9-]+) -->/;
+
+// 按所选模块过滤 spec-center/AGENTS.md 的三类 HTML 标记
+export function filterAgentsMd(templateContent, selectedModules) {
+  const lines = templateContent.split('\n');
+  const result = [];
+  let skipMode = null;
+
+  for (const line of lines) {
+    const beginMatch = line.match(BEGIN_MARKER);
+    const endMatch = line.match(END_MARKER);
+
+    if (beginMatch) {
+      if (!selectedModules.includes(beginMatch[1])) {
+        skipMode = beginMatch[1];
+      } else {
+        const remainder = line.replace(/<!-- BEGIN MODULE:[a-z0-9-]+ -->\s?/, '');
+        if (remainder) result.push(remainder);
+      }
+      continue;
+    }
+
+    if (endMatch) {
+      if (skipMode === endMatch[1]) {
+        skipMode = null;
+      }
+      const remainder = line.replace(/<!-- END MODULE:[a-z0-9-]+ -->\s?/, '');
+      if (remainder) result.push(remainder);
+      continue;
+    }
+
+    if (skipMode) continue;
+
+    const singleMatch = line.match(MODULE_MARKER);
+    if (singleMatch) {
+      if (!selectedModules.includes(singleMatch[1])) continue;
+      result.push(line.replace(/<!-- MODULE:[a-z0-9-]+ -->\s?/, ''));
+      continue;
+    }
+
+    result.push(line);
+  }
+  return result.join('\n');
+}
