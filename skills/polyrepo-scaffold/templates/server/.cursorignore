@@ -1,0 +1,12 @@
+# Project tooling
+.worktrees/
+.superpowers/
+
+# Dependencies — too large / supply-chain noise for Agent
+node_modules/
+vendor/
+
+# Environment — must block agent access to secrets
+.env
+.env.*
+!.env.example

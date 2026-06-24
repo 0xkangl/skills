@@ -1,0 +1,9 @@
+---
+description: Engineering behavior guidelines to reduce common LLM coding mistakes. Biases toward caution over speed. For trivial tasks, use judgment.
+globs: ["**/*"]
+alwaysApply: true
+---
+
+<!-- SSOT: {{PROJECT}}-spec-center/conventions/engineering-guidelines.md -->
+
+@../../{{PROJECT}}-spec-center/conventions/engineering-guidelines.md
