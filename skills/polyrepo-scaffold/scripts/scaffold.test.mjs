@@ -4,6 +4,7 @@ import {
   validateProjectName,
   getAvailableTemplateNames,
   getModuleRole,
+  parseModuleList,
 } from './scaffold.mjs';
 
 test('validateProjectName accepts kebab-case', () => {
@@ -32,4 +33,28 @@ test('getModuleRole reads first line under ## Role', () => {
   const role = getModuleRole('server');
   assert.equal(typeof role, 'string');
   assert.ok(role.length > 0);
+});
+
+test('parseModuleList parses built-in and custom modules', () => {
+  const { modules, skipped } = parseModuleList('server,web');
+  assert.deepEqual(modules, [
+    { name: 'server', templateRef: 'server', isCustom: false },
+    { name: 'web', templateRef: 'web', isCustom: false },
+  ]);
+  assert.equal(skipped.length, 0);
+});
+
+test('parseModuleList supports name=template (custom)', () => {
+  const { modules } = parseModuleList('api-gateway=server,user-service=server');
+  assert.deepEqual(modules, [
+    { name: 'api-gateway', templateRef: 'server', isCustom: true },
+    { name: 'user-service', templateRef: 'server', isCustom: true },
+  ]);
+});
+
+test('parseModuleList skips invalid names / unknown templates / duplicates', () => {
+  const { modules, skipped } = parseModuleList('server,server,Bad,x=nope,api=root');
+  assert.deepEqual(modules.map((m) => m.name), ['server']);
+  // 第二个 server(重复)、Bad(非法名)、x=nope(模板不存在)、api=root(root 不可用)→ 4 条 skipped
+  assert.equal(skipped.length, 4);
 });

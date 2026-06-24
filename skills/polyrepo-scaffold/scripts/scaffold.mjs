@@ -42,3 +42,38 @@ export function getModuleRole(templateName) {
   const match = content.match(/## Role\n(.+)/);
   return match ? match[1].trim() : templateName;
 }
+
+// 解析模块列表:逗号分隔的 "name" 或 "name=template"
+// takenNames:已占用的模块名(用于跨调用去重)
+// 返回 { modules, skipped: [{ entry, reason }] }
+export function parseModuleList(moduleStr, takenNames = []) {
+  const templates = getAvailableTemplateNames();
+  const modules = [];
+  const skipped = [];
+  const taken = [...takenNames];
+
+  for (const entry of moduleStr.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const eq = entry.indexOf('=');
+    let name, tpl;
+    if (eq >= 0) {
+      name = entry.slice(0, eq).trim();
+      tpl = entry.slice(eq + 1).trim();
+    } else {
+      name = entry;
+      tpl = entry;
+    }
+
+    if (!name) { skipped.push({ entry, reason: 'empty name' }); continue; }
+    const v = validateProjectName(name);
+    if (v !== true) { skipped.push({ entry, reason: v }); continue; }
+    if (!templates.includes(tpl) || tpl === 'root') {
+      skipped.push({ entry, reason: `template "${tpl}" not available` });
+      continue;
+    }
+    if (taken.includes(name)) { skipped.push({ entry, reason: 'duplicate name' }); continue; }
+
+    modules.push({ name, templateRef: tpl, isCustom: name !== tpl });
+    taken.push(name);
+  }
+  return { modules, skipped };
+}
