@@ -410,3 +410,47 @@ export function printSummary(r) {
     console.log(`skipped: ${s.entry} (${s.reason})`);
   }
 }
+
+// add 子命令编排
+export function runAdd(flags) {
+  const name = flags.name;
+  if (!name) throw new Error('add requires --name');
+  const dir = resolve(flags.dir || '.');
+  const specCenterDir = join(dir, `${name}${SPEC_CENTER_SUFFIX}`);
+  if (!existsSync(specCenterDir)) {
+    throw new Error(`spec-center not found: expected ${specCenterDir}`);
+  }
+
+  // 扫描已有模块(<name>- 前缀目录)
+  const prefix = `${name}-`;
+  const existing = readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith(prefix))
+    .map((e) => e.name.slice(prefix.length));
+
+  const parsed = parseModuleList(flags.modules || '', []);
+  const skipped = [...parsed.skipped];
+  const toCreate = [];
+  for (const mod of parsed.modules) {
+    if (mod.name === SPEC_CENTER_NAME) {
+      skipped.push({ entry: mod.name, reason: 'spec-center already exists' });
+      continue;
+    }
+    if (existing.includes(mod.name)) {
+      skipped.push({ entry: mod.name, reason: 'already exists' });
+      continue;
+    }
+    toCreate.push(mod);
+  }
+
+  if (flags.dryRun) {
+    return { mode: 'add', dryRun: true, dir, name, modules: toCreate.map((m) => m.name), skipped };
+  }
+
+  for (const mod of toCreate) {
+    const modDir = join(dir, `${name}-${mod.name}`);
+    createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
+  }
+  if (toCreate.length > 0) mergeAgentsMd(dir, name, toCreate);
+
+  return { mode: 'add', dir, name, modules: toCreate.map((m) => m.name), skipped };
+}

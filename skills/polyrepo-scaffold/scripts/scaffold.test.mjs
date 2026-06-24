@@ -17,6 +17,7 @@ import {
   buildModuleTreeEntry,
   syncAgentsMd,
   runInit,
+  runAdd,
 } from './scaffold.mjs';
 import { writeFileSync as writeFileToDisk } from 'node:fs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
@@ -359,6 +360,45 @@ test('runInit dry-run writes nothing', () => {
     const r = runInit({ name: 'myapp', dir: ws, modules: 'server', dryRun: true });
     assert.equal(r.dryRun, true);
     assert.ok(!existsSync(ws)); // 未落盘
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runAdd adds new module and merges into spec-center AGENTS.md', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    const r = runAdd({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
+    assert.equal(r.mode, 'add');
+    assert.deepEqual(r.modules, ['web']);
+    assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
+    assert.ok(sc.includes('myapp-web'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runAdd skips existing modules and spec-center', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    const r = runAdd({ name: 'myapp', dir: ws, modules: 'server,spec-center,web', noGit: true });
+    assert.deepEqual(r.modules, ['web']);
+    const reasons = r.skipped.map((s) => s.entry).sort();
+    assert.deepEqual(reasons, ['server', 'spec-center']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runAdd throws when spec-center is absent', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    assert.throws(() => runAdd({ name: 'myapp', dir, modules: 'web' }), /spec-center not found/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
