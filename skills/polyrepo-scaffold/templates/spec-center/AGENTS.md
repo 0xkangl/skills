@@ -28,7 +28,7 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 - Retry and backoff strategies
 - Authentication and authorization contracts
 - Shared domain vocabulary and event schemas
-- Cross-module domain specs → `docs/specs/`
+- Cross-module domain specs → `specs/`
 - Data format conventions (date, pagination, sorting, etc.)
 - Convention documents → `conventions/` — see [Convention Documents](#convention-documents)
 
@@ -64,13 +64,13 @@ When working on a feature:
 
 ### Implementation Plans (Cross-Module Features)
 
-Cross-module **specs** live in `{{PROJECT}}-spec-center/docs/specs/`; cross-module **plans** do **not**. Each implementing module gets its own plan under `<module>/docs/plans/`.
+Cross-module **specs** live in `{{PROJECT}}-spec-center/specs/`; cross-module **plans** do **not**. Each implementing module gets its own plan under `<module>/docs/plans/`.
 
 **Rule**: One plan per implementing module. Do **not** combine server + web (or other modules) into a single monolithic implementation plan.
 
 | Document | Where | Example |
 |---|---|---|
-| Cross-module domain spec (what) | `{{PROJECT}}-spec-center/docs/specs/` | `2026-06-01-feature-design.md` |
+| Cross-module domain spec (what) | `{{PROJECT}}-spec-center/specs/` | `2026-06-01-feature-design.md` |
 | Server implementation plan (how) | `{{PROJECT}}-server/docs/plans/` | `2026-06-01-feature.md` |
 | Web implementation plan (how) | `{{PROJECT}}-web/docs/plans/` | `2026-06-01-feature.md` |
 | API / error-code contract updates | `{{PROJECT}}-spec-center/` (OpenAPI, error-codes) | Updated in spec or alongside server plan — **no** separate spec-center plan unless spec-center-only work |
@@ -108,7 +108,7 @@ Cross-module **specs** live in `{{PROJECT}}-spec-center/docs/specs/`; cross-modu
 **Example (single module, no split needed):**
 
 ```
-{{PROJECT}}-spec-center/docs/specs/2026-06-01-feature-design.md   ← SSOT spec
+{{PROJECT}}-spec-center/specs/2026-06-01-feature-design.md   ← SSOT spec
 {{PROJECT}}-server/docs/plans/2026-06-01-feature.md               ← schema, API, tests
 {{PROJECT}}-web/docs/plans/2026-06-01-feature.md                  ← UI; Depends on server plan
 ```
@@ -118,7 +118,7 @@ Cross-module **specs** live in `{{PROJECT}}-spec-center/docs/specs/`; cross-modu
 | What | Where |
 |---|---|
 | API endpoint definition | `{{PROJECT}}-spec-center/` |
-| Cross-module domain spec | `{{PROJECT}}-spec-center/docs/specs/` |
+| Cross-module domain spec | `{{PROJECT}}-spec-center/specs/` |
 | Cross-module implementation plan | **Split** — one plan per module in `<module>/docs/plans/` (see [Implementation Plans](#implementation-plans-cross-module-features)) |
 | Error code and format | `{{PROJECT}}-spec-center/` |
 | Response envelope | `{{PROJECT}}-spec-center/` |
@@ -182,19 +182,9 @@ workspace/
 ├── AGENTS.md                     # Root reference → {{PROJECT}}-spec-center/AGENTS.md
 ├── {{PROJECT}}-spec-center/      # SSOT - shared specs and contracts
 │   ├── AGENTS.md                 # This file - global project rules
-│   ├── conventions/              # Shared conventions
-│   │   ├── overview.md           # Convention document index
-│   │   ├── conventional-commits.md  # Git commit message convention
-│   │   ├── engineering-guidelines.md  # LLM/agent coding behavior guidelines
-│   │   ├── testing.md              # Testing convention (v1.0)
-│   │   ├── http-constitution.md  # HTTP/API design standard (v1.0)
-│   │   ├── observability.md      # Observability convention (v1.0)
-│   │   └── golang/               # Go conventions; examples/ = reference configs
 │   ├── api/                      # API specifications (OpenAPI / endpoint specs)
-│   ├── docs/                     # Cross-module domain specifications
-│   │   └── specs/                # Shared specs affecting 2+ modules
+│   ├── specs/                    # Shared specs affecting 2+ modules
 │   ├── errors/                   # Error codes and formats
-│   │   └── error-codes.md        # Business error code registry
 │   └── events/                   # Inter-module event definitions
 <!-- BEGIN MODULE:server -->├── {{PROJECT}}-server/           # Server application
 │   ├── AGENTS.md                 # Server-specific conventions
