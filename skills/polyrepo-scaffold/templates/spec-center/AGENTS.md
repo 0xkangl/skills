@@ -28,11 +28,13 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 - Shared domain vocabulary and event schemas
 - Cross-module domain specs → `specs/`
 - Data format conventions (date, pagination, sorting, etc.)
-- Convention documents → `conventions/` holds project-private conventions only; universal conventions live in the `code-conventions` skill — see [Convention Documents](#convention-documents)
+- Convention documents → see [Convention Documents](#convention-documents)
 
 **Rule**: Any spec that affects two or more modules MUST live in `{{PROJECT}}-spec-center`. Any spec that only affects a single module MUST live in that module's own `docs/` directory.
 
 ## Development Paradigm: SDD + TDD
+
+Before writing or changing any code, follow the agent coding behavior rules (think-before-coding, simplicity-first, surgical-changes, goal-driven execution, root-cause reasoning) — see the `engineering-guidelines` skill.
 
 ### Specification-Driven Development (SDD)
 
@@ -50,17 +52,27 @@ For implementation-phase TDD details (AAA structure, naming, mocks, coverage, in
 
 **All code changes must trace back to a spec document.**
 
+## Authoritative Source: Contracts vs Design Specs
+
+Not every document carries the same authority — distinguish two kinds:
+
+- **Contracts (normative, live)** — `api/`, `errors/`, response envelope, retry policy, `events/`, auth contracts, `conventions/`. The agreed interface between modules, kept in sync with reality. When code deviates, **the code is the defect** — fix the code (or deliberately amend the contract first).
+- **Design specs (descriptive, point-in-time)** — feature/domain docs under `specs/` (here) and `docs/specs/` + `docs/plans/` (modules). Written to drive a feature at design time; as logic iterates they drift and go stale.
+
+**Reading vs writing:**
+
+- **Writing** new/changed logic → start from a spec (SDD): update the design spec, then implement.
+- **Reading / verifying / "what does the system do today"** → **current code is the source of truth**. A design spec states intent when written, not necessarily current behavior.
+- **Spec and code disagree** → never silently trust the spec. For a *design spec*, treat it as drift: verify against code and flag the spec for update. For a *contract*, the opposite default — the contract wins and the code is suspect.
+
 ## Shared vs Module-Specific Specs
 
-When working on a feature:
+Where a spec lives is governed by the **Rule** above and tabulated in [Spec Ownership Quick Reference](#spec-ownership-quick-reference). Two structural requirements apply once placed:
 
-1. **Identify scope** - Does this touch shared contracts or only internal logic?
-2. **Shared spec** -> Write/update in `{{PROJECT}}-spec-center/`.
-3. **Module-specific spec** -> Write/update in the module's `docs/` directory.
-4. **Cross-reference** - Module-specific specs must reference the shared specs they depend on. Use relative links like `[API Spec](../{{PROJECT}}-spec-center/specs/xxx.md)`.
-5. **docs/ sub-directories** - Each module's `docs/` MUST contain two sub-directories:
-   - `docs/specs/` — Specification documents (data models, business rules, interface definitions, constraints — the "what")
-   - `docs/plans/` — Implementation plans (technical designs, architecture decisions, migration strategies, development roadmaps — the "how")
+1. **Cross-reference** — A module-specific spec MUST link the shared specs it depends on, via relative links like `[API Spec](../{{PROJECT}}-spec-center/specs/xxx.md)`.
+2. **docs/ sub-directories** — Each module's `docs/` MUST split into:
+   - `docs/specs/` — specifications (data models, business rules, interfaces, constraints — the "what")
+   - `docs/plans/` — implementation plans (designs, architecture decisions, migration strategies — the "how")
 
 ### Implementation Plans (Cross-Module Features)
 
@@ -159,18 +171,14 @@ When working in a module, **load both** this file and the module's own `AGENTS.m
 
 ### Spec Document Index (Mandatory Maintenance)
 
-When a spec document is **added or updated**, the corresponding AGENTS.md **MUST** be updated with a reference entry. This ensures LLMs and developers can discover and understand all active specs without scanning the filesystem.
+**Rule**: Every governing spec (API contracts, error codes, conventions, event schemas) MUST be referenced in an AGENTS.md. AGENTS.md is the context-loading entry point — an unreferenced spec is invisible to agents and risks being ignored or contradicted.
 
-**Rule**: No spec document should exist without being referenced in an AGENTS.md.
-
-**Exception**: Requirement/feature spec documents under `docs/specs/` (in any module or in spec-center) do **not** need to be referenced in AGENTS.md. These specs are transient and numerous; the AGENTS.md index requirement applies to governing specs (API contracts, error codes, conventions, event schemas) only.
+**Exception**: Requirement/feature specs under `docs/specs/` (any module or spec-center) are transient and numerous — they do **not** need an index entry.
 
 **How**:
 
-1. **`{{PROJECT}}-spec-center/AGENTS.md`** — Maintain the "Spec Center as SSOT" bullet list and Repository Structure tree with actual filenames and relative links. Every file under `{{PROJECT}}-spec-center/` must appear in at least one of these two places.
-2. **`<module>/AGENTS.md`** — Maintain a "Mandatory Specs" section listing all spec-center documents the module depends on, with relative links.
-
-**Why**: AGENTS.md is the entry point for context-loading. If a spec is not referenced here, it is effectively invisible to agents and risks being ignored or contradicted.
+1. **`{{PROJECT}}-spec-center/AGENTS.md`** — every file under `{{PROJECT}}-spec-center/` must appear in either the "Spec Center as SSOT" bullet list or the Repository Structure tree, with its actual filename and relative link.
+2. **`<module>/AGENTS.md`** — list all depended-on spec-center documents under "Mandatory Specs", with relative links.
 
 ## Repository Structure
 
