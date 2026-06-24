@@ -4,6 +4,6 @@ globs: ["**/*"]
 alwaysApply: true
 ---
 
-<!-- SSOT: {{PROJECT}}-spec-center/conventions/engineering-guidelines.md -->
+Follow the project rules and conventions in `{{PROJECT}}-spec-center/AGENTS.md`.
 
-@../../{{PROJECT}}-spec-center/conventions/engineering-guidelines.md
+Convention documents live under `{{PROJECT}}-spec-center/conventions/` (starts empty — populate as the project adopts them, then `@import` them here).

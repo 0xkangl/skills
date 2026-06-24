@@ -1,0 +1,40 @@
+# skills-repo — Agent 须知
+
+这是一个**编写和维护 Agent / Claude Code Skills** 的仓库。在此工作时遵循以下约定。
+
+## 仓库性质
+
+每个 skill 是 `skills/<name>/` 下的一个自包含目录，至少含一个 `SKILL.md`（带 YAML frontmatter）。当前四个 skill 见 [README.md](README.md)。
+
+## 核心原则
+
+1. **Skill 独立性**：每个 skill 必须能单独启用，不得依赖其它 skill 的内部文件存在。
+2. **只做 skill 级引用**：skill 之间需要关联时，**只提对方的 skill 名**（如「见 `code-conventions` skill」）。
+   - ❌ 禁止：`[testing](../code-conventions/references/testing.md)`（内容级、跨目录路径引用）
+   - ✅ 允许：「实现阶段的 TDD 细则见 `code-conventions` skill」
+3. **正交不合并**：定位/触发频率不同的 skill 保持独立（如一次性的 `polyrepo-scaffold` 与高频的 `spec-driven-development`）。
+4. **改动可追溯**：每一处改动都应直接服务于明确需求；不顺手「优化」无关内容。
+
+## SKILL.md 规范
+
+- frontmatter 必填 `name`（kebab-case，与目录名一致）和 `description`。
+- `description` 用「Use when …」句式描述触发场景，措辞决定 agent 能否在正确时机命中该 skill。
+- 正文：开头一句话点明定位，再给可执行的步骤/索引；保持精简。
+
+## polyrepo-scaffold 专项
+
+- 确定性文件操作（拷模板、`{{PROJECT}}` 替换、`git init`）在 `scripts/scaffold.mjs`（**零依赖**，仅用 `node:` 内置模块）；`spec-center/AGENTS.md` 的模块条目（模块表 + 目录树）由 LLM 在脚本跑完后按实际创建的模块增量补全——脚本不做内容组装。SKILL.md 负责意图判定、收集输入、确认计划、调脚本、补全 `spec-center/AGENTS.md`、转述输出。
+- 模板在 `templates/`，用 `{{PROJECT}}` 占位。模板 `spec-center/AGENTS.md` 的 **Module Map 表与 Repository Structure 树初始只含 spec-center**，不预置任何业务模块；生成后由 LLM 按实际创建的模块增量添加行/子树（含自定义名模块）。正文方法论示例仍用 server/web/client 作具体举例，不代表工作区实际结构。
+- 模板产出的工作区 `spec-center/conventions/` **初始为空**（仅 `.gitkeep`），不内联规范副本——规范来源是 `code-conventions` skill。新增/修改模板时不要重新引入指向不存在文件的死链。
+- 改脚本或模板后必须跑测试：
+
+```bash
+cd skills/polyrepo-scaffold && node --test scripts/scaffold.test.mjs
+```
+
+## 提交前检查
+
+- [ ] 改动的 SKILL.md `name` 与目录名一致。
+- [ ] 没有引入跨 skill 的内容级（文件路径）引用。
+- [ ] 没有指向不存在文件的死链（尤其 polyrepo-scaffold 模板）。
+- [ ] 涉及 polyrepo-scaffold 的改动已 `node --test` 全绿。

@@ -2,26 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   validateProjectName,
-  resolveTemplatesDir,
   getAvailableTemplateNames,
   getModuleRole,
   parseModuleList,
   copyAndReplace,
   gitInit,
   createModule,
-  filterAgentsMd,
-  insertIntoModuleMap,
-  insertIntoRepoTree,
-  mergeAgentsMd,
-  buildModuleRole,
-  buildModuleTreeEntry,
-  syncAgentsMd,
   runInit,
   runAdd,
   parseArgs,
   main,
 } from './scaffold.mjs';
-import { writeFileSync as writeFileToDisk } from 'node:fs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -92,7 +83,7 @@ test('copyAndReplace replaces {{PROJECT}} in built-in template', () => {
   }
 });
 
-test('e2e: init then two adds keep tree connectors valid and modules are git repos', () => {
+test('e2e: init then two adds create module dirs as git repos on main', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
@@ -100,23 +91,17 @@ test('e2e: init then two adds keep tree connectors valid and modules are git rep
     runAdd({ name: 'myapp', dir: ws, modules: 'web' });
     runAdd({ name: 'myapp', dir: ws, modules: 'mobile=client' });
 
-    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
-    const lines = sc.split('\n');
+    // 三个模块目录均落盘,各含 AGENTS.md
+    for (const m of ['server', 'web', 'mobile']) {
+      assert.ok(existsSync(join(ws, `myapp-${m}`, 'AGENTS.md')));
+    }
 
-    // 目录树里顶层末节点只有一个 └──
-    const topLast = lines.filter((l) => /^└── /.test(l));
-    assert.equal(topLast.length, 1);
+    // 自定义模块 mobile=client:模块自身 AGENTS.md 完成改名 / role 替换
+    const mobileAgents = fsReadFileSync(join(ws, 'myapp-mobile', 'AGENTS.md'), 'utf-8');
+    assert.ok(mobileAgents.includes('myapp-mobile'));
+    assert.ok(!mobileAgents.includes('myapp-client'));
 
-    // Module Map 含三个新增 + spec-center
-    assert.ok(sc.includes('myapp-server'));
-    assert.ok(sc.includes('myapp-web'));
-    assert.ok(sc.includes('myapp-mobile'));
-
-    // 自定义模块 mobile=client:目录名 / role 正确(§8.3)
-    assert.ok(sc.includes('| `myapp-mobile` | Mobile application |'));
-    assert.ok(existsSync(join(ws, 'myapp-mobile', 'AGENTS.md')));
-
-    // 模块是独立 git 仓且在 main、无 commit(§8.4)
+    // 模块是独立 git 仓且在 main、无 commit
     const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], {
       cwd: join(ws, 'myapp-server'), encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
@@ -196,169 +181,6 @@ test('createModule honors noGit', () => {
   }
 });
 
-const MARKER_FIXTURE = [
-  'Line top',
-  '<!-- MODULE:client -->| `x-client` | Client |',
-  '<!-- MODULE:server -->| `x-server` | Server |',
-  '| `x-spec-center` | SSOT |',
-  '<!-- BEGIN MODULE:server -->### Server',
-  'server body',
-  '<!-- END MODULE:server -->',
-  '<!-- BEGIN MODULE:web -->### Web',
-  'web body',
-  '<!-- END MODULE:web -->',
-  'Line bottom',
-].join('\n');
-
-test('filterAgentsMd keeps selected single-line markers, drops others', () => {
-  const out = filterAgentsMd(MARKER_FIXTURE, ['server']);
-  assert.ok(out.includes('| `x-server` | Server |'));   // 选中 → 保留且去标记
-  assert.ok(!out.includes('| `x-client` | Client |'));   // 未选 → 整行删除
-  assert.ok(!out.includes('<!-- MODULE:server -->'));    // 标记被去掉
-  assert.ok(out.includes('| `x-spec-center` | SSOT |')); // 无标记行恒保留
-});
-
-test('filterAgentsMd keeps selected block markers, drops unselected blocks', () => {
-  const out = filterAgentsMd(MARKER_FIXTURE, ['server']);
-  assert.ok(out.includes('### Server'));
-  assert.ok(out.includes('server body'));
-  assert.ok(!out.includes('### Web'));   // web 块整段删除
-  assert.ok(!out.includes('web body'));
-  assert.ok(!out.includes('BEGIN MODULE'));
-  assert.ok(!out.includes('END MODULE'));
-});
-
-const MAP_FIXTURE = [
-  '### Module Map',
-  '',
-  '| Module | Role |',
-  '|---|---|',
-  '| `myapp-server` | Server application |',
-  '| `myapp-spec-center` | SSOT |',
-  '',
-  '> note after table',
-].join('\n');
-
-test('insertIntoModuleMap inserts row in alphabetical order', () => {
-  const out = insertIntoModuleMap(MAP_FIXTURE, '| `myapp-api` | Api application |', 'myapp-api');
-  const lines = out.split('\n');
-  const dataRows = lines.filter((l) => l.startsWith('| `myapp-'));
-  // 字母序:api < server < spec-center
-  assert.deepEqual(dataRows, [
-    '| `myapp-api` | Api application |',
-    '| `myapp-server` | Server application |',
-    '| `myapp-spec-center` | SSOT |',
-  ]);
-  assert.ok(out.includes('> note after table')); // 表后内容保留
-});
-
-test('insertIntoModuleMap is idempotent for duplicate module', () => {
-  const out = insertIntoModuleMap(MAP_FIXTURE, '| `myapp-server` | dup |', 'myapp-server');
-  assert.equal(out, MAP_FIXTURE); // 重名不插入,原样返回
-});
-
-// 最小目录树 fixture(含一个有子树的末节点 spec-center)
-const TREE_FIXTURE = [
-  '## Repository Structure',
-  '',
-  '```',
-  'workspace/',
-  '├── AGENTS.md',
-  '└── myapp-spec-center/',
-  '    └── AGENTS.md',
-  '```',
-].join('\n');
-
-const SERVER_ENTRY = [
-  '└── myapp-server/            # Server application',
-  '    ├── AGENTS.md                 # Server-specific conventions',
-  '    └── docs/',
-  '        ├── specs/                # Server-specific specifications',
-  '        └── plans/                # Server-specific implementation plans',
-].join('\n');
-
-const WEB_ENTRY = [
-  '└── myapp-web/            # Web application',
-  '    ├── AGENTS.md                 # Web-specific conventions',
-  '    └── docs/',
-  '        ├── specs/                # Web-specific specifications',
-  '        └── plans/                # Web-specific implementation plans',
-].join('\n');
-
-test('insertIntoRepoTree fixes connectors on first add', () => {
-  const out = insertIntoRepoTree(TREE_FIXTURE, SERVER_ENTRY);
-  const lines = out.split('\n');
-  // 原末节点 └── 变为 ├──,其子树缩进加竖线
-  assert.ok(lines.includes('├── myapp-spec-center/'));
-  assert.ok(lines.includes('│   └── AGENTS.md'));
-  // 新节点为新的末节点 └──
-  assert.ok(lines.includes('└── myapp-server/            # Server application'));
-  // 顶层 ├── AGENTS.md 不受影响
-  assert.ok(lines.includes('├── AGENTS.md'));
-  // 整棵树只有一个顶层 └──(新末节点)
-  const topLevelLast = lines.filter((l) => /^└── /.test(l));
-  assert.equal(topLevelLast.length, 1);
-  assert.equal(topLevelLast[0], '└── myapp-server/            # Server application');
-});
-
-test('insertIntoRepoTree handles consecutive adds (server then web)', () => {
-  const afterServer = insertIntoRepoTree(TREE_FIXTURE, SERVER_ENTRY);
-  const afterWeb = insertIntoRepoTree(afterServer, WEB_ENTRY);
-  const lines = afterWeb.split('\n');
-
-  // server 现在变成 ├──,其子树缩进升级为竖线
-  assert.ok(lines.includes('├── myapp-server/            # Server application'));
-  assert.ok(lines.includes('│   ├── AGENTS.md                 # Server-specific conventions'));
-  assert.ok(lines.includes('│   └── docs/'));
-  assert.ok(lines.includes('│   │   ├── specs/                # Server-specific specifications'));
-  assert.ok(lines.includes('│   │   └── plans/                # Server-specific implementation plans'));
-
-  // web 是唯一的顶层末节点 └──
-  const topLevelLast = lines.filter((l) => /^└── /.test(l));
-  assert.equal(topLevelLast.length, 1);
-  assert.equal(topLevelLast[0], '└── myapp-web/            # Web application');
-
-  // spec-center 依旧是 ├──(更早被转换)
-  assert.ok(lines.includes('├── myapp-spec-center/'));
-});
-
-test('buildModuleRole returns template role for built-in, "<Name> application" for custom', () => {
-  assert.equal(typeof buildModuleRole({ name: 'server', templateRef: 'server', isCustom: false }), 'string');
-  assert.equal(
-    buildModuleRole({ name: 'api-gateway', templateRef: 'server', isCustom: true }),
-    'Api-gateway application'
-  );
-});
-
-test('buildModuleTreeEntry builds a 5-line subtree starting with └──', () => {
-  const entry = buildModuleTreeEntry('myapp', 'server', 'Server application');
-  const lines = entry.split('\n');
-  assert.equal(lines.length, 5);
-  assert.ok(lines[0].startsWith('└── myapp-server/'));
-  assert.ok(lines[0].includes('# Server application'));
-  assert.ok(lines[1].includes('AGENTS.md'));
-});
-
-test('mergeAgentsMd merges modules into Module Map + tree of an on-disk file', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
-  try {
-    // 先 init 出一个 spec-center(借用 syncAgentsMd 还没实现,这里手写最小 AGENTS.md)
-    const scDir = join(dir, 'myapp-spec-center');
-    copyAndReplace('spec-center', scDir, { PROJECT: 'myapp' });
-    // 用真实模板内容直接写一份过滤后的 AGENTS.md(只选 server)
-    const tpl = fsReadFileSync(resolveTemplatesDir('spec-center', 'AGENTS.md'), 'utf-8');
-    const filtered = filterAgentsMd(tpl, ['server']).replace(/\{\{PROJECT\}\}/g, 'myapp');
-    writeFileToDisk(join(scDir, 'AGENTS.md'), filtered);
-
-    mergeAgentsMd(dir, 'myapp', [{ name: 'api-gateway', templateRef: 'server', isCustom: true }]);
-    const out = fsReadFileSync(join(scDir, 'AGENTS.md'), 'utf-8');
-    assert.ok(out.includes('| `myapp-api-gateway` | Api-gateway application |'));
-    assert.ok(out.includes('myapp-api-gateway/'));
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
 test('runInit always includes spec-center and creates module dirs', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
@@ -401,7 +223,7 @@ test('runInit dry-run writes nothing', () => {
   }
 });
 
-test('runAdd adds new module and merges into spec-center AGENTS.md', () => {
+test('runAdd creates the new module dir', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
@@ -410,8 +232,6 @@ test('runAdd adds new module and merges into spec-center AGENTS.md', () => {
     assert.equal(r.mode, 'add');
     assert.deepEqual(r.modules, ['web']);
     assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
-    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
-    assert.ok(sc.includes('myapp-web'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -465,43 +285,14 @@ test('main runs init via subcommand (integration)', () => {
   }
 });
 
-test('syncAgentsMd writes filtered spec-center AGENTS.md for selected modules', () => {
+test('init copies spec-center AGENTS.md as a clean template (no markers, no placeholders)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
-    const scDir = join(dir, 'myapp-spec-center');
-    copyAndReplace('spec-center', scDir, { PROJECT: 'myapp' });
-    const modules = [
-      { name: 'spec-center', templateRef: 'spec-center', isCustom: false },
-      { name: 'server', templateRef: 'server', isCustom: false },
-    ];
-    syncAgentsMd(dir, 'myapp', modules);
-    const out = fsReadFileSync(join(scDir, 'AGENTS.md'), 'utf-8');
-    assert.ok(!out.includes('{{PROJECT}}'));        // 占位符全部替换
-    assert.ok(!out.includes('MODULE:'));            // 标记被处理掉
-    assert.ok(out.includes('myapp-server'));        // 选中的 server 保留
-    // 未选 web/client 的标记专属块(Module Map 行 / 目录树子树)被删
-    assert.ok(!out.includes('| `myapp-web` |'));
-    assert.ok(!out.includes('| `myapp-client` |'));
-    assert.ok(!out.includes('# Web application'));
-    assert.ok(!out.includes('# Client application'));
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test('syncAgentsMd merges custom modules after filtering', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
-  try {
-    const scDir = join(dir, 'myapp-spec-center');
-    copyAndReplace('spec-center', scDir, { PROJECT: 'myapp' });
-    const modules = [
-      { name: 'spec-center', templateRef: 'spec-center', isCustom: false },
-      { name: 'api-gateway', templateRef: 'server', isCustom: true },
-    ];
-    syncAgentsMd(dir, 'myapp', modules);
-    const out = fsReadFileSync(join(scDir, 'AGENTS.md'), 'utf-8');
-    assert.ok(out.includes('| `myapp-api-gateway` | Api-gateway application |'));
-    assert.ok(out.includes('myapp-api-gateway/'));
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
+    assert.ok(!sc.includes('{{PROJECT}}'));   // 占位符已替换
+    assert.ok(!sc.includes('MODULE:'));        // 模板无遗留过滤标记
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

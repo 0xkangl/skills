@@ -4,14 +4,7 @@
 Server application
 
 ## Mandatory Specs
-- [HTTP Constitution](../{{PROJECT}}-spec-center/conventions/http-constitution.md)
-- [Observability Convention](../{{PROJECT}}-spec-center/conventions/observability.md)
-- [Error Codes](../{{PROJECT}}-spec-center/errors/error-codes.md)
-- [Testing Convention](../{{PROJECT}}-spec-center/conventions/testing.md)
-- [Go Project Structure](../{{PROJECT}}-spec-center/conventions/golang/go-project.md)
-- [Go Style and Idioms](../{{PROJECT}}-spec-center/conventions/golang/go-style.md)
-- [Go Testing Convention](../{{PROJECT}}-spec-center/conventions/golang/go-testing.md)
-- [Go Validation Convention](../{{PROJECT}}-spec-center/conventions/golang/go-validation.md)
+<!-- List the spec-center convention docs this module MUST follow as relative links, once populated under ../{{PROJECT}}-spec-center/conventions/ (source: `code-conventions` skill). Typical for a Go backend: http-constitution, observability, testing, error-codes, golang/go-project, golang/go-style, golang/go-testing, golang/go-validation. -->
 
 ## Key Responsibilities
 <!-- Define module-specific responsibilities here -->

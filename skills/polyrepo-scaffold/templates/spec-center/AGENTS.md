@@ -8,10 +8,9 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 
 | Module | Role |
 |---|---|
-<!-- MODULE:client -->| `{{PROJECT}}-client` | Client application |
-<!-- MODULE:server -->| `{{PROJECT}}-server` | Server application |
 | `{{PROJECT}}-spec-center` | **Single Source of Truth (SSOT)** for cross-module contracts and constraints |
-<!-- MODULE:web -->| `{{PROJECT}}-web` | Web application|
+
+> This table starts with `spec-center` only. Each module repo is added here as it is created — never pre-listed. See **Adding a New Module** below.
 
 > **Adding a New Module**: When a new module directory is created, the following steps MUST be performed:
 > 1. Add the new module entry to the **Module Map** table above (sorted alphabetically).
@@ -122,7 +121,7 @@ Cross-module **specs** live in `{{PROJECT}}-spec-center/specs/`; cross-module **
 | Cross-module implementation plan | **Split** — one plan per module in `<module>/docs/plans/` (see [Implementation Plans](#implementation-plans-cross-module-features)) |
 | Error code and format | `{{PROJECT}}-spec-center/` |
 | Response envelope | `{{PROJECT}}-spec-center/` |
-| Convention documents (universal + language-specific) | `{{PROJECT}}-spec-center/conventions/` — see [conventions/overview.md](conventions/overview.md) |
+| Convention documents (universal + language-specific) | `{{PROJECT}}-spec-center/conventions/` |
 | Retry / circuit-breaker policy | `{{PROJECT}}-spec-center/` |
 | Internal data model (not exposed via API) | Module's `docs/` |
 | Internal algorithm or business logic | Module's `docs/` |
@@ -151,7 +150,7 @@ All modules follow DDD principles:
 
 ### Convention Documents
 
-All convention documents live in `conventions/`. For the full index of universal and language-specific conventions, see **[conventions/overview.md](conventions/overview.md)**.
+Cross-cutting convention documents (HTTP/API design, observability, testing, commit messages, error codes, language-specific rules) live in `conventions/`. The directory starts empty — populate it as the project adopts conventions, then add an index/overview entry here.
 
 ### AGENTS.md Hierarchy
 
@@ -177,31 +176,16 @@ When a spec document is **added or updated**, the corresponding AGENTS.md **MUST
 
 ## Repository Structure
 
+This tree starts with `spec-center` only. A module subtree is added here as the module repo is created — following the pattern `AGENTS.md` + `docs/{specs,plans}/`.
+
 ```
 workspace/
 ├── AGENTS.md                     # Root reference → {{PROJECT}}-spec-center/AGENTS.md
-├── {{PROJECT}}-spec-center/      # SSOT - shared specs and contracts
-│   ├── AGENTS.md                 # This file - global project rules
-│   ├── api/                      # API specifications (OpenAPI / endpoint specs)
-│   ├── specs/                    # Shared specs affecting 2+ modules
-│   ├── errors/                   # Error codes and formats
-│   └── events/                   # Inter-module event definitions
-<!-- BEGIN MODULE:server -->├── {{PROJECT}}-server/           # Server application
-│   ├── AGENTS.md                 # Server-specific conventions
-│   └── docs/
-│       ├── specs/                # Server-specific specifications
-│       └── plans/                # Server-specific implementation plans
-<!-- END MODULE:server -->
-<!-- BEGIN MODULE:web -->├── {{PROJECT}}-web/              # Web application
-│   ├── AGENTS.md                 # Web-specific conventions
-│   └── docs/
-│       ├── specs/                # Web-specific specifications
-│       └── plans/                # Web-specific implementation plans
-<!-- END MODULE:web -->
-<!-- BEGIN MODULE:client -->└── {{PROJECT}}-client/           # Client application
-    ├── AGENTS.md                 # Client-specific conventions
-    └── docs/
-        ├── specs/                # Client-specific specifications
-        └── plans/                # Client-specific implementation plans
-<!-- END MODULE:client -->
+└── {{PROJECT}}-spec-center/      # SSOT - shared specs and contracts
+    ├── AGENTS.md                 # This file - global project rules
+    ├── api/                      # API specifications (OpenAPI / endpoint specs)
+    ├── conventions/              # Cross-cutting convention docs (starts empty)
+    ├── specs/                    # Shared specs affecting 2+ modules
+    ├── errors/                   # Error codes and formats
+    └── events/                   # Inter-module event definitions
 ```

@@ -5,13 +5,13 @@ description: Use before starting any feature, bugfix, or change - enforces the s
 
 # Spec-Driven Development (SDD)
 
-> Spec-layer workflow: every change starts from an approved spec. The implementation phase that follows uses TDD — see [TDD Workflow](../project-conventions/references/testing.md).
+> Spec-layer workflow: every change starts from an approved spec. The implementation phase that follows uses TDD — drive it with the **`code-conventions`** skill.
 
 ## 1. Specification-Driven Development (SDD)
 
 1. Write or update the relevant spec **first** (in `spec-center` for shared specs, or in the module's `docs/` for local specs).
 2. Get the spec reviewed and approved.
-3. Implement against the spec — drive the implementation with [TDD](../project-conventions/references/testing.md).
+3. Implement against the spec — drive the implementation with TDD (see the **`code-conventions`** skill).
 
 **All code changes must trace back to a spec document.**
 
@@ -29,13 +29,13 @@ When working on a feature:
 
 ## 3. Implementation Plans (Cross-Module Features)
 
-Cross-module **specs** live in `spec-center/docs/specs/`; cross-module **plans** do **not**. Each implementing module gets its own plan under `<module>/docs/plans/`.
+Cross-module **specs** live in `spec-center/specs/`; cross-module **plans** do **not**. Each implementing module gets its own plan under `<module>/docs/plans/`.
 
 **Rule**: One plan per implementing module. Do **not** combine server + web (or other modules) into a single monolithic implementation plan.
 
 | Document | Where | Example |
 |---|---|---|
-| Cross-module domain spec (what) | `spec-center/docs/specs/` | `2026-06-01-feature-design.md` |
+| Cross-module domain spec (what) | `spec-center/specs/` | `2026-06-01-feature-design.md` |
 | Server implementation plan (how) | `server/docs/plans/` | `2026-06-01-feature.md` |
 | Web implementation plan (how) | `web/docs/plans/` | `2026-06-01-feature.md` |
 | API / error-code contract updates | `spec-center/` (OpenAPI, error-codes) | Updated in spec or alongside server plan — **no** separate spec-center plan unless spec-center-only work |
@@ -73,7 +73,7 @@ web/docs/plans/2026-06-01-user-management--user-detail.md ← detail page UI; De
 **Example (single module, no split needed):**
 
 ```
-spec-center/docs/specs/2026-06-01-feature-design.md   ← SSOT spec
+spec-center/specs/2026-06-01-feature-design.md        ← SSOT spec
 server/docs/plans/2026-06-01-feature.md               ← schema, API, tests
 web/docs/plans/2026-06-01-feature.md                  ← UI; Depends on server plan
 ```
@@ -83,7 +83,7 @@ web/docs/plans/2026-06-01-feature.md                  ← UI; Depends on server 
 | What | Where |
 |---|---|
 | API endpoint definition | `spec-center/` |
-| Cross-module domain spec | `spec-center/docs/specs/` |
+| Cross-module domain spec | `spec-center/specs/` |
 | Cross-module implementation plan | **Split** — one plan per module in `<module>/docs/plans/` (see [Implementation Plans](#3-implementation-plans-cross-module-features)) |
 | Error code and format | `spec-center/` |
 | Response envelope | `spec-center/` |
@@ -111,5 +111,5 @@ When a spec document is **added or updated**, the corresponding AGENTS.md **MUST
 
 ## 相关 Skill
 
-- 实现阶段的测试驱动流程与测试细则（TDD workflow、AAA、命名、覆盖率等）→ **`project-conventions`** 的 [references/testing.md](../project-conventions/references/testing.md)。
+- 实现阶段的测试驱动流程与测试细则（TDD workflow、AAA、命名、覆盖率等）→ 独立 skill **`code-conventions`**。
 - 工程行为规范（think-before-code、simplicity-first、surgical-changes、root-cause reasoning 等）→ 独立 skill **`engineering-guidelines`**。

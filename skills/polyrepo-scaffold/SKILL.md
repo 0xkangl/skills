@@ -5,7 +5,7 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
 
 # Polyrepo Scaffold
 
-> 偶发的结构性操作:搭建多仓工作区或向其中新增模块。机械逻辑全部由零依赖脚本 `scripts/scaffold.mjs` 确定性执行,Claude 只负责意图判定、收集输入、确认计划、调脚本、转述输出。
+> 偶发的结构性操作:搭建多仓工作区或向其中新增模块。确定性的文件操作(拷模板、`{{PROJECT}}` 替换、`git init`)由零依赖脚本 `scripts/scaffold.mjs` 执行;`spec-center/AGENTS.md` 的模块条目(模块表 + 目录树)由 Claude 按本次实际创建的模块增量补全——模板初始只含 spec-center,脚本不做内容组装。Claude 负责意图判定、收集输入、确认计划、调脚本、补全 `spec-center/AGENTS.md`、转述输出。
 
 ## 1. 两种模式(无自动检测)
 
@@ -24,7 +24,8 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
    - 模块列表 `modules`:逗号分隔。`spec-center` 始终包含,无需用户指定。
 2. **展示计划表并确认**:列出将创建的目录(`<name>-spec-center` + 各模块)、是否建 git,等用户确认。
 3. **调脚本**(确认后):见 §5。
-4. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,并提示后续用 `spec-driven-development`。
+4. **补全 `spec-center/AGENTS.md`**:见 §6。
+5. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,并提示后续用 `spec-driven-development`。
 
 ## 3. Add 工作流
 
@@ -32,7 +33,8 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
 2. **收集新模块** `modules`:已存在的模块、`spec-center` 会被脚本自动跳过并在汇总里标注 `skipped`。
 3. **展示计划表并确认**。
 4. **调脚本**(确认后):见 §5。
-5. **汇报**:转述 `added:` / `skipped:` 行。
+5. **补全 `spec-center/AGENTS.md`**:见 §6,把新模块增量并入。
+6. **汇报**:转述 `added:` / `skipped:` 行。
 
 ## 4. 模块模板对照
 
@@ -71,12 +73,26 @@ node scripts/scaffold.mjs add \
 
 脚本路径相对本 skill 目录;调用时用脚本的绝对/正确相对路径。
 
-## 6. Git 行为
+## 6. 补全 `spec-center/AGENTS.md`
+
+脚本只把模板原样拷贝过去(已替换 `{{PROJECT}}`)。模板的 **Module Map 表与 Repository Structure 树初始只含 spec-center**,模块条目不预置——随实际创建而增量添加。脚本跑完后,Claude 读 `<project>-spec-center/AGENTS.md`,按**本次实际创建的模块**补全两处结构:
+
+- **Module Map 表**:为每个新建模块加一行。内建模板模块角色照模板(`server`→「Server application」、`web`→「Web application」、`client`→「Client application」);自定义名模块角色用「`<Name>` application」。最终行按模块名字母序。
+- **Repository Structure 目录树**:为每个新建模块加子树,格式为 `<project>-<module>/` 下含 `AGENTS.md` + `docs/specs/` + `docs/plans/`。加完后修正连接线——同级最后一个节点用 `└──`,其余用 `├──`,非末节点的子树缩进用 `│   `。
+
+判定依据:工作区里实际存在的 `<project>-<module>/` 目录(`spec-center` 始终在表/树中)。
+
+init 与 add 是同一种「增量添加」操作,区别只在起点:
+
+- **init**:起点是只含 spec-center 的初始模板,把本次创建的全部模块行/子树加进去。
+- **add**:在已有 `AGENTS.md` 基础上增量并入新模块的行与子树,不动既有条目。
+
+## 7. Git 行为
 
 每个新建模块只执行 `git init` + `git branch -M main`,**不** `git add`、**不** commit——交给用户自行首次提交。`--no-git` 时整段跳过。
 
-## 7. 相关 skill
+## 8. 相关 skill
 
 - `spec-driven-development`:工作区建好后,每次改动都从 spec 出发(高频纪律,与本 skill 正交)。
-- `project-conventions`:模板内置的约定文档体系。
+- `code-conventions`:横切规范文档体系(模板留空 `conventions/` 目录,按此 skill 填充)。
 - `engineering-guidelines`:LLM/agent 编码行为准则。

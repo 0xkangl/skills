@@ -172,195 +172,7 @@ export function createModule(templateRef, modDir, projectName, mod, opts = {}) {
   if (!opts.noGit) gitInit(modDir, mod.name);
 }
 
-const MODULE_MARKER = /<!-- MODULE:([a-z0-9-]+) -->/;
-const BEGIN_MARKER = /<!-- BEGIN MODULE:([a-z0-9-]+) -->/;
-const END_MARKER = /<!-- END MODULE:([a-z0-9-]+) -->/;
-
-// 按所选模块过滤 spec-center/AGENTS.md 的三类 HTML 标记
-export function filterAgentsMd(templateContent, selectedModules) {
-  const lines = templateContent.split('\n');
-  const result = [];
-  let skipMode = null;
-
-  for (const line of lines) {
-    const beginMatch = line.match(BEGIN_MARKER);
-    const endMatch = line.match(END_MARKER);
-
-    if (beginMatch) {
-      if (!selectedModules.includes(beginMatch[1])) {
-        skipMode = beginMatch[1];
-      } else {
-        const remainder = line.replace(/<!-- BEGIN MODULE:[a-z0-9-]+ -->\s?/, '');
-        if (remainder) result.push(remainder);
-      }
-      continue;
-    }
-
-    if (endMatch) {
-      if (skipMode === endMatch[1]) {
-        skipMode = null;
-      }
-      const remainder = line.replace(/<!-- END MODULE:[a-z0-9-]+ -->\s?/, '');
-      if (remainder) result.push(remainder);
-      continue;
-    }
-
-    if (skipMode) continue;
-
-    const singleMatch = line.match(MODULE_MARKER);
-    if (singleMatch) {
-      if (!selectedModules.includes(singleMatch[1])) continue;
-      result.push(line.replace(/<!-- MODULE:[a-z0-9-]+ -->\s?/, ''));
-      continue;
-    }
-
-   result.push(line);
- }
- return result.join('\n');
-}
-
-// 把一行插入 Module Map 表:按反引号内模块名字母序排序,重名跳过
-export function insertIntoModuleMap(content, newRow, moduleName) {
-  const lines = content.split('\n');
-  let tableStart = -1;
-  let separatorIdx = -1;
-  let tableEnd = -1;
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes('| Module |')) tableStart = i;
-    if (tableStart !== -1 && separatorIdx === -1 && /^\|[-:|]+\|/.test(lines[i])) {
-      separatorIdx = i;
-    }
-    // 表尾判定从分隔符下一行开始,避免把分隔符行本身误判为非数据行
-    if (separatorIdx !== -1 && tableEnd === -1 && i > separatorIdx) {
-      if (!lines[i].match(/^\| .* \| .* \|/)) {
-        tableEnd = i - 1;
-        break;
-      }
-    }
-  }
-  if (tableEnd === -1 && separatorIdx !== -1) tableEnd = lines.length - 1;
-  if (tableStart === -1 || separatorIdx === -1) return content;
-
-  const dataRows = lines.slice(separatorIdx + 1, tableEnd + 1);
-  const alreadyExists = dataRows.some((row) => row.includes(`\`${moduleName}\``));
-  if (alreadyExists) return content;
-
-  dataRows.push(newRow);
-  dataRows.sort((a, b) => {
-    const nameA = a.match(/`([^`]+)`/)?.[1] || '';
-    const nameB = b.match(/`([^`]+)`/)?.[1] || '';
-    return nameA.localeCompare(nameB);
-  });
-
-  lines.splice(separatorIdx + 1, tableEnd - separatorIdx, ...dataRows);
-  return lines.join('\n');
-}
-
-// 把一段子树追加进 Repository Structure 目录树,并修正连接线
-export function insertIntoRepoTree(content, treeEntry) {
-  const lines = content.split('\n');
-
-  // 最后一个代码块闭合 ``` 所在行 = 目录树范围
-  let treeBlockClose = -1;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (lines[i].trimStart() === '```') { treeBlockClose = i; break; }
-  }
-
-  // 最后一个顶层节点(├── 或 └──,前导最多 3 个 │/空格)
-  let lastEntryStart = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (/^[│ ]{0,3}(├──|└──)/.test(lines[i])) lastEntryStart = i;
-  }
-
-  if (lastEntryStart === -1 || treeBlockClose === -1) {
-    // 兜底:在最后一个 ``` 前追加
-    const lastCodeBlock = content.lastIndexOf('```');
-    if (lastCodeBlock === -1) return content;
-    const before = content.substring(0, lastCodeBlock);
-    const after = content.substring(lastCodeBlock);
-    return before + treeEntry + '\n' + after;
-  }
-
-  // 找到最后一个顶层节点子树的末行
-  let lastEntryEnd = lastEntryStart;
-  for (let i = lastEntryStart + 1; i < treeBlockClose; i++) {
-    if (/^[│ ]{0,3}(├──|└──)/.test(lines[i])) break;
-    lastEntryEnd = i;
-  }
-
-  // 把旧末节点的 └── 改为 ├──,并把其子树的 4 空格缩进组替换为 "│   "
-  if (lines[lastEntryStart].includes('└──')) {
-    lines[lastEntryStart] = lines[lastEntryStart].replace('└──', '├──');
-    for (let i = lastEntryStart + 1; i <= lastEntryEnd; i++) {
-      lines[i] = lines[i].replace(/^( {4})+/g, (match) => '│   '.repeat(match.length / 4));
-    }
-  }
-
-  // 在旧末节点子树之后插入新节点
-  lines.splice(lastEntryEnd + 1, 0, treeEntry);
-  return lines.join('\n');
-}
-
 const SPEC_CENTER_SUFFIX = '-spec-center';
-
-// 内建模块用模板角色;自定义模块用 "<Name> application"
-export function buildModuleRole(mod) {
-  if (!mod.isCustom) return getModuleRole(mod.templateRef);
-  const cap = mod.name.charAt(0).toUpperCase() + mod.name.slice(1);
-  return `${cap} application`;
-}
-
-// 构造目录树子树片段(新节点初始为末节点 └──)
-export function buildModuleTreeEntry(projectName, moduleName, role) {
-  const dirName = `${projectName}-${moduleName}`;
-  const cap = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
-  return [
-    `└── ${dirName}/            # ${role}`,
-    `    ├── AGENTS.md                 # ${cap}-specific conventions`,
-    '    └── docs/',
-    `        ├── specs/                # ${cap}-specific specifications`,
-    `        └── plans/                # ${cap}-specific implementation plans`,
-  ].join('\n');
-}
-
-// 把新模块并入已存在的 spec-center/AGENTS.md(Module Map 表 + 目录树)
-export function mergeAgentsMd(workspaceDir, projectName, newModules) {
-  const agentsPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'AGENTS.md');
-  let content = readFileSync(agentsPath, 'utf-8');
-
-  for (const mod of newModules) {
-    const role = buildModuleRole(mod);
-    const fullModuleName = `${projectName}-${mod.name}`;
-    const tableRow = `| \`${fullModuleName}\` | ${role} |`;
-    content = insertIntoModuleMap(content, tableRow, fullModuleName);
-    content = insertIntoRepoTree(content, buildModuleTreeEntry(projectName, mod.name, role));
-  }
-  writeFileSync(agentsPath, content, 'utf-8');
-}
-
-// init 时生成 spec-center/AGENTS.md:从模板过滤 → 替换 {{PROJECT}} → 写盘 → 合并自定义模块
-export function syncAgentsMd(workspaceDir, projectName, modules) {
-  const srcPath = resolveTemplatesDir('spec-center', 'AGENTS.md');
-  const templateContent = readFileSync(srcPath, 'utf-8');
-
-  // 内建模块用自身名参与标记过滤;自定义模块用其 templateRef 参与过滤
-  const builtInNames = modules.filter((m) => !m.isCustom).map((m) => m.name);
-  const customRefs = modules.filter((m) => m.isCustom).map((m) => m.templateRef);
-  const filterNames = [...new Set([...builtInNames, ...customRefs])];
-
-  const filtered = filterAgentsMd(templateContent, filterNames);
-  const replaced = filtered.replace(/\{\{PROJECT\}\}/g, projectName);
-  const destPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'AGENTS.md');
-  writeFileSync(destPath, replaced, 'utf-8');
-
-  // 把自定义模块条目 merge 进刚生成的文件
-  const customModules = modules.filter((m) => m.isCustom);
-  if (customModules.length > 0) {
-    mergeAgentsMd(workspaceDir, projectName, customModules);
-  }
-}
-
 const SPEC_CENTER_NAME = 'spec-center';
 
 // init 子命令编排
@@ -392,7 +204,6 @@ export function runInit(flags) {
     const modDir = join(dir, `${name}-${mod.name}`);
     createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
   }
-  syncAgentsMd(dir, name, modules);
 
   return { mode: 'init', dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
 }
@@ -450,7 +261,6 @@ export function runAdd(flags) {
     const modDir = join(dir, `${name}-${mod.name}`);
     createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
   }
-  if (toCreate.length > 0) mergeAgentsMd(dir, name, toCreate);
 
   return { mode: 'add', dir, name, modules: toCreate.map((m) => m.name), skipped };
 }

@@ -1,9 +1,9 @@
 ---
-name: project-conventions
-description: Use when writing or modifying code for this project's modules - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, or building Go backend services. Routes to the matching convention document before implementing.
+name: code-conventions
+description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, or building Go backend services. Routes to the matching convention document before implementing.
 ---
 
-# Project Conventions
+# Code Conventions
 
 > 横切规范的统一索引（Conventions Bundle v1.0）。每篇规范定义所有模块 MUST 遵循的跨领域规则。动手前先按下表加载对应文档。
 
