@@ -301,3 +301,40 @@ export function insertIntoRepoTree(content, treeEntry) {
   lines.splice(lastEntryEnd + 1, 0, treeEntry);
   return lines.join('\n');
 }
+
+const SPEC_CENTER_SUFFIX = '-spec-center';
+
+// 内建模块用模板角色;自定义模块用 "<Name> application"
+export function buildModuleRole(mod) {
+  if (!mod.isCustom) return getModuleRole(mod.templateRef);
+  const cap = mod.name.charAt(0).toUpperCase() + mod.name.slice(1);
+  return `${cap} application`;
+}
+
+// 构造目录树子树片段(新节点初始为末节点 └──)
+export function buildModuleTreeEntry(projectName, moduleName, role) {
+  const dirName = `${projectName}-${moduleName}`;
+  const cap = moduleName.charAt(0).toUpperCase() + moduleName.slice(1);
+  return [
+    `└── ${dirName}/            # ${role}`,
+    `    ├── AGENTS.md                 # ${cap}-specific conventions`,
+    '    └── docs/',
+    `        ├── specs/                # ${cap}-specific specifications`,
+    `        └── plans/                # ${cap}-specific implementation plans`,
+  ].join('\n');
+}
+
+// 把新模块并入已存在的 spec-center/AGENTS.md(Module Map 表 + 目录树)
+export function mergeAgentsMd(workspaceDir, projectName, newModules) {
+  const agentsPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'AGENTS.md');
+  let content = readFileSync(agentsPath, 'utf-8');
+
+  for (const mod of newModules) {
+    const role = buildModuleRole(mod);
+    const fullModuleName = `${projectName}-${mod.name}`;
+    const tableRow = `| \`${fullModuleName}\` | ${role} |`;
+    content = insertIntoModuleMap(content, tableRow, fullModuleName);
+    content = insertIntoRepoTree(content, buildModuleTreeEntry(projectName, mod.name, role));
+  }
+  writeFileSync(agentsPath, content, 'utf-8');
+}

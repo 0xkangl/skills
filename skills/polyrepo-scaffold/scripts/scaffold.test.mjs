@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   validateProjectName,
+  resolveTemplatesDir,
   getAvailableTemplateNames,
   getModuleRole,
   parseModuleList,
@@ -11,7 +12,11 @@ import {
   filterAgentsMd,
   insertIntoModuleMap,
   insertIntoRepoTree,
+  mergeAgentsMd,
+  buildModuleRole,
+  buildModuleTreeEntry,
 } from './scaffold.mjs';
+import { writeFileSync as writeFileToDisk } from 'node:fs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -276,4 +281,41 @@ test('insertIntoRepoTree handles consecutive adds (server then web)', () => {
 
   // spec-center 依旧是 ├──(更早被转换)
   assert.ok(lines.includes('├── myapp-spec-center/'));
+});
+
+test('buildModuleRole returns template role for built-in, "<Name> application" for custom', () => {
+  assert.equal(typeof buildModuleRole({ name: 'server', templateRef: 'server', isCustom: false }), 'string');
+  assert.equal(
+    buildModuleRole({ name: 'api-gateway', templateRef: 'server', isCustom: true }),
+    'Api-gateway application'
+  );
+});
+
+test('buildModuleTreeEntry builds a 5-line subtree starting with └──', () => {
+  const entry = buildModuleTreeEntry('myapp', 'server', 'Server application');
+  const lines = entry.split('\n');
+  assert.equal(lines.length, 5);
+  assert.ok(lines[0].startsWith('└── myapp-server/'));
+  assert.ok(lines[0].includes('# Server application'));
+  assert.ok(lines[1].includes('AGENTS.md'));
+});
+
+test('mergeAgentsMd merges modules into Module Map + tree of an on-disk file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    // 先 init 出一个 spec-center(借用 syncAgentsMd 还没实现,这里手写最小 AGENTS.md)
+    const scDir = join(dir, 'myapp-spec-center');
+    copyAndReplace('spec-center', scDir, { PROJECT: 'myapp' });
+    // 用真实模板内容直接写一份过滤后的 AGENTS.md(只选 server)
+    const tpl = fsReadFileSync(resolveTemplatesDir('spec-center', 'AGENTS.md'), 'utf-8');
+    const filtered = filterAgentsMd(tpl, ['server']).replace(/\{\{PROJECT\}\}/g, 'myapp');
+    writeFileToDisk(join(scDir, 'AGENTS.md'), filtered);
+
+    mergeAgentsMd(dir, 'myapp', [{ name: 'api-gateway', templateRef: 'server', isCustom: true }]);
+    const out = fsReadFileSync(join(scDir, 'AGENTS.md'), 'utf-8');
+    assert.ok(out.includes('| `myapp-api-gateway` | Api-gateway application |'));
+    assert.ok(out.includes('myapp-api-gateway/'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
