@@ -338,3 +338,25 @@ export function mergeAgentsMd(workspaceDir, projectName, newModules) {
   }
   writeFileSync(agentsPath, content, 'utf-8');
 }
+
+// init 时生成 spec-center/AGENTS.md:从模板过滤 → 替换 {{PROJECT}} → 写盘 → 合并自定义模块
+export function syncAgentsMd(workspaceDir, projectName, modules) {
+  const srcPath = resolveTemplatesDir('spec-center', 'AGENTS.md');
+  const templateContent = readFileSync(srcPath, 'utf-8');
+
+  // 内建模块用自身名参与标记过滤;自定义模块用其 templateRef 参与过滤
+  const builtInNames = modules.filter((m) => !m.isCustom).map((m) => m.name);
+  const customRefs = modules.filter((m) => m.isCustom).map((m) => m.templateRef);
+  const filterNames = [...new Set([...builtInNames, ...customRefs])];
+
+  const filtered = filterAgentsMd(templateContent, filterNames);
+  const replaced = filtered.replace(/\{\{PROJECT\}\}/g, projectName);
+  const destPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'AGENTS.md');
+  writeFileSync(destPath, replaced, 'utf-8');
+
+  // 把自定义模块条目 merge 进刚生成的文件
+  const customModules = modules.filter((m) => m.isCustom);
+  if (customModules.length > 0) {
+    mergeAgentsMd(workspaceDir, projectName, customModules);
+  }
+}
