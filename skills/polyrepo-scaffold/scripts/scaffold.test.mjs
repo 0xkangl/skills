@@ -92,6 +92,40 @@ test('copyAndReplace replaces {{PROJECT}} in built-in template', () => {
   }
 });
 
+test('e2e: init then two adds keep tree connectors valid and modules are git repos', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server' });   // 默认建 git
+    runAdd({ name: 'myapp', dir: ws, modules: 'web' });
+    runAdd({ name: 'myapp', dir: ws, modules: 'mobile=client' });
+
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
+    const lines = sc.split('\n');
+
+    // 目录树里顶层末节点只有一个 └──
+    const topLast = lines.filter((l) => /^└── /.test(l));
+    assert.equal(topLast.length, 1);
+
+    // Module Map 含三个新增 + spec-center
+    assert.ok(sc.includes('myapp-server'));
+    assert.ok(sc.includes('myapp-web'));
+    assert.ok(sc.includes('myapp-mobile'));
+
+    // 自定义模块 mobile=client:目录名 / role 正确(§8.3)
+    assert.ok(sc.includes('| `myapp-mobile` | Mobile application |'));
+    assert.ok(existsSync(join(ws, 'myapp-mobile', 'AGENTS.md')));
+
+    // 模块是独立 git 仓且在 main、无 commit(§8.4)
+    const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], {
+      cwd: join(ws, 'myapp-server'), encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.equal(branch, 'main');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('copyAndReplace renames template ref + role for custom module', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
