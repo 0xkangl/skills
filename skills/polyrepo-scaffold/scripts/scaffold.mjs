@@ -1,7 +1,7 @@
 // polyrepo-scaffold 零依赖脚手架脚本。仅用 node: 内置模块。
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join, basename, extname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -76,4 +76,69 @@ export function parseModuleList(moduleStr, takenNames = []) {
     taken.push(name);
   }
   return { modules, skipped };
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 按扩展名白名单 + Makefile/Dockerfile 判定文本文件
+const TEXT_FILE_EXTENSIONS = new Set([
+  '.md', '.txt', '.json', '.yaml', '.yml', '.toml',
+  '.js', '.ts', '.jsx', '.tsx', '.go', '.py', '.rb',
+  '.sh', '.bash', '.zsh', '.gitignore', '.cursorignore',
+  '.env', '.env.example', '.gitkeep', '.mdc',
+]);
+
+export function isTextFile(filePath) {
+  const base = basename(filePath);
+  if (base === 'Makefile' || base === 'Dockerfile') return true;
+  const ext = extname(filePath);
+  return TEXT_FILE_EXTENSIONS.has(ext) || ext === '';
+}
+
+// 零依赖递归遍历目录下所有文件(返回绝对路径,含 dotfiles)
+function walkFiles(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkFiles(full));
+    else out.push(full);
+  }
+  return out;
+}
+
+// 复制模板目录到 targetDir,并对文本文件做变量替换
+export function copyAndReplace(templateName, targetDir, vars) {
+  if (!vars || !vars.PROJECT) {
+    throw new Error('copyAndReplace requires vars.PROJECT to be set');
+  }
+  const srcDir = resolveTemplatesDir(templateName);
+  if (!existsSync(srcDir)) {
+    throw new Error(`Template not found: "${templateName}" (looked in ${srcDir})`);
+  }
+  cpSync(srcDir, targetDir, { recursive: true });
+
+  for (const filePath of walkFiles(targetDir)) {
+    if (!isTextFile(filePath)) continue;
+    let content = readFileSync(filePath, 'utf-8');
+    content = content.replace(/\{\{PROJECT\}\}/g, vars.PROJECT);
+
+    // 自定义模块:把模板引用名 -<TEMPLATE_REF> 改为 -<MODULE_NAME>
+    if (vars.MODULE_NAME && vars.TEMPLATE_REF) {
+      content = content.replace(
+        new RegExp(`-${escapeRegExp(vars.TEMPLATE_REF)}\\b`, 'g'),
+        `-${vars.MODULE_NAME}`
+      );
+      // 替换 role 文案为 "<Name> application"
+      if (vars.ORIGINAL_ROLE) {
+        const cap = vars.MODULE_NAME.charAt(0).toUpperCase() + vars.MODULE_NAME.slice(1);
+        content = content.replace(
+          new RegExp(`^${escapeRegExp(vars.ORIGINAL_ROLE)}$`, 'm'),
+          `${cap} application`
+        );
+      }
+    }
+    writeFileSync(filePath, content, 'utf-8');
+  }
 }

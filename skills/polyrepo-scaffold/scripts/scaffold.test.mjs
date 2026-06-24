@@ -5,7 +5,11 @@ import {
   getAvailableTemplateNames,
   getModuleRole,
   parseModuleList,
+  copyAndReplace,
 } from './scaffold.mjs';
+import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 test('validateProjectName accepts kebab-case', () => {
   assert.equal(validateProjectName('my-app'), true);
@@ -57,4 +61,48 @@ test('parseModuleList skips invalid names / unknown templates / duplicates', () 
   assert.deepEqual(modules.map((m) => m.name), ['server']);
   // 第二个 server(重复)、Bad(非法名)、x=nope(模板不存在)、api=root(root 不可用)→ 4 条 skipped
   assert.equal(skipped.length, 4);
+});
+
+test('copyAndReplace replaces {{PROJECT}} in built-in template', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const target = join(dir, 'myapp-server');
+    copyAndReplace('server', target, { PROJECT: 'myapp' });
+    const agents = fsReadFileSync(join(target, 'AGENTS.md'), 'utf-8');
+    assert.ok(!agents.includes('{{PROJECT}}'));
+    assert.ok(agents.includes('myapp'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('copyAndReplace renames template ref + role for custom module', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const target = join(dir, 'myapp-api-gateway');
+    const originalRole = getModuleRole('server');
+    copyAndReplace('server', target, {
+      PROJECT: 'myapp',
+      MODULE_NAME: 'api-gateway',
+      TEMPLATE_REF: 'server',
+      ORIGINAL_ROLE: originalRole,
+    });
+    const agents = fsReadFileSync(join(target, 'AGENTS.md'), 'utf-8');
+    // 模板引用名 -server → -api-gateway
+    assert.ok(!agents.includes('myapp-server'));
+    assert.ok(agents.includes('myapp-api-gateway'));
+    // role 文案替换为 "Api-gateway application"
+    assert.ok(agents.includes('Api-gateway application'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('copyAndReplace throws on missing template', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    assert.throws(() => copyAndReplace('nope', join(dir, 'x'), { PROJECT: 'myapp' }), /Template not found/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
