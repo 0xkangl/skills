@@ -10,6 +10,7 @@ import {
   createModule,
   filterAgentsMd,
   insertIntoModuleMap,
+  insertIntoRepoTree,
 } from './scaffold.mjs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -210,4 +211,69 @@ test('insertIntoModuleMap inserts row in alphabetical order', () => {
 test('insertIntoModuleMap is idempotent for duplicate module', () => {
   const out = insertIntoModuleMap(MAP_FIXTURE, '| `myapp-server` | dup |', 'myapp-server');
   assert.equal(out, MAP_FIXTURE); // 重名不插入,原样返回
+});
+
+// 最小目录树 fixture(含一个有子树的末节点 spec-center)
+const TREE_FIXTURE = [
+  '## Repository Structure',
+  '',
+  '```',
+  'workspace/',
+  '├── AGENTS.md',
+  '└── myapp-spec-center/',
+  '    └── AGENTS.md',
+  '```',
+].join('\n');
+
+const SERVER_ENTRY = [
+  '└── myapp-server/            # Server application',
+  '    ├── AGENTS.md                 # Server-specific conventions',
+  '    └── docs/',
+  '        ├── specs/                # Server-specific specifications',
+  '        └── plans/                # Server-specific implementation plans',
+].join('\n');
+
+const WEB_ENTRY = [
+  '└── myapp-web/            # Web application',
+  '    ├── AGENTS.md                 # Web-specific conventions',
+  '    └── docs/',
+  '        ├── specs/                # Web-specific specifications',
+  '        └── plans/                # Web-specific implementation plans',
+].join('\n');
+
+test('insertIntoRepoTree fixes connectors on first add', () => {
+  const out = insertIntoRepoTree(TREE_FIXTURE, SERVER_ENTRY);
+  const lines = out.split('\n');
+  // 原末节点 └── 变为 ├──,其子树缩进加竖线
+  assert.ok(lines.includes('├── myapp-spec-center/'));
+  assert.ok(lines.includes('│   └── AGENTS.md'));
+  // 新节点为新的末节点 └──
+  assert.ok(lines.includes('└── myapp-server/            # Server application'));
+  // 顶层 ├── AGENTS.md 不受影响
+  assert.ok(lines.includes('├── AGENTS.md'));
+  // 整棵树只有一个顶层 └──(新末节点)
+  const topLevelLast = lines.filter((l) => /^└── /.test(l));
+  assert.equal(topLevelLast.length, 1);
+  assert.equal(topLevelLast[0], '└── myapp-server/            # Server application');
+});
+
+test('insertIntoRepoTree handles consecutive adds (server then web)', () => {
+  const afterServer = insertIntoRepoTree(TREE_FIXTURE, SERVER_ENTRY);
+  const afterWeb = insertIntoRepoTree(afterServer, WEB_ENTRY);
+  const lines = afterWeb.split('\n');
+
+  // server 现在变成 ├──,其子树缩进升级为竖线
+  assert.ok(lines.includes('├── myapp-server/            # Server application'));
+  assert.ok(lines.includes('│   ├── AGENTS.md                 # Server-specific conventions'));
+  assert.ok(lines.includes('│   └── docs/'));
+  assert.ok(lines.includes('│   │   ├── specs/                # Server-specific specifications'));
+  assert.ok(lines.includes('│   │   └── plans/                # Server-specific implementation plans'));
+
+  // web 是唯一的顶层末节点 └──
+  const topLevelLast = lines.filter((l) => /^└── /.test(l));
+  assert.equal(topLevelLast.length, 1);
+  assert.equal(topLevelLast[0], '└── myapp-web/            # Web application');
+
+  // spec-center 依旧是 ├──(更早被转换)
+  assert.ok(lines.includes('├── myapp-spec-center/'));
 });

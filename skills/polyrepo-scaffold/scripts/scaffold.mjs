@@ -256,3 +256,48 @@ export function insertIntoModuleMap(content, newRow, moduleName) {
   lines.splice(separatorIdx + 1, tableEnd - separatorIdx, ...dataRows);
   return lines.join('\n');
 }
+
+// 把一段子树追加进 Repository Structure 目录树,并修正连接线
+export function insertIntoRepoTree(content, treeEntry) {
+  const lines = content.split('\n');
+
+  // 最后一个代码块闭合 ``` 所在行 = 目录树范围
+  let treeBlockClose = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (lines[i].trimStart() === '```') { treeBlockClose = i; break; }
+  }
+
+  // 最后一个顶层节点(├── 或 └──,前导最多 3 个 │/空格)
+  let lastEntryStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^[│ ]{0,3}(├──|└──)/.test(lines[i])) lastEntryStart = i;
+  }
+
+  if (lastEntryStart === -1 || treeBlockClose === -1) {
+    // 兜底:在最后一个 ``` 前追加
+    const lastCodeBlock = content.lastIndexOf('```');
+    if (lastCodeBlock === -1) return content;
+    const before = content.substring(0, lastCodeBlock);
+    const after = content.substring(lastCodeBlock);
+    return before + treeEntry + '\n' + after;
+  }
+
+  // 找到最后一个顶层节点子树的末行
+  let lastEntryEnd = lastEntryStart;
+  for (let i = lastEntryStart + 1; i < treeBlockClose; i++) {
+    if (/^[│ ]{0,3}(├──|└──)/.test(lines[i])) break;
+    lastEntryEnd = i;
+  }
+
+  // 把旧末节点的 └── 改为 ├──,并把其子树的 4 空格缩进组替换为 "│   "
+  if (lines[lastEntryStart].includes('└──')) {
+    lines[lastEntryStart] = lines[lastEntryStart].replace('└──', '├──');
+    for (let i = lastEntryStart + 1; i <= lastEntryEnd; i++) {
+      lines[i] = lines[i].replace(/^( {4})+/g, (match) => '│   '.repeat(match.length / 4));
+    }
+  }
+
+  // 在旧末节点子树之后插入新节点
+  lines.splice(lastEntryEnd + 1, 0, treeEntry);
+  return lines.join('\n');
+}
