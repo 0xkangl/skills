@@ -18,6 +18,8 @@ import {
   syncAgentsMd,
   runInit,
   runAdd,
+  parseArgs,
+  main,
 } from './scaffold.mjs';
 import { writeFileSync as writeFileToDisk } from 'node:fs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
@@ -399,6 +401,31 @@ test('runAdd throws when spec-center is absent', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     assert.throws(() => runAdd({ name: 'myapp', dir, modules: 'web' }), /spec-center not found/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('parseArgs parses subcommand and flags', () => {
+  const { command, flags } = parseArgs(['init', '--name', 'myapp', '--modules', 'server,web', '--no-git', '--dry-run']);
+  assert.equal(command, 'init');
+  assert.equal(flags.name, 'myapp');
+  assert.equal(flags.modules, 'server,web');
+  assert.equal(flags.noGit, true);
+  assert.equal(flags.dryRun, true);
+});
+
+test('parseArgs throws on unknown flag', () => {
+  assert.throws(() => parseArgs(['init', '--bogus']), /Unknown argument/);
+});
+
+test('main runs init via subcommand (integration)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    main(['init', '--name', 'myapp', '--dir', ws, '--modules', 'server,web', '--no-git']);
+    assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
+    assert.ok(existsSync(join(ws, 'myapp-server', 'AGENTS.md')));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

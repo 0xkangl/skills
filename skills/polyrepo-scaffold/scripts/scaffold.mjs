@@ -454,3 +454,61 @@ export function runAdd(flags) {
 
   return { mode: 'add', dir, name, modules: toCreate.map((m) => m.name), skipped };
 }
+
+const HELP = `polyrepo-scaffold — multi-repo workspace scaffolder (zero-dependency)
+
+Usage:
+  node scaffold.mjs init --name <project> [--dir <path>] [--modules <list>] [--no-git] [--dry-run]
+  node scaffold.mjs add  --name <project> [--dir <path>]  --modules <list>  [--no-git] [--dry-run]
+
+Module list:
+  comma-separated; "name" (built-in template) or "name=template" (custom-named).
+  Available templates: server, web, client, spec-center.
+
+Notes:
+  init always includes spec-center; add never recreates it.
+  Each new module gets "git init" + "git branch -M main" only (no add, no commit).`;
+
+export function parseArgs(argv) {
+  const command = argv[0];
+  const flags = {};
+  for (let i = 1; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--no-git') flags.noGit = true;
+    else if (a === '--dry-run') flags.dryRun = true;
+    else if (a === '--name') flags.name = argv[++i];
+    else if (a === '--dir') flags.dir = argv[++i];
+    else if (a === '--modules') flags.modules = argv[++i];
+    else if (a === '--templates-dir') flags.templatesDir = argv[++i];
+    else if (a === '--help' || a === '-h') flags.help = true;
+    else throw new Error(`Unknown argument: ${a}`);
+  }
+  return { command, flags };
+}
+
+export function main(argv) {
+  const { command, flags } = parseArgs(argv);
+  if (flags.help || !command || command === '--help' || command === '-h') {
+    console.log(HELP);
+    return;
+  }
+  if (flags.templatesDir) setTemplatesDir(flags.templatesDir);
+
+  let result;
+  if (command === 'init') result = runInit(flags);
+  else if (command === 'add') result = runAdd(flags);
+  else throw new Error(`Unknown command: ${command} (expected init|add)`);
+
+  printSummary(result);
+}
+
+// 主程序守卫:仅当直接执行此文件时才跑 CLI
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  try {
+    main(process.argv.slice(2));
+  } catch (err) {
+    console.error(`Error: ${err.message}`);
+    process.exit(1);
+  }
+}
