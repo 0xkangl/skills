@@ -5,7 +5,7 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 
 # Code Conventions
 
-> 横切规范的统一索引（Conventions Bundle v1.0）。每篇规范定义所有模块 MUST 遵循的跨领域规则。动手前先按下表加载对应文档。
+> 横切规范的统一索引。每篇规范定义所有模块 MUST 遵循的跨领域规则。动手前先按下表加载对应文档。
 
 ## 通用规范（Universal）
 

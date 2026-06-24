@@ -1,6 +1,6 @@
 ---
 name: engineering-guidelines
-description: Use when writing or modifying any code, before implementation - enforces think-before-coding, simplicity-first, surgical-changes, goal-driven execution, and root-cause reasoning across all modules and development tools.
+description: Use when writing or modifying any code, before implementation — enforces think-before-coding, simplicity-first, surgical-changes, goal-driven execution, and root-cause reasoning.
 ---
 
 # Engineering Guidelines

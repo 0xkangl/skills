@@ -1,6 +1,7 @@
 ---
 name: polyrepo-scaffold
 description: Use when initializing a new multi-repo (polyrepo) workspace, or adding web / server / client / custom modules to an existing one. Sets up the spec-center SSOT plus per-module repos with shared AGENTS.md conventions via a zero-dependency Node script.
+allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # Polyrepo Scaffold
@@ -38,7 +39,7 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
 
 | 模板 | 用途 |
 |---|---|
-| `spec-center` | SSOT:跨模块契约 / 约定 / 错误码 / API。**init 始终包含,不可省略;add 不再创建。** |
+| `spec-center` | SSOT:跨模块契约 / 约定 / 错误码 / API。**init 始终包含,不可省略;add 不重复创建。** |
 | `server` | 后端服务 |
 | `web` | Web 应用 |
 | `client` | 移动端 / 客户端应用 |
