@@ -6,10 +6,13 @@ import {
   getModuleRole,
   parseModuleList,
   copyAndReplace,
+  gitInit,
+  createModule,
 } from './scaffold.mjs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 test('validateProjectName accepts kebab-case', () => {
   assert.equal(validateProjectName('my-app'), true);
@@ -102,6 +105,45 @@ test('copyAndReplace throws on missing template', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     assert.throws(() => copyAndReplace('nope', join(dir, 'x'), { PROJECT: 'myapp' }), /Template not found/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('gitInit creates a git repo on main with no commits', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const target = join(dir, 'repo');
+    copyAndReplace('server', target, { PROJECT: 'myapp' });
+    gitInit(target, 'server');
+    assert.ok(existsSync(join(target, '.git')));
+    // 当前分支为 main
+    const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], {
+      cwd: target, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.equal(branch, 'main');
+    // 无任何 commit(rev-list 失败 / 计数为 0)
+    let commitCount = '0';
+    try {
+      commitCount = execFileSync('git', ['rev-list', '--count', 'HEAD'], {
+        cwd: target, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+    } catch {
+      commitCount = '0'; // unborn HEAD
+    }
+    assert.equal(commitCount, '0');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('createModule honors noGit', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const target = join(dir, 'myapp-web');
+    createModule('web', target, 'myapp', { name: 'web', templateRef: 'web', isCustom: false }, { noGit: true });
+    assert.ok(existsSync(join(target, 'AGENTS.md')));
+    assert.ok(!existsSync(join(target, '.git')));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

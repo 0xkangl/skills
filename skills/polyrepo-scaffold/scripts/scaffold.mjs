@@ -1,5 +1,6 @@
 // polyrepo-scaffold 零依赖脚手架脚本。仅用 node: 内置模块。
 import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join, basename, extname } from 'node:path';
 
@@ -141,4 +142,32 @@ export function copyAndReplace(templateName, targetDir, vars) {
     }
     writeFileSync(filePath, content, 'utf-8');
   }
+}
+
+// 初始化模块为独立 git 仓:只 git init + 改 main,不 add、不 commit
+export function gitInit(modDir, moduleName) {
+  try {
+    execFileSync('git', ['init'], { cwd: modDir, stdio: 'pipe' });
+    execFileSync('git', ['branch', '-M', 'main'], { cwd: modDir, stdio: 'pipe' });
+  } catch (err) {
+    throw new Error(`Failed to initialize git repo for "${moduleName}": ${err.message}`);
+  }
+}
+
+// 创建单个模块:组装替换变量 → 复制模板 → (可选)git init
+export function createModule(templateRef, modDir, projectName, mod, opts = {}) {
+  const vars = {
+    PROJECT: projectName,
+    MODULE_NAME: mod.isCustom ? mod.name : null,
+    TEMPLATE_REF: mod.isCustom ? mod.templateRef : null,
+  };
+  if (mod.isCustom) {
+    try {
+      vars.ORIGINAL_ROLE = getModuleRole(mod.templateRef);
+    } catch {
+      vars.ORIGINAL_ROLE = null;
+    }
+  }
+  copyAndReplace(templateRef, modDir, vars);
+  if (!opts.noGit) gitInit(modDir, mod.name);
 }
