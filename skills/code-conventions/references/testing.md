@@ -6,7 +6,7 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 
 ## 0. TDD Workflow
 
-The implementation phase of [SDD](../../spec-driven-development/SKILL.md) is driven by tests:
+The implementation phase of spec-first development (SDD — see each project's `spec-center/AGENTS.md`) is driven by tests:
 
 1. From the spec, write failing tests.
 2. Write the minimum implementation to pass.
@@ -14,7 +14,7 @@ The implementation phase of [SDD](../../spec-driven-development/SKILL.md) is dri
 
 ## 1. Design Principles
 
-- **Spec-traceable**: Every test must trace back to a spec document (see [Spec-Driven Development](../../spec-driven-development/SKILL.md)). No orphan tests.
+- **Spec-traceable**: Every test must trace back to a spec document (spec-first/SDD — see each project's `spec-center/AGENTS.md`). No orphan tests.
 - **Deterministic**: Tests must produce the same result on every run. No reliance on time of day, random values, or external service state.
 - **Isolated**: Each test is independent. No shared mutable state between tests. No test ordering dependencies.
 - **Fast feedback**: Unit tests run in seconds. Integration tests may be slower but must be clearly separated and opt-in.

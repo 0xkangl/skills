@@ -25,7 +25,7 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
 2. **展示计划表并确认**:列出将创建的目录(`<name>-spec-center` + 各模块)、是否建 git,等用户确认。
 3. **调脚本**(确认后):见 §5。
 4. **补全 `spec-center/AGENTS.md`**:见 §6。
-5. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,并提示后续用 `spec-driven-development`。
+5. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,并提示后续开发流程见 `<project>-spec-center/AGENTS.md`(含 spec-first 工作流)。
 
 ## 3. Add 工作流
 
@@ -91,8 +91,8 @@ init 与 add 是同一种「增量添加」操作,区别只在起点:
 
 每个新建模块只执行 `git init` + `git branch -M main`,**不** `git add`、**不** commit——交给用户自行首次提交。`--no-git` 时整段跳过。
 
-## 8. 相关 skill
+## 8. 后续与相关 skill
 
-- `spec-driven-development`:工作区建好后,每次改动都从 spec 出发(高频纪律,与本 skill 正交)。
-- `code-conventions`:横切规范文档体系(模板留空 `conventions/` 目录,按此 skill 填充)。
+- **开发流程**:工作区建好后,spec-first 工作流(spec 划分/所有权、跨模块 plan 拆分、spec 索引维护)见生成的 `<project>-spec-center/AGENTS.md`——该模板内含 SDD 方法论,运行时直接承载,无需独立 skill。
+- `code-conventions`:横切规范文档体系。模板留空 `conventions/` 目录——通用规范运行时引用本 skill,不落地;`conventions/` 仅承载项目私有规范。
 - `engineering-guidelines`:LLM/agent 编码行为准则。

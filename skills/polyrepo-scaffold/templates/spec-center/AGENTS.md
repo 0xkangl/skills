@@ -29,7 +29,7 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 - Shared domain vocabulary and event schemas
 - Cross-module domain specs → `specs/`
 - Data format conventions (date, pagination, sorting, etc.)
-- Convention documents → `conventions/` — see [Convention Documents](#convention-documents)
+- Convention documents → `conventions/` holds project-private conventions only; universal conventions live in the `code-conventions` skill — see [Convention Documents](#convention-documents)
 
 **Rule**: Any spec that affects two or more modules MUST live in `{{PROJECT}}-spec-center`. Any spec that only affects a single module MUST live in that module's own `docs/` directory.
 
@@ -47,6 +47,8 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 2. Write the minimum implementation to pass.
 3. Refactor while keeping tests green.
 
+For implementation-phase TDD details (AAA structure, naming, mocks, coverage, integration tests), see the `code-conventions` skill.
+
 **All code changes must trace back to a spec document.**
 
 ## Shared vs Module-Specific Specs
@@ -56,7 +58,7 @@ When working on a feature:
 1. **Identify scope** - Does this touch shared contracts or only internal logic?
 2. **Shared spec** -> Write/update in `{{PROJECT}}-spec-center/`.
 3. **Module-specific spec** -> Write/update in the module's `docs/` directory.
-4. **Cross-reference** - Module-specific specs must reference the shared specs they depend on. Use relative links like `[API Spec](../{{PROJECT}}-spec-center/conventions/xxx.md)`.
+4. **Cross-reference** - Module-specific specs must reference the shared specs they depend on. Use relative links like `[API Spec](../{{PROJECT}}-spec-center/specs/xxx.md)`.
 5. **docs/ sub-directories** - Each module's `docs/` MUST contain two sub-directories:
    - `docs/specs/` — Specification documents (data models, business rules, interface definitions, constraints — the "what")
    - `docs/plans/` — Implementation plans (technical designs, architecture decisions, migration strategies, development roadmaps — the "how")
@@ -79,20 +81,17 @@ Cross-module **specs** live in `{{PROJECT}}-spec-center/specs/`; cross-module **
 1. **Shared spec first** — Write and approve the cross-module spec in `{{PROJECT}}-spec-center` (API schemas, acceptance criteria, error codes).
 2. **Split plans by module** — Create one plan per module that implements the feature. Use the same date + feature slug (e.g. `2026-06-01-feature.md`) for discoverability.
 3. **Declare dependencies** — Each plan MUST link to the SSOT spec and, when applicable, state `Depends on: <other-module-plan>` (e.g. web plan depends on server plan).
-4. **Execute in dependency order** — Typically `{{PROJECT}}-server` → `{{PROJECT}}-web` → `{{PROJECT}}-client`. A downstream plan MUST NOT assume upstream API changes exist until the upstream plan is merged or verified.
+4. **Execute in dependency order** — Typically `{{PROJECT}}-server` → `{{PROJECT}}-web` → `{{PROJECT}}-client`. A downstream plan MUST NOT assume upstream API changes exist until the upstream plan is merged or verified — otherwise downstream work rests on an interface that may still shift.
 5. **No canonical plans in agent temp paths** — Module plans belong in `<module>/docs/plans/`, not in `docs/superpowers/plans/` or other agent-only directories. Agent-generated drafts may start elsewhere but MUST be moved to the module path before execution.
 
 **When a single cross-module plan is acceptable (rare):** Only for small, atomic changes that must land in one PR and touch ≤2 modules with no meaningful dependency boundary (e.g. a one-field DTO addition + one UI column). Prefer split plans when in doubt.
 
-**Splitting large plans into sub-plans:** When a single module's plan becomes large (e.g. 8+ steps, multiple phases, or spanning several independent work streams), split it into focused sub-plans to keep each one reviewable and executable in isolation:
+**Splitting large plans into sub-plans:** When a single module's plan is too large to review or execute in one pass (e.g. spanning multiple phases or independent work streams), split it into focused sub-plans so each is reviewable and mergeable on its own:
 
-1. **Create a parent plan** — `docs/plans/YYYY-MM-DD-feature.md` containing an overview, scope, and links to all sub-plans.
-2. **Create sub-plans** — `docs/plans/YYYY-MM-DD-feature--<slug>.md` where `<slug>` describes the sub-scope (e.g. `--schema`, `--api`, `--ui-list`, `--ui-detail`).
-3. **Each sub-plan MUST** — state its own goal, scope, dependencies (on other sub-plans or external modules), steps, and acceptance criteria.
-4. **Order of execution** — The parent plan defines the recommended execution order; sub-plans declare `Depends on: <sub-plan-slug>` when sequencing matters.
-5. **Sub-plans are independently reviewable** — Each sub-plan should be small enough to review, implement, and merge as a self-contained unit.
-6. **Don't over-split** — Each sub-plan MUST contain at least 1,200 lines of implementation scope. If a split would produce sub-plans smaller than this threshold, keep the work in a single plan instead.
-7. **Cap the number of sub-plans** — No more than 5 sub-plans per parent plan. If the scope requires more than 5, re-evaluate the boundaries and consolidate related sub-scopes.
+1. **Parent plan** — `docs/plans/YYYY-MM-DD-feature.md` with an overview, scope, and links to all sub-plans.
+2. **Sub-plans** — `docs/plans/YYYY-MM-DD-feature--<slug>.md` where `<slug>` names the sub-scope (e.g. `--schema`, `--api`, `--ui-list`). Each states its own goal, scope, dependencies, steps, and acceptance criteria.
+3. **Order** — The parent plan records the recommended execution order; sub-plans declare `Depends on: <sub-plan-slug>` when sequencing matters.
+4. **Don't over-split** — Keep each sub-plan a meaningful, self-contained unit of work; if a split only produces trivial fragments, keep it as one plan.
 
 **Example:**
 
@@ -121,7 +120,7 @@ Cross-module **specs** live in `{{PROJECT}}-spec-center/specs/`; cross-module **
 | Cross-module implementation plan | **Split** — one plan per module in `<module>/docs/plans/` (see [Implementation Plans](#implementation-plans-cross-module-features)) |
 | Error code and format | `{{PROJECT}}-spec-center/` |
 | Response envelope | `{{PROJECT}}-spec-center/` |
-| Convention documents (universal + language-specific) | `{{PROJECT}}-spec-center/conventions/` |
+| Convention documents (project-private) | `{{PROJECT}}-spec-center/conventions/` (universal conventions: `code-conventions` skill) |
 | Retry / circuit-breaker policy | `{{PROJECT}}-spec-center/` |
 | Internal data model (not exposed via API) | Module's `docs/` |
 | Internal algorithm or business logic | Module's `docs/` |
@@ -150,7 +149,7 @@ All modules follow DDD principles:
 
 ### Convention Documents
 
-Cross-cutting convention documents (HTTP/API design, observability, testing, commit messages, error codes, language-specific rules) live in `conventions/`. The directory starts empty — populate it as the project adopts conventions, then add an index/overview entry here.
+Universal cross-cutting conventions (HTTP/API design, observability, testing, commit messages, error codes, language-specific rules) are **not** copied into `conventions/` — reference the `code-conventions` skill at runtime. `conventions/` holds only project-private conventions; add an index entry here when one is added.
 
 ### AGENTS.md Hierarchy
 

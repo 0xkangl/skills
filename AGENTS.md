@@ -4,7 +4,7 @@
 
 ## 仓库性质
 
-每个 skill 是 `skills/<name>/` 下的一个自包含目录，至少含一个 `SKILL.md`（带 YAML frontmatter）。当前四个 skill 见 [README.md](README.md)。
+每个 skill 是 `skills/<name>/` 下的一个自包含目录，至少含一个 `SKILL.md`（带 YAML frontmatter）。当前三个 skill 见 [README.md](README.md)。
 
 ## 核心原则
 
@@ -12,7 +12,7 @@
 2. **只做 skill 级引用**：skill 之间需要关联时，**只提对方的 skill 名**（如「见 `code-conventions` skill」）。
    - ❌ 禁止：`[testing](../code-conventions/references/testing.md)`（内容级、跨目录路径引用）
    - ✅ 允许：「实现阶段的 TDD 细则见 `code-conventions` skill」
-3. **正交不合并**：定位/触发频率不同的 skill 保持独立（如一次性的 `polyrepo-scaffold` 与高频的 `spec-driven-development`）。
+3. **正交不合并**：定位/触发频率不同的 skill 保持独立（如一次性的 `polyrepo-scaffold` 与高频的 `code-conventions`）。作用域重合、强耦合的能力则合并——spec-first/SDD 工作流全程依赖 polyrepo 结构，已并入 `polyrepo-scaffold` 的 `spec-center/AGENTS.md` 模板，不单列 skill。
 4. **改动可追溯**：每一处改动都应直接服务于明确需求；不顺手「优化」无关内容。
 
 ## SKILL.md 规范

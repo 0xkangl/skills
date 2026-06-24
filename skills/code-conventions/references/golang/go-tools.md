@@ -29,7 +29,7 @@ Every Go service MUST keep these files at the repository root:
 └── Makefile
 ```
 
-**Reference configs** (normative examples, not convention documents) live in `{{PROJECT}}-spec-center/conventions/golang/examples/`. When a service adopts the Go stack, copy them to the service repository root and adjust paths (e.g. `cmd` entrypoint) as needed. The generic `server` scaffold does not include these files — they apply only to Go backends.
+**Reference configs** (normative examples, not convention documents) live in the `code-conventions` skill at `references/golang/examples/` (see the per-file links below). When a service adopts the Go stack, copy them from there to the service repository root and adjust paths (e.g. `cmd` entrypoint) as needed. The generic `server` scaffold does not include these files — they apply only to Go backends.
 
 ### 2.1 `.air.toml`
 
