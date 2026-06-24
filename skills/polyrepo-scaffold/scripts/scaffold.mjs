@@ -1,4 +1,5 @@
 // polyrepo-scaffold 零依赖脚手架脚本。仅用 node: 内置模块。
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -26,4 +27,18 @@ export function validateProjectName(name) {
     return 'Must be 2-50 characters';
   }
   return true;
+}
+
+// 列出可用模板名(排除 root —— root 是 workspace 级配置,不是可选模块)
+export function getAvailableTemplateNames() {
+  return readdirSync(resolveTemplatesDir(), { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name !== 'root')
+    .map((e) => e.name);
+}
+
+// 从模板 AGENTS.md 的 "## Role" 下首行提取角色描述
+export function getModuleRole(templateName) {
+  const content = readFileSync(resolveTemplatesDir(templateName, 'AGENTS.md'), 'utf-8');
+  const match = content.match(/## Role\n(.+)/);
+  return match ? match[1].trim() : templateName;
 }
