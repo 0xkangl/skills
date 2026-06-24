@@ -30,7 +30,7 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 | [references/golang/go-error-handling.md](references/golang/go-error-handling.md) | 所有 Go 后端服务 | 错误处理：`HTTPError` 接口、`AppError` 载体、分层错误流、堆栈捕获、单一响应出口 |
 | [references/golang/go-tools.md](references/golang/go-tools.md) | 所有 Go 后端服务 | 开发工具：air、golangci-lint、goimports、govulncheck、migrate、配置文件、Makefile 目标 |
 | [references/golang/go-testing.md](references/golang/go-testing.md) | 所有 Go 后端服务 | Go 测试：表驱动测试、httptest、build tag、接口 mock、覆盖率命令 |
-| [references/golang/go-validation.md](references/golang/go-validation.md) | 所有 Go 微服务 | 输入校验：库选型、字段规则、错误格式、自定义校验器 |
+| [references/golang/go-validation.md](references/golang/go-validation.md) | 所有 Go 后端服务 | 输入校验：库选型、字段规则、错误格式、自定义校验器 |
 
 **参考配置**（normative 示例，非规范文档）：`references/golang/examples/` 存放 Go 后端的标准配置样例（`.air.toml`、`.golangci.yml`、`sqlc.yaml`）。采用 Go 技术栈时复制到服务仓库根目录；见 [go-tools.md](references/golang/go-tools.md) §2。
 

@@ -12,6 +12,7 @@ import {
   runAdd,
   parseArgs,
   main,
+  isTextFile,
 } from './scaffold.mjs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,6 +45,17 @@ test('getModuleRole reads first line under ## Role', () => {
   const role = getModuleRole('server');
   assert.equal(typeof role, 'string');
   assert.ok(role.length > 0);
+});
+
+test('isTextFile recognizes dotfiles by basename (incl. .env.example)', () => {
+  // 点文件 path.extname 不可靠(.env.example → .example),靠 basename 精确匹配
+  assert.equal(isTextFile('.env.example'), true);
+  assert.equal(isTextFile('.gitignore'), true);
+  assert.equal(isTextFile('.cursorindexingignore'), true);
+  assert.equal(isTextFile('.env'), true);
+  assert.equal(isTextFile('.gitkeep'), true);
+  assert.equal(isTextFile('README.md'), true);
+  assert.equal(isTextFile('Makefile'), true);
 });
 
 test('parseModuleList parses built-in and custom modules', () => {

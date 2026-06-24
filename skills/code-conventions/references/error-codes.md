@@ -38,7 +38,14 @@ All API errors use the `{code, message, details}` envelope. The `code` field is 
 
 | Code | HTTP | Message | Trigger |
 | ---- | ---- | ------- | ------- |
-| 4001 | 400  | Business error | Generic business logic violation. Context-specific message provided. |
+| 4000 | 400  | Business error | Generic business logic violation. Context-specific message provided. |
+
+### Resource
+
+| Code | HTTP | Message | Trigger |
+| ---- | ---- | ------- | ------- |
+| 4001 | 404  | Resource not found | Requested resource does not exist. |
+| 4093 | 409  | Unique constraint conflict | A uniqueness constraint was violated (e.g. duplicate value on a unique column). |
 
 ### Idempotency
 

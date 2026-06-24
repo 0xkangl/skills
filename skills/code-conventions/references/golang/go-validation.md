@@ -1,6 +1,6 @@
 # Go Input Validation Convention v1.0
 
-> Applies to: All Go microservices | Goal: Standardize request parameter validation rules, error formats, and implementation patterns
+> Applies to: All Go backend services | Goal: Standardize request parameter validation rules, error formats, and implementation patterns
 
 This document extends [HTTP Constitution](../http-constitution.md) §4.2–§4.3 and [error-codes.md](../error-codes.md) with Go-specific validation rules. The `ValidateStruct` utility lives in `pkg/validator/` (see [go-project.md](go-project.md)). General error-handling idioms are in [go-style.md](go-style.md) §6.
 
