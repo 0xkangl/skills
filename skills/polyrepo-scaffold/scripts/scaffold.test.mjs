@@ -13,6 +13,8 @@ import {
   parseArgs,
   main,
   isTextFile,
+  updateSpecCenterAgents,
+  inferProjectName,
 } from './scaffold.mjs';
 import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -297,14 +299,132 @@ test('main runs init via subcommand (integration)', () => {
   }
 });
 
-test('init copies spec-center AGENTS.md as a clean template (no markers, no placeholders)', () => {
+test('init generates spec-center AGENTS.md: placeholders replaced, markers kept, module rows + tree filled', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
+    assert.ok(!sc.includes('{{PROJECT}}'));                 // 占位符已替换
+    assert.ok(sc.includes('<!-- MODULE_MAP_START -->'));    // 锚点保留(供 add 再生成)
+    assert.ok(sc.includes('<!-- REPO_TREE_END -->'));
+    // Module Map 行(字母序)
+    assert.ok(sc.includes('| `myapp-server` | Server application |'));
+    assert.ok(sc.includes('| `myapp-web` | Web application |'));
+    // 树含模块子树
+    assert.ok(sc.includes('├── myapp-server/'));
+    assert.ok(sc.includes('└── myapp-web/'));   // 字母序末位用 └──
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('generated tree flips connectors when modules are added (spec-center no longer last)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: '', noGit: true });   // 仅 spec-center
+    let sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
+    assert.ok(sc.includes('└── myapp-spec-center/'));   // 唯一模块时末位
+    // 加模块后,spec-center 不再是末位
+    runAdd({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
+    assert.ok(sc.includes('├── myapp-spec-center/'));
+    assert.ok(sc.includes('└── myapp-server/'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('Module Map role for custom modules uses "<Name> application"', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'shop');
+    runInit({ name: 'shop', dir: ws, modules: 'checkout=server,mobile=client', noGit: true });
+    const sc = fsReadFileSync(join(ws, 'shop-spec-center', 'AGENTS.md'), 'utf-8');
+    assert.ok(sc.includes('| `shop-checkout` | Checkout application |'));
+    assert.ok(sc.includes('| `shop-mobile` | Mobile application |'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('updateSpecCenterAgents is idempotent (re-run yields identical file)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
+    const agentsPath = join(ws, 'myapp-spec-center', 'AGENTS.md');
+    const first = fsReadFileSync(agentsPath, 'utf-8');
+    updateSpecCenterAgents(ws, 'myapp');
+    const second = fsReadFileSync(agentsPath, 'utf-8');
+    assert.equal(first, second);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('custom-name rename guards against touching unrelated -spec-center refs', () => {
+  // api=server:把 -server 改成 -api,但不得误伤 -spec-center 引用
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const target = join(dir, 'myapp-api');
+    copyAndReplace('server', target, {
+      PROJECT: 'myapp', MODULE_NAME: 'api', TEMPLATE_REF: 'server', ORIGINAL_ROLE: getModuleRole('server'),
+    });
+    const agents = fsReadFileSync(join(target, 'AGENTS.md'), 'utf-8');
+    assert.ok(agents.includes('myapp-api'));            // 自身名已改
+    assert.ok(!agents.includes('myapp-server'));        // 不残留模板名
+    assert.ok(agents.includes('myapp-spec-center'));    // 跨模块引用完好,未被 -server\b 误伤
+    // Makefile 的 APP_NAME 同样改名
+    const mk = fsReadFileSync(join(target, 'Makefile'), 'utf-8');
+    assert.ok(mk.includes('myapp-api'));
+    assert.ok(!mk.includes('myapp-server'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runAdd infers project name from <name>-spec-center when --name omitted', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
     runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
-    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
-    assert.ok(!sc.includes('{{PROJECT}}'));   // 占位符已替换
-    assert.ok(!sc.includes('MODULE:'));        // 模板无遗留过滤标记
+    const r = runAdd({ dir: ws, modules: 'web', noGit: true });   // 无 --name
+    assert.equal(r.name, 'myapp');
+    assert.deepEqual(r.modules, ['web']);
+    assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('inferProjectName returns null on empty dir, throws on multiple spec-centers', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    assert.equal(inferProjectName(dir), null);
+    runInit({ name: 'one', dir: join(dir, 'one'), modules: '', noGit: true });
+    assert.equal(inferProjectName(join(dir, 'one')), 'one');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('runAdd reports created dirs on partial failure (err.created)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    // 删掉 spec-center 的 AGENTS.md,使 updateSpecCenterAgents 在模块创建后抛错
+    rmSync(join(ws, 'myapp-spec-center', 'AGENTS.md'));
+    let caught;
+    try {
+      runAdd({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
+    } catch (err) {
+      caught = err;
+    }
+    assert.ok(caught, '应抛错');
+    assert.deepEqual(caught.created, [join(ws, 'myapp-web')]);   // 已落盘的新模块被记录
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

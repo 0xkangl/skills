@@ -37,11 +37,25 @@ export function getAvailableTemplateNames() {
     .map((e) => e.name);
 }
 
-// 从模板 AGENTS.md 的 "## Role" 下首行提取角色描述
+// 从 AGENTS.md 文本的 "## Role" 下首行提取角色描述
+export function extractRole(content) {
+  const match = content.match(/## Role\n(.+)/);
+  return match ? match[1].trim() : null;
+}
+
+// 从模板 AGENTS.md 提取角色(自定义模块改名时用)
 export function getModuleRole(templateName) {
   const content = readFileSync(resolveTemplatesDir(templateName, 'AGENTS.md'), 'utf-8');
-  const match = content.match(/## Role\n(.+)/);
-  return match ? match[1].trim() : templateName;
+  return extractRole(content) || templateName;
+}
+
+// 从已生成模块目录的 AGENTS.md 读角色(生成 Module Map 时用,以文件系统为单一真相)
+export function readModuleRole(agentsPath, fallback) {
+  try {
+    return extractRole(readFileSync(agentsPath, 'utf-8')) || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 // 解析模块列表:逗号分隔的 "name" 或 "name=template"
@@ -181,6 +195,105 @@ export function createModule(templateRef, modDir, projectName, mod, opts = {}) {
 const SPEC_CENTER_SUFFIX = '-spec-center';
 const SPEC_CENTER_NAME = 'spec-center';
 
+// spec-center/AGENTS.md 中由脚本维护的两处区块锚点(HTML 注释,不渲染)
+const MODULE_MAP_START = '<!-- MODULE_MAP_START -->';
+const MODULE_MAP_END = '<!-- MODULE_MAP_END -->';
+const REPO_TREE_START = '<!-- REPO_TREE_START -->';
+const REPO_TREE_END = '<!-- REPO_TREE_END -->';
+
+// 替换两个锚点之间的内容(不含锚点本身)
+function replaceBetween(content, startMarker, endMarker, inner) {
+  const start = content.indexOf(startMarker);
+  const end = content.indexOf(endMarker);
+  if (start < 0 || end < 0 || end < start) {
+    throw new Error(`Markers not found or out of order: ${startMarker} .. ${endMarker}`);
+  }
+  const before = content.slice(0, start + startMarker.length);
+  const after = content.slice(end);
+  return `${before}\n${inner}\n${after}`;
+}
+
+// 扫描工作区里实际存在的业务模块名(<name>- 前缀,排除 spec-center),按字母序
+function scanModuleNames(workspaceDir, projectName) {
+  const prefix = `${projectName}-`;
+  const specCenterDirName = `${projectName}${SPEC_CENTER_SUFFIX}`;
+  return readdirSync(workspaceDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith(prefix) && e.name !== specCenterDirName)
+    .map((e) => e.name.slice(prefix.length))
+    .sort();
+}
+
+// 渲染 Module Map 表的模块行(不含 spec-center —— 它固定写在锚点上方)
+function renderModuleMapRows(workspaceDir, projectName, moduleNames) {
+  return moduleNames
+    .map((m) => {
+      const role = readModuleRole(join(workspaceDir, `${projectName}-${m}`, 'AGENTS.md'), `${m} application`);
+      return `| \`${projectName}-${m}\` | ${role} |`;
+    })
+    .join('\n');
+}
+
+// 递归渲染目录树节点;node: { label, comment?, children? }。同层注释对齐。
+function renderTreeNodes(nodes, prefix) {
+  const out = [];
+  const width = Math.max(...nodes.map((n) => n.label.length));
+  nodes.forEach((node, i) => {
+    const last = i === nodes.length - 1;
+    const connector = last ? '└── ' : '├── ';
+    out.push(node.comment
+      ? `${prefix}${connector}${node.label.padEnd(width)}  # ${node.comment}`
+      : `${prefix}${connector}${node.label}`);
+    if (node.children?.length) {
+      out.push(...renderTreeNodes(node.children, prefix + (last ? '    ' : '│   ')));
+    }
+  });
+  return out;
+}
+
+// 渲染整棵 Repository Structure 树(含 ``` 围栏);连接线由结构确定,杜绝手画错。
+function renderRepoTree(projectName, moduleNames) {
+  const specCenterChildren = [
+    { label: 'AGENTS.md', comment: 'This file - global project rules' },
+    { label: 'api/', comment: 'API specifications (OpenAPI / endpoint specs)' },
+    { label: 'conventions/', comment: 'Cross-cutting convention docs (starts empty)' },
+    { label: 'specs/', comment: 'Shared specs affecting 2+ modules' },
+    { label: 'errors/', comment: 'Error codes and formats' },
+    { label: 'events/', comment: 'Inter-module event definitions' },
+  ];
+  const moduleSubtree = () => [
+    { label: 'AGENTS.md' },
+    { label: 'docs/', children: [{ label: 'specs/' }, { label: 'plans/' }] },
+  ];
+  const top = [
+    { label: 'AGENTS.md', comment: `Root reference → ${projectName}-spec-center/AGENTS.md` },
+    { label: `${projectName}-spec-center/`, comment: 'SSOT - shared specs and contracts', children: specCenterChildren },
+    ...moduleNames.map((m) => ({ label: `${projectName}-${m}/`, children: moduleSubtree() })),
+  ];
+  return ['```', 'workspace/', ...renderTreeNodes(top, ''), '```'].join('\n');
+}
+
+// 按文件系统真相重写 spec-center/AGENTS.md 的 Module Map 与 Repository Structure 两处区块。
+// 幂等:init/add/重跑结果一致,不解析旧内容,只看实际存在的模块目录。
+export function updateSpecCenterAgents(workspaceDir, projectName) {
+  const agentsPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'AGENTS.md');
+  const moduleNames = scanModuleNames(workspaceDir, projectName);
+  let content = readFileSync(agentsPath, 'utf-8');
+  content = replaceBetween(content, MODULE_MAP_START, MODULE_MAP_END, renderModuleMapRows(workspaceDir, projectName, moduleNames));
+  content = replaceBetween(content, REPO_TREE_START, REPO_TREE_END, renderRepoTree(projectName, moduleNames));
+  writeFileSync(agentsPath, content, 'utf-8');
+}
+
+// 从工作区里唯一的 <name>-spec-center 目录推断项目前缀;0 个返回 null,多个报错。
+export function inferProjectName(workspaceDir) {
+  const candidates = readdirSync(workspaceDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.endsWith(SPEC_CENTER_SUFFIX))
+    .map((e) => e.name.slice(0, -SPEC_CENTER_SUFFIX.length))
+    .filter(Boolean);
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length === 0) return null;
+  throw new Error(`Multiple spec-centers found in ${workspaceDir}; pass --name explicitly: ${candidates.join(', ')}`);
+}
+
 // init 子命令编排
 export function runInit(flags) {
   const name = flags.name;
@@ -204,11 +317,20 @@ export function runInit(flags) {
     return { mode: 'init', dryRun: true, dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
   }
 
-  mkdirSync(dir, { recursive: true });
-  copyAndReplace('root', dir, { PROJECT: name });
-  for (const mod of modules) {
-    const modDir = join(dir, `${name}-${mod.name}`);
-    createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
+  const created = [];
+  try {
+    mkdirSync(dir, { recursive: true });
+    created.push(dir);   // init 前已校验 dir 为空/不存在,整个目录可安全清理
+    copyAndReplace('root', dir, { PROJECT: name });
+    for (const mod of modules) {
+      const modDir = join(dir, `${name}-${mod.name}`);
+      createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
+      created.push(modDir);
+    }
+    updateSpecCenterAgents(dir, name);
+  } catch (err) {
+    err.created = created;
+    throw err;
   }
 
   return { mode: 'init', dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
@@ -230,9 +352,10 @@ export function printSummary(r) {
 
 // add 子命令编排
 export function runAdd(flags) {
-  const name = flags.name;
-  if (!name) throw new Error('add requires --name');
   const dir = resolve(flags.dir || '.');
+  // --name 可省略:从工作区唯一的 <name>-spec-center 推断
+  const name = flags.name || inferProjectName(dir);
+  if (!name) throw new Error('add requires --name (no <name>-spec-center found in dir to infer from)');
   const specCenterDir = join(dir, `${name}${SPEC_CENTER_SUFFIX}`);
   if (!existsSync(specCenterDir)) {
     throw new Error(`spec-center not found: expected ${specCenterDir}`);
@@ -263,9 +386,17 @@ export function runAdd(flags) {
     return { mode: 'add', dryRun: true, dir, name, modules: toCreate.map((m) => m.name), skipped };
   }
 
-  for (const mod of toCreate) {
-    const modDir = join(dir, `${name}-${mod.name}`);
-    createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
+  const created = [];
+  try {
+    for (const mod of toCreate) {
+      const modDir = join(dir, `${name}-${mod.name}`);
+      createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
+      created.push(modDir);
+    }
+    updateSpecCenterAgents(dir, name);
+  } catch (err) {
+    err.created = created;   // add 只回收本次新建的模块目录,不碰既有模块
+    throw err;
   }
 
   return { mode: 'add', dir, name, modules: toCreate.map((m) => m.name), skipped };
@@ -275,7 +406,8 @@ const HELP = `polyrepo-scaffold — multi-repo workspace scaffolder (zero-depend
 
 Usage:
   node scaffold.mjs init --name <project> [--dir <path>] [--modules <list>] [--no-git] [--dry-run]
-  node scaffold.mjs add  --name <project> [--dir <path>]  --modules <list>  [--no-git] [--dry-run]
+  node scaffold.mjs add  [--name <project>] [--dir <path>]  --modules <list>  [--no-git] [--dry-run]
+                         (add 省略 --name 时,从工作区唯一的 <name>-spec-center 推断)
 
 Module list:
   comma-separated; "name" (built-in template) or "name=template" (custom-named).
@@ -325,6 +457,11 @@ if (invokedDirectly) {
     main(process.argv.slice(2));
   } catch (err) {
     console.error(`Error: ${err.message}`);
+    // 中途失败:打印本次已落盘的路径,交由上层(LLM/用户)决定是否清理
+    if (err.created?.length) {
+      console.error('partial: created before failure (not rolled back):');
+      for (const p of err.created) console.error(`  ${p}`);
+    }
     process.exit(1);
   }
 }

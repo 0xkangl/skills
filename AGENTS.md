@@ -23,8 +23,8 @@
 
 ## polyrepo-scaffold 专项
 
-- 确定性文件操作（拷模板、`{{PROJECT}}` 替换、`git init`）在 `scripts/scaffold.mjs`（**零依赖**，仅用 `node:` 内置模块）；`spec-center/AGENTS.md` 的模块条目（模块表 + 目录树）由 LLM 在脚本跑完后按实际创建的模块增量补全——脚本不做内容组装。SKILL.md 负责意图判定、收集输入、确认计划、调脚本、补全 `spec-center/AGENTS.md`、转述输出。
-- 模板在 `templates/`，用 `{{PROJECT}}` 占位。模板 `spec-center/AGENTS.md` 的 **Module Map 表与 Repository Structure 树初始只含 spec-center**，不预置任何业务模块；生成后由 LLM 按实际创建的模块增量添加行/子树（含自定义名模块）。正文方法论示例仍用 server/web/client 作具体举例，不代表工作区实际结构。
+- 所有确定性产物（拷模板、`{{PROJECT}}` 替换、`git init`，以及 `spec-center/AGENTS.md` 的 Module Map 表 + Repository Structure 树）都在 `scripts/scaffold.mjs`（**零依赖**，仅用 `node:` 内置模块）。表/树以工作区实际存在的 `<name>-<module>/` 目录为单一真相、幂等生成（角色取自各模块 `AGENTS.md` 的 `## Role`，连接线按结构计算）——不交给 LLM 手画。SKILL.md 负责意图判定、收集输入、确认计划、调脚本、(失败时)处理 `partial:` 残留、转述输出，不手工编辑生成产物。
+- 模板在 `templates/`，用 `{{PROJECT}}` 占位。模板 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树用锚点注释（`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`）标出脚本维护区,初始只含 spec-center；脚本按实际模块重写锚点之间的内容（含自定义名模块）。正文方法论示例仍用 server/web/client 作具体举例，不代表工作区实际结构。
 - 模板产出的工作区 `spec-center/conventions/` **初始为空**（仅 `.gitkeep`），不内联规范副本——规范来源是 `code-conventions` skill。新增/修改模板时不要重新引入指向不存在文件的死链。
 - 改脚本或模板后必须跑测试：
 

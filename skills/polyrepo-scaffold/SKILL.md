@@ -5,7 +5,7 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
 
 # Polyrepo Scaffold
 
-> 偶发的结构性操作:搭建多仓工作区或向其中新增模块。确定性的文件操作(拷模板、`{{PROJECT}}` 替换、`git init`)由零依赖脚本 `scripts/scaffold.mjs` 执行;`spec-center/AGENTS.md` 的模块条目(模块表 + 目录树)由 Claude 按本次实际创建的模块增量补全——模板初始只含 spec-center,脚本不做内容组装。Claude 负责意图判定、收集输入、确认计划、调脚本、补全 `spec-center/AGENTS.md`、转述输出。
+> 偶发的结构性操作:搭建多仓工作区或向其中新增模块。所有确定性产物——拷模板、`{{PROJECT}}` 替换、`git init`,以及 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树——全部由零依赖脚本 `scripts/scaffold.mjs` 完成,以工作区实际存在的模块目录为单一真相,幂等。Claude 只负责:意图判定、收集输入、确认计划、调脚本、(失败时)处理残留、转述输出——不手工编辑生成产物。
 
 ## 1. 两种模式(无自动检测)
 
@@ -23,18 +23,16 @@ description: Use when initializing a new multi-repo (polyrepo) workspace, or add
    - 工作区目录 `dir`(默认 `./<name>`;必须为空或不存在)。
    - 模块列表 `modules`:逗号分隔。`spec-center` 始终包含,无需用户指定。
 2. **展示计划表并确认**:列出将创建的目录(`<name>-spec-center` + 各模块)、是否建 git,等用户确认。
-3. **调脚本**(确认后):见 §5。
-4. **补全 `spec-center/AGENTS.md`**:见 §6。
-5. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,并提示后续开发流程见 `<project>-spec-center/AGENTS.md`(含 spec-first 工作流)。
+3. **调脚本**(确认后):见 §5。脚本会自动生成 `spec-center/AGENTS.md` 的模块表与目录树,无需 Claude 介入。
+4. **汇报**:转述脚本输出的 `created:` / `skipped:` 行;若出现 `partial:` 段(中途失败),按 §6 处理残留。完成后提示后续开发流程见 `<project>-spec-center/AGENTS.md`(含 spec-first 工作流)。
 
 ## 3. Add 工作流
 
-1. **确认上下文**:工作区目录 `dir` 与项目前缀 `name`(目录下应有 `<name>-spec-center/`)。
+1. **确认上下文**:工作区目录 `dir`。项目前缀 `name` **可省略**——脚本会从 `dir` 下唯一的 `<name>-spec-center/` 自动推断;Claude 可先 `ls` 工作区,把推断出的 `name` 报给用户确认。目录下有多个 `*-spec-center` 时脚本会报错,须显式传 `--name`。
 2. **收集新模块** `modules`:已存在的模块、`spec-center` 会被脚本自动跳过并在汇总里标注 `skipped`。
 3. **展示计划表并确认**。
-4. **调脚本**(确认后):见 §5。
-5. **补全 `spec-center/AGENTS.md`**:见 §6,把新模块增量并入。
-6. **汇报**:转述 `added:` / `skipped:` 行。
+4. **调脚本**(确认后):见 §5。脚本会按工作区实际模块自动把新模块并入 `spec-center/AGENTS.md` 的表与树。
+5. **汇报**:转述 `added:` / `skipped:` 行;若出现 `partial:` 段,按 §6 处理残留。
 
 ## 4. 模块模板对照
 
@@ -61,7 +59,7 @@ node scripts/scaffold.mjs init \
 
 # 向已有工作区添加
 node scripts/scaffold.mjs add \
-  --name <project> \       # 已有项目前缀
+  [--name <project>] \     # 可选;省略时从 dir 下唯一的 <name>-spec-center 推断
   --dir <path> \           # 含 <project>-spec-center 的工作区目录
   --modules <list> \       # 已存在 / spec-center 会被自动跳过
   [--no-git] [--dry-run]
@@ -73,19 +71,26 @@ node scripts/scaffold.mjs add \
 
 脚本路径相对本 skill 目录;调用时用脚本的绝对/正确相对路径。
 
-## 6. 补全 `spec-center/AGENTS.md`
+## 6. `spec-center/AGENTS.md` 由脚本维护 + 失败残留处理
 
-脚本只把模板原样拷贝过去(已替换 `{{PROJECT}}`)。模板的 **Module Map 表与 Repository Structure 树初始只含 spec-center**,模块条目不预置——随实际创建而增量添加。脚本跑完后,Claude 读 `<project>-spec-center/AGENTS.md`,按**本次实际创建的模块**补全两处结构:
+**结构生成全由脚本完成,Claude 不手工编辑。** 脚本在 init/add 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/AGENTS.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `AGENTS.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——init/add/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
 
-- **Module Map 表**:为每个新建模块加一行。内建模板模块角色照模板(`server`→「Server application」、`web`→「Web application」、`client`→「Client application」);自定义名模块角色用「`<Name>` application」。最终行按模块名字母序。
-- **Repository Structure 目录树**:为每个新建模块加子树,格式为 `<project>-<module>/` 下含 `AGENTS.md` + `docs/specs/` + `docs/plans/`。加完后修正连接线——同级最后一个节点用 `└──`,其余用 `├──`,非末节点的子树缩进用 `│   `。
+模块的语义留空块(各模块 `AGENTS.md` 的 Key Responsibilities / Tech Stack、spec-center 的 Core Domain Concepts 等)属于后续开发,不是 scaffold 职责,按需在开发中填。
 
-判定依据:工作区里实际存在的 `<project>-<module>/` 目录(`spec-center` 始终在表/树中)。
+**失败残留处理(脚本非原子)**:脚本中途失败时会在 stderr 打印:
 
-init 与 add 是同一种「增量添加」操作,区别只在起点:
+```
+partial: created before failure (not rolled back):
+  <path1>
+  <path2>
+```
 
-- **init**:起点是只含 spec-center 的初始模板,把本次创建的全部模块行/子树加进去。
-- **add**:在已有 `AGENTS.md` 基础上增量并入新模块的行与子树,不动既有条目。
+Claude 须读出这些路径,用 `AskUserQuestion` 问用户是否删除,确认后再删:
+
+- **init 失败**:列出的第一个路径通常是整个工作区目录(init 前已校验为空/不存在),可整体删除后重来。
+- **add 失败**:只列出本次新建的模块目录——**只删这些,绝不动既有模块**。
+
+用户选择保留时,原样留下,提示其手工检查。
 
 ## 7. Git 行为
 
