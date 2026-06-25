@@ -9,7 +9,7 @@
 | [`engineering-guidelines`](skills/engineering-guidelines/) | 行为准则 | 每次写/改代码前 | LLM/agent 编码行为：think-before-coding、simplicity-first、surgical-changes、goal-driven、root-cause reasoning |
 | [`code-conventions`](skills/code-conventions/) | 规范索引 + 文档库 | 写码时按需 | 横切规范的统一入口：HTTP API、可观测性、测试、提交信息、错误码，以及 Go 专项规范（`references/`） |
 | [`agents-scaffold`](skills/agents-scaffold/) | 结构性操作 | 偶发、一次性 | 零依赖脚本搭建多仓工作区（`spec-center` SSOT + 各模块仓）或原地初始化单个独立仓库，并产出含 spec-first/SDD 工作流的 `AGENTS.md` |
-| [`codebase-audit`](skills/codebase-audit/) | 多 agent 审计 | 手动 `@codebase-audit`（偶发、一次性） | 多 agent 并行审计代码库（架构/代码质量/安全/测试/依赖/可维护性/规范符合性），对抗式验证去伪后汇总单一报告 |
+| [`codebase-audit`](skills/codebase-audit/) | 多 agent 审计 | 手动 `@codebase-audit`（偶发、一次性） | 多 agent 并行审计代码库（架构/代码质量/安全/测试/依赖/可维护性/规范符合性），对抗式验证去伪后汇总单一报告；附带 `ultracode` 走 Workflow 确定性编排，否则自动降级到 Agent 并行 |
 
 ## Skill 之间的关系
 

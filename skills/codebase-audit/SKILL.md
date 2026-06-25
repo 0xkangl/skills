@@ -23,6 +23,8 @@ A manual, multi-agent audit tuned for low token cost. The main agent only **scop
 
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
+**Workflow orchestration** is optional — to drive the audit through the deterministic Workflow pipeline, append `ultracode` to the invocation (e.g. `@codebase-audit ultracode src/`); the harness only exposes the `Workflow` tool when the caller opts in. Without it the audit runs fine on the Agent fallback.
+
 ## Pipeline
 
 ```
@@ -42,9 +44,9 @@ The verify stage mirrors the adversarial-verify pattern from Claude's workflow f
 
 ## Dispatching subagents
 
-**First check which fan-out mechanism is available, then pick the highest one that works:**
+**First check which fan-out mechanism is available, then pick the highest one that works.** This is a degrade ladder, not a precondition check: a level being unavailable is expected, never a blocking error — drop to the next level and keep going. The `Workflow` tool is **not exposed in a standard session** (it needs explicit opt-in), so in most runs it simply won't be in your tool list.
 
-0. **Preferred — Workflow tool.** If the `Workflow` tool exists, run the whole Audit→Verify→Synthesize pipeline through `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–4 below — the main agent still does Step 1 (Scope) and Step 5 (Deliver). See **Step 2–4 via Workflow**.
+0. **Preferred — Workflow tool.** If the `Workflow` tool is actually in your tool list, run the whole Audit→Verify→Synthesize pipeline through `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–4 below — the main agent still does Step 1 (Scope) and Step 5 (Deliver). See **Step 2–4 via Workflow**. If it isn't there, print a one-line notice (e.g. `ℹ️ Workflow 工具不可用，改用 Agent 并行编排`) and fall through to level 1 — don't stop.
 1. **Fallback — Agent / Task subagent tool** (`general-purpose` type). Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel." Drive Steps 2–4 by hand.
 2. **Acceptable** — invoke the subagents **one at a time** (serial). Slower, identical correctness.
 3. **Forbidden** — folding the work into the main agent. An auditor that verifies its own findings defeats the entire skill.
