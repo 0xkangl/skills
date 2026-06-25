@@ -1,5 +1,5 @@
 // agents-scaffold 零依赖脚手架脚本。仅用 node: 内置模块。
-import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync, mkdirSync, renameSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join, basename, extname, relative } from 'node:path';
@@ -131,48 +131,61 @@ function walkFiles(dir) {
   return out;
 }
 
-// 复制模板目录到 targetDir,并对文本文件做变量替换
-export function copyAndReplace(templateName, targetDir, vars) {
+// 对文本内容做模板变量替换(纯函数)
+function applyVars(content, vars) {
+  content = content.replace(/\{\{PROJECT\}\}/g, vars.PROJECT);
+
+  // 单仓库:去掉模板自带的 -<STRIP_SUFFIX> 后缀,使命名统一为 <PROJECT>
+  // (\b 保护 -spec-center 等不被误伤,与自定义改名同理)
+  if (vars.STRIP_SUFFIX) {
+    content = content.replace(new RegExp(`-${escapeRegExp(vars.STRIP_SUFFIX)}\\b`, 'g'), '');
+  }
+
+  // 自定义模块:把模板引用名 -<TEMPLATE_REF> 改为 -<MODULE_NAME>
+  if (vars.MODULE_NAME && vars.TEMPLATE_REF) {
+    content = content.replace(new RegExp(`-${escapeRegExp(vars.TEMPLATE_REF)}\\b`, 'g'), `-${vars.MODULE_NAME}`);
+    // 替换 role 文案为 "<Name> application"
+    if (vars.ORIGINAL_ROLE) {
+      const cap = vars.MODULE_NAME.charAt(0).toUpperCase() + vars.MODULE_NAME.slice(1);
+      content = content.replace(new RegExp(`^${escapeRegExp(vars.ORIGINAL_ROLE)}$`, 'm'), `${cap} application`);
+    }
+  }
+  return content;
+}
+
+// 递归把模板铺进 targetDir:目录自动合并;已存在的目标文件按 onConflict 处理。
+// onConflict: 'backup'(默认,原文件改名 *.bak 留档后再写) | 'overwrite'(直接覆盖,不留档)。
+// 文本文件做变量替换,其余原样拷贝。只遍历模板源文件映射到目标——原地模式下 targetDir
+// 可能含预存的 .git/用户文件,绝不触碰它们。
+// 返回 { backedUp, created }:backedUp 为留档的 *.bak 路径;created 为本次可安全回滚删除的目标
+// 路径(新建的、或备份后重写的;overwrite 覆盖既有文件因已无留档,不计入,回滚不动它)。
+export function copyAndReplace(templateName, targetDir, vars, opts = {}) {
   if (!vars || !vars.PROJECT) {
     throw new Error('copyAndReplace requires vars.PROJECT to be set');
   }
+  const onConflict = opts.onConflict || 'backup';
   const srcDir = resolveTemplatesDir(templateName);
   if (!existsSync(srcDir)) {
     throw new Error(`Template not found: "${templateName}" (looked in ${srcDir})`);
   }
-  cpSync(srcDir, targetDir, { recursive: true });
 
-  // 只遍历模板源文件映射到目标(不 walk 整个 targetDir)——原地模式下 targetDir
-  // 可能含预存的 .git/用户文件,绝不能对它们做变量替换。
+  const backedUp = [];
+  const created = [];
   for (const srcFile of walkFiles(srcDir)) {
-    const filePath = join(targetDir, relative(srcDir, srcFile));
-    if (!isTextFile(filePath)) continue;
-    let content = readFileSync(filePath, 'utf-8');
-    content = content.replace(/\{\{PROJECT\}\}/g, vars.PROJECT);
+    const destFile = join(targetDir, relative(srcDir, srcFile));
+    const existed = existsSync(destFile);
+    if (existed && onConflict === 'backup') backedUp.push(backupConflict(destFile));
 
-    // 单仓库:去掉模板自带的 -<STRIP_SUFFIX> 后缀,使命名统一为 <PROJECT>
-    // (\b 保护 -spec-center 等不被误伤,与自定义改名同理)
-    if (vars.STRIP_SUFFIX) {
-      content = content.replace(new RegExp(`-${escapeRegExp(vars.STRIP_SUFFIX)}\\b`, 'g'), '');
+    mkdirSync(dirname(destFile), { recursive: true });   // 目录自动合并
+    if (isTextFile(destFile)) {
+      writeFileSync(destFile, applyVars(readFileSync(srcFile, 'utf-8'), vars), 'utf-8');
+    } else {
+      cpSync(srcFile, destFile);
     }
-
-    // 自定义模块:把模板引用名 -<TEMPLATE_REF> 改为 -<MODULE_NAME>
-    if (vars.MODULE_NAME && vars.TEMPLATE_REF) {
-      content = content.replace(
-        new RegExp(`-${escapeRegExp(vars.TEMPLATE_REF)}\\b`, 'g'),
-        `-${vars.MODULE_NAME}`
-      );
-      // 替换 role 文案为 "<Name> application"
-      if (vars.ORIGINAL_ROLE) {
-        const cap = vars.MODULE_NAME.charAt(0).toUpperCase() + vars.MODULE_NAME.slice(1);
-        content = content.replace(
-          new RegExp(`^${escapeRegExp(vars.ORIGINAL_ROLE)}$`, 'm'),
-          `${cap} application`
-        );
-      }
-    }
-    writeFileSync(filePath, content, 'utf-8');
+    // 既有文件被 overwrite(无留档)→ 不计入 created,回滚不动它
+    if (!existed || onConflict === 'backup') created.push(destFile);
   }
+  return { backedUp, created };
 }
 
 // 初始化模块为独立 git 仓:只 git init + 改 main,不 add、不 commit
@@ -305,16 +318,52 @@ export function inferProjectName(workspaceDir) {
   throw new Error(`Multiple spec-centers found in ${workspaceDir}; pass --name explicitly: ${candidates.join(', ')}`);
 }
 
+// 工作区"已初始化"的真实信号:目录里已存在任一 <name>-spec-center(而非"目录非空")。
+// 据此判定能否原地初始化——隐藏文件/已装 skills(.agents、skills-lock.json 等)都不影响。
+function hasSpecCenter(dir) {
+  if (!existsSync(dir)) return false;
+  return readdirSync(dir, { withFileTypes: true })
+    .some((e) => e.isDirectory() && e.name.endsWith(SPEC_CENTER_SUFFIX));
+}
+
+// 模板文件与目标目录的冲突(文件级):模板树里每个文件若落点已存在同名文件即冲突。
+// 目录天然合并,不算冲突;.git 等非模板路径不在模板树内,永不冲突。仅用于 dry-run 预览。
+function detectTreeConflicts(templateName, targetDir) {
+  if (!existsSync(targetDir)) return [];
+  const srcDir = resolveTemplatesDir(templateName);
+  const out = [];
+  for (const srcFile of walkFiles(srcDir)) {
+    const destFile = join(targetDir, relative(srcDir, srcFile));
+    if (existsSync(destFile)) out.push(destFile);
+  }
+  return out;
+}
+
+// 备份既有冲突条目:重命名为 <path>.bak(已占用则追加序号),返回备份后路径
+function backupConflict(src) {
+  let bak = `${src}.bak`;
+  let i = 1;
+  while (existsSync(bak)) bak = `${src}.bak.${i++}`;
+  renameSync(src, bak);
+  return bak;
+}
+
 // workspace 子命令编排
 export function runWorkspace(flags) {
   const name = flags.name;
   if (!name) throw new Error('workspace requires --name');
   const nameCheck = validateProjectName(name);
   if (nameCheck !== true) throw new Error(`Invalid project name "${name}": ${nameCheck}`);
+  const onConflict = flags.onConflict || 'backup';   // 默认备份,仅用户明确要覆盖时传 overwrite
+  if (onConflict !== 'overwrite' && onConflict !== 'backup') {
+    throw new Error(`Invalid --on-conflict "${flags.onConflict}": choose overwrite|backup`);
+  }
 
-  const dir = resolve(flags.dir || `./${name}`);
-  if (existsSync(dir) && readdirSync(dir).length > 0) {
-    throw new Error(`Target directory not empty: ${dir}`);
+  const dir = resolve(flags.dir || '.');   // 默认当前目录原地初始化,不再套一层 <name> 子目录
+
+  // 闸门:已存在 *-spec-center 即视为已是工作区,拒绝重复初始化
+  if (hasSpecCenter(dir)) {
+    throw new Error(`Target dir already contains a *-spec-center (already a workspace): ${dir}`);
   }
 
   const parsed = parseModuleList(flags.modules || '', []);
@@ -325,14 +374,25 @@ export function runWorkspace(flags) {
   ];
 
   if (flags.dryRun) {
-    return { mode: 'workspace', dryRun: true, dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
+    return {
+      mode: 'workspace', dryRun: true, dir, name,
+      modules: modules.map((m) => m.name), skipped: parsed.skipped,
+      conflicts: detectTreeConflicts('root', dir), onConflict,
+    };
   }
 
   const created = [];
+  const backedUp = [];
   try {
+    const dirExisted = existsSync(dir);
     mkdirSync(dir, { recursive: true });
-    created.push(dir);   // workspace 前已校验 dir 为空/不存在,整个目录可安全清理
-    copyAndReplace('root', dir, { PROJECT: name });
+    if (!dirExisted) created.push(dir);   // 目录本次新建,失败可整体清理
+
+    // 目录合并;root 顶层文件撞既有同名文件按 onConflict 处理(默认备份)
+    const rootCopy = copyAndReplace('root', dir, { PROJECT: name }, { onConflict });
+    backedUp.push(...rootCopy.backedUp);
+    if (dirExisted) created.push(...rootCopy.created);   // 既有目录:逐文件记录本次可安全回滚项
+
     for (const mod of modules) {
       const modDir = join(dir, `${name}-${mod.name}`);
       createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
@@ -341,35 +401,45 @@ export function runWorkspace(flags) {
     updateSpecCenterAgents(dir, name);
   } catch (err) {
     err.created = created;
+    err.backedUp = backedUp;
     throw err;
   }
 
-  return { mode: 'workspace', dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped };
+  return { mode: 'workspace', dir, name, modules: modules.map((m) => m.name), skipped: parsed.skipped, backedUp };
 }
 
 // 汇总输出(简洁单行,便于转述)
 export function printSummary(r) {
+  const tag = r.dryRun ? '[dry-run] ' : '';
   if (r.mode === 'single') {
-    const tag = r.dryRun ? '[dry-run] ' : '';
     console.log(`${tag}single: ${r.dir} (project ${r.name}, template ${r.template})`);
     if (!r.dryRun) console.log(`created: ${r.dir}`);
-    return;
-  }
-  if (r.dryRun) {
-    console.log(`[dry-run] ${r.mode}: ${r.dir} (project ${r.name})`);
-    console.log(`[dry-run] modules: ${r.modules.join(', ') || '(none)'}`);
   } else {
-    console.log(`${r.mode}: ${r.dir} (project ${r.name})`);
-    console.log(`${r.mode === 'workspace' ? 'created' : 'added'}: ${r.modules.join(', ') || '(none)'}`);
+    if (r.dryRun) {
+      console.log(`[dry-run] ${r.mode}: ${r.dir} (project ${r.name})`);
+      console.log(`[dry-run] modules: ${r.modules.join(', ') || '(none)'}`);
+    } else {
+      console.log(`${r.mode}: ${r.dir} (project ${r.name})`);
+      console.log(`${r.mode === 'workspace' ? 'created' : 'added'}: ${r.modules.join(', ') || '(none)'}`);
+    }
+    for (const s of r.skipped || []) console.log(`skipped: ${s.entry} (${s.reason})`);
   }
-  for (const s of r.skipped || []) {
-    console.log(`skipped: ${s.entry} (${s.reason})`);
+  // dry-run 预览:这些既有文件会被备份(默认)或覆盖(--on-conflict overwrite)
+  if (r.conflicts?.length) {
+    const policy = r.onConflict === 'overwrite' ? 'will overwrite' : 'will back up';
+    console.log(`${tag}conflicts (${policy}): ${r.conflicts.join(', ')}`);
   }
+  // 正式执行:列出实际备份的 *.bak 文件
+  for (const b of r.backedUp || []) console.log(`backed up: ${b}`);
 }
 
 // module 子命令编排
 export function runModule(flags) {
   const dir = resolve(flags.dir || '.');
+  // 无 *-spec-center:目标目录不是工作区,自动切换为 workspace 初始化
+  if (!hasSpecCenter(dir)) {
+    return runWorkspace({ ...flags, name: flags.name || basename(dir) });
+  }
   // --name 可省略:从工作区唯一的 <name>-spec-center 推断
   const name = flags.name || inferProjectName(dir);
   if (!name) throw new Error('module requires --name (no <name>-spec-center found in dir to infer from)');
@@ -449,6 +519,11 @@ export function runSingle(flags) {
     throw new Error(`Invalid --template "${template}": choose one of ${stackTemplates.join(', ')}`);
   }
 
+  const onConflict = flags.onConflict || 'backup';   // 默认备份,仅用户明确要覆盖时传 overwrite
+  if (onConflict !== 'overwrite' && onConflict !== 'backup') {
+    throw new Error(`Invalid --on-conflict "${flags.onConflict}": choose overwrite|backup`);
+  }
+
   const dir = resolve(flags.dir || '.');
   const name = flags.name || basename(dir);
   const nameCheck = validateProjectName(name);
@@ -456,55 +531,60 @@ export function runSingle(flags) {
     throw new Error(`Invalid project name "${name}": ${nameCheck} (pass --name explicitly)`);
   }
 
-  // 防覆盖:模板顶层条目已存在(.git 除外)即报错,绝不静默覆盖
-  const topLevel = readdirSync(resolveTemplatesDir(template));
-  const conflicts = existsSync(dir) ? topLevel.filter((n) => existsSync(join(dir, n))) : [];
-  if (conflicts.length) {
-    throw new Error(`Target dir already contains: ${conflicts.join(', ')} — refusing to overwrite (run in an empty/new dir or remove them)`);
-  }
-
   if (flags.dryRun) {
-    return { mode: 'single', dryRun: true, dir, name, template };
+    return { mode: 'single', dryRun: true, dir, name, template, conflicts: detectTreeConflicts(template, dir), onConflict };
   }
 
   const created = [];
+  const backedUp = [];
   try {
-    if (!existsSync(dir)) {
+    const dirExisted = existsSync(dir);
+    if (!dirExisted) {
       mkdirSync(dir, { recursive: true });
       created.push(dir);   // 目录由本次创建,失败可整体清理
     }
-    // 铺 stack 模板内容到 dir 根 + 去 -<template> 后缀
-    copyAndReplace(template, dir, { PROJECT: name, STRIP_SUFFIX: template });
-    for (const n of readdirSync(resolveTemplatesDir(template))) created.push(join(dir, n));
+    // 铺 stack 模板到 dir 根 + 去 -<template> 后缀;目录合并,文件冲突按 onConflict(默认备份)
+    const cp = copyAndReplace(template, dir, { PROJECT: name, STRIP_SUFFIX: template }, { onConflict });
+    backedUp.push(...cp.backedUp);
+    if (dirExisted) created.push(...cp.created);   // 既有目录:逐文件记录本次可安全回滚项
     // 用合并后的治理文档覆盖 dir/AGENTS.md(契约/约定文档直接放 docs/,无需额外子目录)
     writeFileSync(join(dir, 'AGENTS.md'), buildSingleAgents(template, name), 'utf-8');
     // git:已有 .git 则复用,否则 git init + main;--no-git 全跳过
     if (!flags.noGit && !existsSync(join(dir, '.git'))) gitInit(dir, name);
   } catch (err) {
     err.created = created;
+    err.backedUp = backedUp;
     throw err;
   }
 
-  return { mode: 'single', dir, name, template };
+  return { mode: 'single', dir, name, template, backedUp };
 }
 
 const HELP = `agents-scaffold — repo scaffolder (zero-dependency)
 
 Usage:
-  node scaffold.mjs workspace --name <project> [--dir <path>] [--modules <list>] [--no-git] [--dry-run]
-  node scaffold.mjs module    [--name <project>] [--dir <path>]  --modules <list>  [--no-git] [--dry-run]
-                              (module 省略 --name 时,从工作区唯一的 <name>-spec-center 推断)
-  node scaffold.mjs single    --template <server|web|client> [--name <project>] [--dir <path>] [--no-git] [--dry-run]
+  node scaffold.mjs workspace --name <project> [--dir <path>] [--modules <list>] [--on-conflict overwrite|backup] [--no-git] [--dry-run]
+  node scaffold.mjs module    [--name <project>] [--dir <path>]  --modules <list>  [--on-conflict overwrite|backup] [--no-git] [--dry-run]
+                              (module 省略 --name 时,从工作区唯一的 <name>-spec-center 推断;
+                               若 dir 下没有任何 *-spec-center,自动切换为 workspace 初始化)
+  node scaffold.mjs single    --template <server|web|client> [--name <project>] [--dir <path>] [--on-conflict overwrite|backup] [--no-git] [--dry-run]
                               (单仓库:在 dir 原地初始化一个独立项目;--name 省略时取 dir 目录名)
 
 Module list (workspace/module):
   comma-separated; "name" (built-in template) or "name=template" (custom-named).
   Available templates: server, web, client, spec-center.
 
+Conflict handling (all modes):
+  directories always merge. A template file landing on an existing file is, by default,
+  backed up (original renamed to *.bak, then template written). Pass --on-conflict overwrite
+  to replace without backup. .git and unrelated files are never touched.
+
 Notes:
-  workspace always includes spec-center; module never recreates it.
-  single is a standalone repo (no spec-center): reuses an existing .git, else "git init" + "git branch -M main";
-  refuses to overwrite existing files in the target dir.
+  workspace initializes in place (dir defaults to "."); it is blocked only if dir already
+  holds a *-spec-center (already a workspace). Hidden files/dirs and unrelated files are kept.
+  workspace always includes spec-center; module never recreates it; module auto-switches to
+  workspace when dir has no *-spec-center.
+  single is a standalone repo (no spec-center): reuses an existing .git, else "git init" + "git branch -M main".
   Each new module gets "git init" + "git branch -M main" only (no add, no commit).`;
 
 export function parseArgs(argv) {
@@ -517,6 +597,7 @@ export function parseArgs(argv) {
     else if (a === '--name') flags.name = argv[++i];
     else if (a === '--dir') flags.dir = argv[++i];
     else if (a === '--modules') flags.modules = argv[++i];
+    else if (a === '--on-conflict') flags.onConflict = argv[++i];
     else if (a === '--template') flags.template = argv[++i];
     else if (a === '--templates-dir') flags.templatesDir = argv[++i];
     else if (a === '--help' || a === '-h') flags.help = true;
@@ -553,6 +634,10 @@ if (invokedDirectly) {
     if (err.created?.length) {
       console.error('partial: created before failure (not rolled back):');
       for (const p of err.created) console.error(`  ${p}`);
+    }
+    if (err.backedUp?.length) {
+      console.error('backed up (originals preserved, not rolled back):');
+      for (const p of err.backedUp) console.error(`  ${p}`);
     }
     process.exit(1);
   }

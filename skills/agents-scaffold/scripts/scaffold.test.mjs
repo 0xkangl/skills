@@ -18,7 +18,7 @@ import {
   updateSpecCenterAgents,
   inferProjectName,
 } from './scaffold.mjs';
-import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -215,14 +215,107 @@ test('runWorkspace always includes spec-center and creates module dirs', () => {
   }
 });
 
-test('runWorkspace rejects invalid name and non-empty dir', () => {
+test('runWorkspace rejects invalid name and re-init over an existing workspace', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     assert.throws(() => runWorkspace({ name: 'Bad', dir: join(dir, 'x') }), /Invalid project name/);
-    // 非空目录
+    // 已含 *-spec-center 的目录视为"已是工作区",拒绝重复初始化(而非"目录非空")
     const ws = join(dir, 'taken');
     runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });
-    assert.throws(() => runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true }), /not empty/);
+    assert.throws(() => runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true }), /already a workspace/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace initializes in place over installed-skills files (ignores hidden + non-conflicting)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'proj');
+    mkdirSync(join(ws, '.agents'), { recursive: true });
+    writeFileSync(join(ws, '.agents', 'config'), 'x');
+    writeFileSync(join(ws, 'skills-lock.json'), '{}');   // 非隐藏但不与 root 模板冲突
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    assert.equal(r.mode, 'workspace');
+    assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
+    assert.ok(existsSync(join(ws, 'AGENTS.md')));            // root 模板已铺到当前目录
+    assert.ok(existsSync(join(ws, '.agents', 'config')));   // 既有隐藏目录保留
+    assert.ok(existsSync(join(ws, 'skills-lock.json')));    // 无冲突文件保留
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace merges existing hidden template dirs instead of conflicting', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'proj');
+    mkdirSync(join(ws, '.claude'), { recursive: true });
+    writeFileSync(join(ws, '.claude', 'user.json'), 'U');   // 用户已有 .claude 内容
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });
+    assert.equal(r.mode, 'workspace');
+    assert.ok(existsSync(join(ws, '.claude', 'user.json')));   // 目录-目录合并,用户文件保留
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace backs up an existing root file by default (no --on-conflict)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'proj');
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'AGENTS.md'), 'MINE');   // 与 root 模板 AGENTS.md 同名
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });   // 不传 onConflict
+    assert.deepEqual(r.backedUp, [join(ws, 'AGENTS.md.bak')]);   // 默认备份
+    assert.equal(fsReadFileSync(join(ws, 'AGENTS.md.bak'), 'utf-8'), 'MINE');   // 原文件留档
+    assert.ok(!fsReadFileSync(join(ws, 'AGENTS.md'), 'utf-8').includes('MINE'));   // 新文件已写
+    assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace backs up a nested conflicting file (.claude/settings.json)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'proj');
+    mkdirSync(join(ws, '.claude'), { recursive: true });
+    writeFileSync(join(ws, '.claude', 'settings.json'), 'MINE');   // 与 root 模板嵌套文件同名
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });
+    assert.ok(r.backedUp.includes(join(ws, '.claude', 'settings.json.bak')));   // 嵌套文件也备份
+    assert.equal(fsReadFileSync(join(ws, '.claude', 'settings.json.bak'), 'utf-8'), 'MINE');
+    assert.ok(!fsReadFileSync(join(ws, '.claude', 'settings.json'), 'utf-8').includes('MINE'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace --on-conflict backup preserves originals as .bak then writes template', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'proj');
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'AGENTS.md'), 'MINE');
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true, onConflict: 'backup' });
+    assert.deepEqual(r.backedUp, [join(ws, 'AGENTS.md.bak')]);
+    assert.equal(fsReadFileSync(join(ws, 'AGENTS.md.bak'), 'utf-8'), 'MINE');   // 原文件留档
+    assert.ok(!fsReadFileSync(join(ws, 'AGENTS.md'), 'utf-8').includes('MINE'));   // 新文件已写
+    assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace --on-conflict overwrite replaces existing root file (no backup)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'proj');
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'AGENTS.md'), 'MINE');
+    runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true, onConflict: 'overwrite' });
+    assert.ok(!existsSync(join(ws, 'AGENTS.md.bak')));
+    assert.ok(!fsReadFileSync(join(ws, 'AGENTS.md'), 'utf-8').includes('MINE'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -268,10 +361,14 @@ test('runModule skips existing modules and spec-center', () => {
   }
 });
 
-test('runModule throws when spec-center is absent', () => {
+test('runModule auto-switches to workspace when no spec-center exists', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
-    assert.throws(() => runModule({ name: 'myapp', dir, modules: 'web' }), /spec-center not found/);
+    const ws = join(dir, 'myapp');
+    const r = runModule({ name: 'myapp', dir: ws, modules: 'web', noGit: true });   // 目录无 spec-center
+    assert.equal(r.mode, 'workspace');   // 自动转 workspace
+    assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));   // 建了 spec-center
+    assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -284,6 +381,11 @@ test('parseArgs parses subcommand and flags', () => {
   assert.equal(flags.modules, 'server,web');
   assert.equal(flags.noGit, true);
   assert.equal(flags.dryRun, true);
+});
+
+test('parseArgs parses --on-conflict', () => {
+  const { flags } = parseArgs(['workspace', '--name', 'a', '--on-conflict', 'backup']);
+  assert.equal(flags.onConflict, 'backup');
 });
 
 test('parseArgs throws on unknown flag', () => {
@@ -479,12 +581,19 @@ test('single: in-place init merges governance + module section, strips suffix, s
   }
 });
 
-test('single: refuses to overwrite existing files (no clobber)', () => {
+test('single: backs up conflicting files by default; --on-conflict overwrite skips backup', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const proj = join(dir, 'demo-app');
     runSingle({ template: 'server', dir: proj, noGit: true });
-    assert.throws(() => runSingle({ template: 'server', dir: proj, noGit: true }), /refusing to overwrite/);
+    // 再次初始化:默认备份既有冲突文件(原文件改名 *.bak)
+    const r = runSingle({ template: 'server', dir: proj, noGit: true });
+    assert.ok(r.backedUp.length > 0);
+    assert.ok(r.backedUp.some((p) => p.endsWith('AGENTS.md.bak')));
+    assert.ok(existsSync(join(proj, 'AGENTS.md')));   // 新文件仍在
+    // overwrite:直接覆盖,不留 *.bak
+    const r2 = runSingle({ template: 'server', dir: proj, noGit: true, onConflict: 'overwrite' });
+    assert.deepEqual(r2.backedUp, []);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
