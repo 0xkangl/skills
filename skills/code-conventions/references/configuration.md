@@ -13,7 +13,7 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 
 ## 2. Naming
 
-- Environment variable names use `UPPER_SNAKE_CASE` (`DATABASE_URL`, `METRICS_PORT`, `JWT_ACCESS_TTL`).
+- Environment variable names use `UPPER_SNAKE_CASE` (`DATABASE_URL`, `METRICS_PORT`, `AUTH_ACCESS_TOKEN_TTL`).
 - Group related keys by a common noun prefix (`JWT_*`, `REDIS_*`, `SMTP_*`).
 - Booleans are `true` / `false`; durations are Go-style strings (`15m`, `24h`) or explicit `_SECONDS` integers — pick one style per project and keep it consistent.
 - Every key MUST appear in `.env.example` with a comment noting required/optional and the default.
@@ -33,7 +33,7 @@ The canonical variable set, grouped and ordered by boot-criticality (a service m
 | `PORT` | Yes | service-defined | e.g. `8080` | Main HTTP listener |
 | `LOG_FORMAT` | No | `json` | `json` \| `text` | `text` only for local dev (see [observability.md](./observability.md) §2.1) |
 | `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` | Enable `debug` here only — never hard-code (observability §3) |
-| `METRICS_PORT` | No | `0` | `0` (main server) \| `9090` (dedicated) | See §9 |
+| `METRICS_PORT` | No | `9090` | `9090` (dedicated) \| `0` (main server) | See §9 |
 
 ### 3.2 Data Store
 
@@ -49,25 +49,24 @@ The canonical variable set, grouped and ordered by boot-criticality (a service m
 | `JWT_SIGNING_KEY` | Yes | — | 64 hex chars (256-bit) | Generate: `openssl rand -hex 32`. **Dedicated**, independently maintained — NOT derived from `APP_PEPPER` (§6.2 / §7) |
 | `<PURPOSE>_ENCRYPTION_KEY` | Cond. | — | 64 hex chars (256-bit) | Required for data encrypted **at rest** in the DB. **Dedicated** + long-lived; rotate only via a re-encryption migration (§6.2) |
 | `<MODULE>_INTERNAL_TOKEN` | Cond. | — | 64 hex chars | Required if the module exposes internal endpoints. Generate: `openssl rand -hex 32`. See §5 |
-| `JWT_ACCESS_TTL` | No | `24h` | duration string | Mobile/native + default access token (§7) |
-| `JWT_REFRESH_TTL` | No | `720h` (30d) | duration string | Mobile/native + default refresh token |
-| `JWT_WEB_ACCESS_TTL` | No | `15m` | duration string | Web access token; falls back to `JWT_ACCESS_TTL` if unset |
-| `JWT_WEB_REFRESH_TTL` | No | `24h` | duration string | Web refresh token; falls back to `JWT_REFRESH_TTL` if unset |
+| `AUTH_ACCESS_TOKEN_TTL` | No | `15m` | duration string | Mobile/native + default access token (§7) |
+| `AUTH_REFRESH_TOKEN_TTL` | No | `30d` | duration string | Mobile/native + default refresh token |
+| `AUTH_WEB_ACCESS_TOKEN_TTL` | No | `15m` | duration string | Web access token; falls back to `AUTH_ACCESS_TOKEN_TTL` if unset |
+| `AUTH_WEB_REFRESH_TOKEN_TTL` | No | `24h` | duration string | Web refresh token; falls back to `AUTH_REFRESH_TOKEN_TTL` if unset |
 
 ### 3.4 Cache / Queue
 
 | Key | Required | Default | Valid / Recommended | Notes |
 |-----|----------|---------|---------------------|-------|
 | `REDIS_URL` | Cond. | — | `redis://host:6379/0` | Required if cache / session / rate-limit is used |
-| `CACHE_PREFIX` | Cond. | `""` (empty) | project slug, e.g. `acme` | Empty OK for local single-tenant; MUST be set on shared/prod infra (§4) |
-| `QUEUE_PREFIX` | Cond. | `""` (empty) | project slug, e.g. `acme` | Required when a shared broker is used (§4) |
+| `CACHE_KEY_PREFIX` | Cond. | `""` (empty) | project slug, e.g. `acme` | Empty OK for local single-tenant; MUST be set on shared/prod infra (§4) |
+| `QUEUE_NAME_PREFIX` | Cond. | `""` (empty) | project slug, e.g. `acme` | Required when a shared broker is used (§4) |
 
 ### 3.5 Localization
 
 | Key | Required | Default | Valid / Recommended | Notes |
 |-----|----------|---------|---------------------|-------|
-| `DEFAULT_LOCALE` | No | `en` | content locale, e.g. `en`, `zh-Hans` | Fallback when `Accept-Language` is absent/unmatched ([http-constitution.md](./http-constitution.md) §7.4) |
-| `SUPPORTED_LOCALES` | No | `en` | comma list, e.g. `en,zh-Hans,zh-Hant` | Script-based content locales only (http §7.4) |
+| `DEFAULT_LOCALE` | Yes | — | BCP 47 content locale, e.g. `en`, `zh-Hans` | Fallback when `Accept-Language` is absent/unmatched; any valid BCP 47 tag (not required to be `en`) ([http-constitution.md](./http-constitution.md) §7.4) |
 
 ### 3.6 Third-Party Integrations
 
@@ -84,7 +83,7 @@ When multiple projects — or multiple modules of one project — share a Redis 
 
 | Segment | Source | Mutable? | Rationale |
 |---------|--------|----------|-----------|
-| `projectPrefix` | Config (`CACHE_PREFIX` / `QUEUE_PREFIX`) | Yes — set per deployment | Same module deployed for different tenants/projects must not collide on shared infra |
+| `projectPrefix` | Config (`CACHE_KEY_PREFIX` / `QUEUE_NAME_PREFIX`) | Yes — set per deployment | Same module deployed for different tenants/projects must not collide on shared infra |
 | `modulePrefix` | **Fixed constant in code** | No | A module owns its namespace; it is an identity, not an operational knob, so it is not configurable |
 | `logicalKey` | Code | — | The actual business key (`otp:<email>`, `session:<id>`) |
 
@@ -95,7 +94,7 @@ When multiple projects — or multiple modules of one project — share a Redis 
 
 **Rules:**
 
-- `projectPrefix` is read from config (e.g. `CACHE_PREFIX=acme`); default MAY be empty for single-tenant local dev but MUST be set in shared/production environments.
+- `projectPrefix` is read from config (e.g. `CACHE_KEY_PREFIX=acme`); default MAY be empty for single-tenant local dev but MUST be set in shared/production environments.
 - `modulePrefix` is a compile-time constant in the module (e.g. `const cacheNS = "auth"`), never read from env — it is fixed so a module cannot accidentally read/write another module's keys.
 - Queue/topic names follow the same two-prefix rule, using the separator the broker idiomatically expects.
 
@@ -105,10 +104,10 @@ Module-to-module (internal, non-public) calls MUST be authenticated with a share
 
 - Each module that exposes internal endpoints defines `<MODULE>_INTERNAL_TOKEN` (e.g. `BILLING_INTERNAL_TOKEN`).
 - Callers attach it on internal requests; the receiving module validates it before processing and rejects mismatches with the auth error code (see [error-codes.md](./error-codes.md), 2xxx range).
-- Carried in the `Authorization` header as a distinct scheme so it is never confused with end-user JWTs:
+- Carried in a dedicated `X-Internal-Token` header so it is never confused with end-user JWTs in the `Authorization` header:
 
   ```
-  Authorization: Internal <token>
+  X-Internal-Token: <token>
   ```
 
 - Tokens are generated as random secrets (see §6), rotated per environment, and never logged.
@@ -148,15 +147,15 @@ For anything **persisted to the database or otherwise long-lived** — field-lev
 
 ## 7. Auth / JWT TTLs
 
-- Token lifetimes are config, not hard-coded: `JWT_ACCESS_TTL`, `JWT_REFRESH_TTL`.
+- Token lifetimes are config, not hard-coded: `AUTH_ACCESS_TOKEN_TTL`, `AUTH_REFRESH_TOKEN_TTL`.
 - **Web services use shorter TTLs** — for *both* access and refresh tokens — than long-lived clients (mobile/native), because browser sessions are higher-risk (XSS, shared machines) and re-login is cheap. Provide web-specific overrides:
 
   | Key | Typical | Applies to |
   |-----|---------|------------|
-  | `JWT_ACCESS_TTL` | hours–days | Mobile / native / default access token |
-  | `JWT_REFRESH_TTL` | days–weeks | Mobile / native / default refresh token |
-  | `JWT_WEB_ACCESS_TTL` | minutes (e.g. `15m`) | Web frontend access token |
-  | `JWT_WEB_REFRESH_TTL` | `24h` (default) | Web frontend refresh token |
+  | `AUTH_ACCESS_TOKEN_TTL` | minutes (e.g. `15m`) | Mobile / native / default access token |
+  | `AUTH_REFRESH_TOKEN_TTL` | days–weeks | Mobile / native / default refresh token |
+  | `AUTH_WEB_ACCESS_TOKEN_TTL` | minutes (e.g. `15m`) | Web frontend access token |
+  | `AUTH_WEB_REFRESH_TOKEN_TTL` | `24h` (default) | Web frontend refresh token |
 
 - The web-specific TTLs are selected by platform (`X-Client-Platform: web`, see [http-constitution.md](./http-constitution.md) §7.3). When a web override is unset, fall back to the corresponding default key. Tokens are signed with the dedicated `JWT_SIGNING_KEY` (§6.2), not derived from `APP_PEPPER`.
 
@@ -178,7 +177,7 @@ Every external integration (SMS, email, payment, object storage, etc.) sits behi
 | Key | Default | Behavior |
 |-----|---------|----------|
 | `PORT` | service-defined | Main HTTP listener |
-| `METRICS_PORT` | `0` | `0` → expose `/metrics` on the main `PORT`; non-zero (recommended `9090`) → dedicated listener on that port |
+| `METRICS_PORT` | `9090` | non-zero (default `9090`) → dedicated listener on that port; `0` → expose `/metrics` on the main `PORT` |
 
 Full `/metrics` semantics are defined in [http-constitution.md](./http-constitution.md) §9 and [observability.md](./observability.md) §8.
 
@@ -193,5 +192,5 @@ Go services bind and validate all of the above in `internal/config/config.go` (s
 - [ ] Cache/queue keys carry `projectPrefix` (config) + `modulePrefix` (fixed in code)
 - [ ] Internal endpoints validate `<MODULE>_INTERNAL_TOKEN`
 - [ ] Transient secrets HKDF-derived from `APP_PEPPER` (distinct `info`); DB-stored/long-lived keys (`JWT_SIGNING_KEY`, `*_ENCRYPTION_KEY`) are dedicated, NOT derived; all via `openssl rand -hex 32`; never logged
-- [ ] JWT signed with dedicated `JWT_SIGNING_KEY`; TTLs are config; web has shorter `JWT_WEB_ACCESS_TTL` and `JWT_WEB_REFRESH_TTL` (default `24h`)
+- [ ] JWT signed with dedicated `JWT_SIGNING_KEY`; TTLs are config; web has shorter `AUTH_WEB_ACCESS_TOKEN_TTL` and `AUTH_WEB_REFRESH_TOKEN_TTL` (default `24h`)
 - [ ] Each third-party integration selects its impl via `<PROVIDER>_PROVIDER`; `stub` logs intended calls; `APP_ENV=production` rejects `stub`

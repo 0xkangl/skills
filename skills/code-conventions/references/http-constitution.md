@@ -211,7 +211,7 @@ Accept-Language: zh-Hans,zh;q=0.9,en;q=0.8
 | `en-US`, `en-GB`, `en-*` | `en` |
 | unsupported / unmatched | configured default locale |
 
-- The resolved locale is what drives i18n responses and is logged as a context field where relevant. Default locale and supported set are configuration — see [configuration.md](./configuration.md).
+- The resolved locale is what drives i18n responses and is logged as a context field where relevant. The default locale is configuration (`DEFAULT_LOCALE`, see [configuration.md](./configuration.md)); the supported set is determined by the content locales (translations) the module actually ships, not a separate env var.
 
 ## 8. Idempotency
 
@@ -238,7 +238,7 @@ Idempotency-Key: <uuid>
 
 ### Scope
 
-- The middleware is mounted on the `/v1` route group and applies to all write endpoints.
+- The middleware is mounted only on **authenticated** write endpoints — NOT on public (unauthenticated) routes. An unauthenticated client could otherwise flood Redis with arbitrary `Idempotency-Key` values, each persisting a stored response, exhausting cache memory.
 - It only activates for requests carrying the `Idempotency-Key` header. GET/HEAD requests are unaffected but not blocked.
 
 ## 9. Observability
@@ -249,9 +249,20 @@ Idempotency-Key: <uuid>
 
 **Metrics endpoint (`GET /metrics`):** Controlled by `METRICS_PORT`. When `0`, register `/metrics` on the main HTTP server (`PORT`). When non-zero (e.g. `9090`), serve `/metrics` on a dedicated listener at that port. In both modes, `/metrics` is outside the `/v1` prefix and exempt from client header validation.
 
-## 10. API Versioning
+## 10. Route Prefixes & API Versioning
 
-`/v1/users`
+Every route is namespaced by **surface** then **version** — `{surface}/{version}/{resource}`. There are three surfaces:
+
+| Prefix | Surface | Consumers | Auth |
+|--------|---------|-----------|------|
+| `/api/v1` | Public API | End-user client apps (mobile / web) | End-user Bearer JWT (§7.2) |
+| `/admin/v1` | Admin API | Operators / admin console | End-user Bearer JWT (§7.2), privileged accounts |
+| `/internal/v1` | Internal service API | Other services (module-to-module) | `X-Internal-Token` (see [configuration.md](./configuration.md) §5) |
+
+- `v1` is the API version. Breaking changes bump the version (`/api/v2`, …) and keep the old version live during migration (§4.4).
+- Infra / operational paths (`/health`, `/metrics`, `/webhooks`) sit outside all versioned prefixes and follow their own rules.
+
+Example: `GET /api/v1/users`
 
 ## 11. Security
 
