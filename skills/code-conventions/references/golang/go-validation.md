@@ -10,6 +10,50 @@ This document extends [HTTP Constitution](../http-constitution.md) §4.2–§4.3
 
 ## 2. Usage
 
+> **Framework applicability**
+> - **chi projects** — use the `validate` tag + manual decode + `ValidateStruct()` from `pkg/validator/`, as shown in §2.1–§2.3. `pkg/validator` applies to chi only.
+> - **gin projects** — use the `binding` tag + `c.ShouldBindJSON()`. Gin delegates to `go-playground/validator` internally and performs decode + validation in one step; do **not** call `pkg/validator` here.
+
+Gin example (struct tags use `binding` instead of `validate`):
+
+```go
+type loginRequest struct {
+    Email    string `json:"email" binding:"required,email"`
+    Password string `json:"password" binding:"required,min=8"`
+}
+
+func login(c *gin.Context) {
+    var req loginRequest
+    if !bindJSON(c, &req) {
+        return
+    }
+    // ...
+}
+```
+
+Handlers bind via the shared `bindJSON` helper rather than calling `c.ShouldBindJSON()` directly — it returns a generic error to the client and logs the validator detail server-side:
+
+```go
+// bindJSON 绑定 JSON；校验失败时返回通用文案，详细错误仅写日志。
+func bindJSON(c *gin.Context, req any) bool {
+    if err := c.ShouldBindJSON(req); err != nil {
+        logger.DebugCtx(c.Request.Context(), "handler", "bind_json", "request validation failed",
+            "path", c.Request.URL.Path,
+            "error", err)
+        response.Error(c, apperror.ErrValidation)
+        return false
+    }
+    return true
+}
+```
+
+// ErrValidation indicates a parameter validation error (1xxx).
+// var ErrValidation = newAppError(400, 1001, "parameter error", slog.LevelInfo)
+
+The `binding` tag shares the same rule syntax as the `validate` tag (§3); gin resolves JSON names automatically, so no JSON-tag mapping registration is needed.
+
+> **Note (gin vs §4):** gin projects return a **generic** validation error (`apperror.ErrValidation`) to avoid leaking field-level detail, deviating from the field-level `message` format in §4. The detailed validator errors are logged server-side only.
+
 ### 2.1 Request Struct Tag
 
 Declare validation rules on request structs via the `validate` tag:
@@ -132,3 +176,5 @@ Request header validation (e.g., `X-Client-Platform`) is handled in middleware, 
 - ❌ Using Go struct field names in error messages (use JSON tag camelCase names instead)
 - ❌ Returning a business code other than `1001` for validation errors
 - ❌ Adding `validate` tags directly to custom types like `OptionalString`
+- ❌ In gin handlers, calling `c.ShouldBindJSON()` directly instead of the shared `bindJSON` helper — the helper centralizes the generic client-facing error and server-side logging (SEC-17)
+- ❌ Leaking the raw `validator` error string in the response — gin projects return the generic `apperror.ErrValidation` and log detail server-side only
