@@ -38,5 +38,5 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 
 ## 相关 Skill
 
-- 规约驱动开发流程（spec-first、spec 划分/所有权、跨模块 plan 拆分、spec 索引维护）属于 polyrepo 工作区规范，见各项目 `<project>-spec-center/AGENTS.md`（由 `polyrepo-scaffold` 模板生成）；本 skill 的 [references/testing.md](references/testing.md) 承载其实现阶段的 TDD workflow 与测试细则。
+- 规约驱动开发流程（spec-first、spec 划分/所有权、跨模块 plan 拆分、spec 索引维护）属于 polyrepo 工作区规范，见各项目 `<project>-spec-center/AGENTS.md`（由 `agents-scaffold` 模板生成）；本 skill 的 [references/testing.md](references/testing.md) 承载其实现阶段的 TDD workflow 与测试细则。
 - 工程行为规范（think-before-code、simplicity-first、surgical-changes、root-cause reasoning 等 LLM/agent 编码行为准则）不在本 skill 内，见独立 skill **`engineering-guidelines`**。

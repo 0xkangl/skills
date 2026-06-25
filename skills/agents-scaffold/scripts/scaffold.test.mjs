@@ -8,15 +8,17 @@ import {
   copyAndReplace,
   gitInit,
   createModule,
-  runInit,
-  runAdd,
+  runWorkspace,
+  runModule,
+  runSingle,
+  buildSingleAgents,
   parseArgs,
   main,
   isTextFile,
   updateSpecCenterAgents,
   inferProjectName,
 } from './scaffold.mjs';
-import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync as fsReadFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -40,6 +42,7 @@ test('getAvailableTemplateNames lists templates without root', () => {
   assert.ok(names.includes('client'));
   assert.ok(names.includes('spec-center'));
   assert.ok(!names.includes('root'));
+  assert.ok(!names.includes('single'));   // single 是单仓库治理片段,不是可选模块
 });
 
 test('getModuleRole reads first line under ## Role', () => {
@@ -97,13 +100,13 @@ test('copyAndReplace replaces {{PROJECT}} in built-in template', () => {
   }
 });
 
-test('e2e: init then two adds create module dirs as git repos on main', () => {
+test('e2e: workspace then two modules create module dirs as git repos on main', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server' });   // 默认建 git
-    runAdd({ name: 'myapp', dir: ws, modules: 'web' });
-    runAdd({ name: 'myapp', dir: ws, modules: 'mobile=client' });
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server' });   // 默认建 git
+    runModule({ name: 'myapp', dir: ws, modules: 'web' });
+    runModule({ name: 'myapp', dir: ws, modules: 'mobile=client' });
 
     // 三个模块目录均落盘,各含 AGENTS.md
     for (const m of ['server', 'web', 'mobile']) {
@@ -195,12 +198,12 @@ test('createModule honors noGit', () => {
   }
 });
 
-test('runInit always includes spec-center and creates module dirs', () => {
+test('runWorkspace always includes spec-center and creates module dirs', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    const r = runInit({ name: 'myapp', dir: ws, modules: 'server,web' });
-    assert.equal(r.mode, 'init');
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web' });
+    assert.equal(r.mode, 'workspace');
     assert.deepEqual(r.modules.sort(), ['server', 'spec-center', 'web'].sort());
     assert.ok(existsSync(join(ws, 'AGENTS.md')));            // root 模板
     assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
@@ -212,24 +215,24 @@ test('runInit always includes spec-center and creates module dirs', () => {
   }
 });
 
-test('runInit rejects invalid name and non-empty dir', () => {
+test('runWorkspace rejects invalid name and non-empty dir', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
-    assert.throws(() => runInit({ name: 'Bad', dir: join(dir, 'x') }), /Invalid project name/);
+    assert.throws(() => runWorkspace({ name: 'Bad', dir: join(dir, 'x') }), /Invalid project name/);
     // 非空目录
     const ws = join(dir, 'taken');
-    runInit({ name: 'myapp', dir: ws, modules: '', noGit: true });
-    assert.throws(() => runInit({ name: 'myapp', dir: ws, modules: '', noGit: true }), /not empty/);
+    runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });
+    assert.throws(() => runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true }), /not empty/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('runInit dry-run writes nothing', () => {
+test('runWorkspace dry-run writes nothing', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    const r = runInit({ name: 'myapp', dir: ws, modules: 'server', dryRun: true });
+    const r = runWorkspace({ name: 'myapp', dir: ws, modules: 'server', dryRun: true });
     assert.equal(r.dryRun, true);
     assert.ok(!existsSync(ws)); // 未落盘
   } finally {
@@ -237,13 +240,13 @@ test('runInit dry-run writes nothing', () => {
   }
 });
 
-test('runAdd creates the new module dir', () => {
+test('runModule creates the new module dir', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
-    const r = runAdd({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
-    assert.equal(r.mode, 'add');
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    const r = runModule({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
+    assert.equal(r.mode, 'module');
     assert.deepEqual(r.modules, ['web']);
     assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
   } finally {
@@ -251,12 +254,12 @@ test('runAdd creates the new module dir', () => {
   }
 });
 
-test('runAdd skips existing modules and spec-center', () => {
+test('runModule skips existing modules and spec-center', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
-    const r = runAdd({ name: 'myapp', dir: ws, modules: 'server,spec-center,web', noGit: true });
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    const r = runModule({ name: 'myapp', dir: ws, modules: 'server,spec-center,web', noGit: true });
     assert.deepEqual(r.modules, ['web']);
     const reasons = r.skipped.map((s) => s.entry).sort();
     assert.deepEqual(reasons, ['server', 'spec-center']);
@@ -265,18 +268,18 @@ test('runAdd skips existing modules and spec-center', () => {
   }
 });
 
-test('runAdd throws when spec-center is absent', () => {
+test('runModule throws when spec-center is absent', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
-    assert.throws(() => runAdd({ name: 'myapp', dir, modules: 'web' }), /spec-center not found/);
+    assert.throws(() => runModule({ name: 'myapp', dir, modules: 'web' }), /spec-center not found/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test('parseArgs parses subcommand and flags', () => {
-  const { command, flags } = parseArgs(['init', '--name', 'myapp', '--modules', 'server,web', '--no-git', '--dry-run']);
-  assert.equal(command, 'init');
+  const { command, flags } = parseArgs(['workspace', '--name', 'myapp', '--modules', 'server,web', '--no-git', '--dry-run']);
+  assert.equal(command, 'workspace');
   assert.equal(flags.name, 'myapp');
   assert.equal(flags.modules, 'server,web');
   assert.equal(flags.noGit, true);
@@ -284,14 +287,14 @@ test('parseArgs parses subcommand and flags', () => {
 });
 
 test('parseArgs throws on unknown flag', () => {
-  assert.throws(() => parseArgs(['init', '--bogus']), /Unknown argument/);
+  assert.throws(() => parseArgs(['workspace', '--bogus']), /Unknown argument/);
 });
 
-test('main runs init via subcommand (integration)', () => {
+test('main runs workspace via subcommand (integration)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    main(['init', '--name', 'myapp', '--dir', ws, '--modules', 'server,web', '--no-git']);
+    main(['workspace', '--name', 'myapp', '--dir', ws, '--modules', 'server,web', '--no-git']);
     assert.ok(existsSync(join(ws, 'myapp-spec-center', 'AGENTS.md')));
     assert.ok(existsSync(join(ws, 'myapp-server', 'AGENTS.md')));
   } finally {
@@ -299,11 +302,11 @@ test('main runs init via subcommand (integration)', () => {
   }
 });
 
-test('init generates spec-center AGENTS.md: placeholders replaced, markers kept, module rows + tree filled', () => {
+test('workspace generates spec-center AGENTS.md: placeholders replaced, markers kept, module rows + tree filled', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
     const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(!sc.includes('{{PROJECT}}'));                 // 占位符已替换
     assert.ok(sc.includes('<!-- MODULE_MAP_START -->'));    // 锚点保留(供 add 再生成)
@@ -323,11 +326,11 @@ test('generated tree flips connectors when modules are added (spec-center no lon
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: '', noGit: true });   // 仅 spec-center
+    runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });   // 仅 spec-center
     let sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('└── myapp-spec-center/'));   // 唯一模块时末位
     // 加模块后,spec-center 不再是末位
-    runAdd({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    runModule({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
     sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('├── myapp-spec-center/'));
     assert.ok(sc.includes('└── myapp-server/'));
@@ -340,7 +343,7 @@ test('Module Map role for custom modules uses "<Name> application"', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'shop');
-    runInit({ name: 'shop', dir: ws, modules: 'checkout=server,mobile=client', noGit: true });
+    runWorkspace({ name: 'shop', dir: ws, modules: 'checkout=server,mobile=client', noGit: true });
     const sc = fsReadFileSync(join(ws, 'shop-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('| `shop-checkout` | Checkout application |'));
     assert.ok(sc.includes('| `shop-mobile` | Mobile application |'));
@@ -353,7 +356,7 @@ test('updateSpecCenterAgents is idempotent (re-run yields identical file)', () =
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
     const agentsPath = join(ws, 'myapp-spec-center', 'AGENTS.md');
     const first = fsReadFileSync(agentsPath, 'utf-8');
     updateSpecCenterAgents(ws, 'myapp');
@@ -385,12 +388,12 @@ test('custom-name rename guards against touching unrelated -spec-center refs', (
   }
 });
 
-test('runAdd infers project name from <name>-spec-center when --name omitted', () => {
+test('runModule infers project name from <name>-spec-center when --name omitted', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
-    const r = runAdd({ dir: ws, modules: 'web', noGit: true });   // 无 --name
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    const r = runModule({ dir: ws, modules: 'web', noGit: true });   // 无 --name
     assert.equal(r.name, 'myapp');
     assert.deepEqual(r.modules, ['web']);
     assert.ok(existsSync(join(ws, 'myapp-web', 'AGENTS.md')));
@@ -403,23 +406,23 @@ test('inferProjectName returns null on empty dir, throws on multiple spec-center
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     assert.equal(inferProjectName(dir), null);
-    runInit({ name: 'one', dir: join(dir, 'one'), modules: '', noGit: true });
+    runWorkspace({ name: 'one', dir: join(dir, 'one'), modules: '', noGit: true });
     assert.equal(inferProjectName(join(dir, 'one')), 'one');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test('runAdd reports created dirs on partial failure (err.created)', () => {
+test('runModule reports created dirs on partial failure (err.created)', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
-    runInit({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
     // 删掉 spec-center 的 AGENTS.md,使 updateSpecCenterAgents 在模块创建后抛错
     rmSync(join(ws, 'myapp-spec-center', 'AGENTS.md'));
     let caught;
     try {
-      runAdd({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
+      runModule({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
     } catch (err) {
       caught = err;
     }
@@ -428,4 +431,123 @@ test('runAdd reports created dirs on partial failure (err.created)', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ============================== single 模式 ==============================
+
+test('single: in-place init merges governance + module section, strips suffix, sets up dirs and git on main', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    const r = runSingle({ template: 'server', dir: proj });   // name 默认取目录名,默认建 git
+    assert.equal(r.mode, 'single');
+    assert.equal(r.name, 'demo-app');
+    assert.equal(r.template, 'server');
+
+    // docs 目录来自 stack 模板;契约/约定文档直接放 docs/,不建额外子目录
+    assert.ok(existsSync(join(proj, 'docs', 'specs')));
+    assert.ok(existsSync(join(proj, 'docs', 'plans')));
+    assert.ok(!existsSync(join(proj, 'conventions')));   // 不建 conventions 子目录
+    assert.ok(!existsSync(join(proj, 'docs', 'api')));   // 不建 docs 子目录
+    assert.ok(!existsSync(join(proj, 'docs', 'errors')));
+
+    // AGENTS:治理 + 模块 Role,无多仓库残留,后缀已去,占位符已替换
+    const agents = fsReadFileSync(join(proj, 'AGENTS.md'), 'utf-8');
+    assert.ok(agents.startsWith('# demo-app'));
+    assert.ok(agents.includes('## Role'));
+    assert.ok(agents.includes('Server application'));
+    assert.ok(agents.includes('single-repository'));
+    assert.ok(!agents.includes('{{PROJECT}}'));
+    assert.ok(!agents.includes('multi-repo'));
+    assert.ok(!agents.includes('spec-center'));
+    assert.ok(!agents.includes('Module Map'));
+    assert.ok(!agents.includes('demo-app-server'));   // -server 后缀已去
+
+    // Makefile APP_NAME 去后缀
+    const mk = fsReadFileSync(join(proj, 'Makefile'), 'utf-8');
+    assert.ok(/APP_NAME\s+:= demo-app\b/.test(mk));
+    assert.ok(!mk.includes('demo-app-server'));
+
+    // git on main
+    assert.ok(existsSync(join(proj, '.git')));
+    const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], {
+      cwd: proj, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.equal(branch, 'main');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: refuses to overwrite existing files (no clobber)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    runSingle({ template: 'server', dir: proj, noGit: true });
+    assert.throws(() => runSingle({ template: 'server', dir: proj, noGit: true }), /refusing to overwrite/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: reuses an existing .git instead of re-initializing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    mkdirSync(proj, { recursive: true });
+    execFileSync('git', ['init'], { cwd: proj, stdio: 'pipe' });
+    execFileSync('git', ['branch', '-m', 'trunk'], { cwd: proj, stdio: 'pipe' });
+    runSingle({ template: 'web', dir: proj });   // 默认建 git,但已有 .git 应复用,不改分支
+    const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], {
+      cwd: proj, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    assert.equal(branch, 'trunk');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: --no-git skips git init', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    runSingle({ template: 'server', dir: proj, noGit: true });
+    assert.ok(existsSync(join(proj, 'AGENTS.md')));
+    assert.ok(!existsSync(join(proj, '.git')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: dry-run writes nothing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    const r = runSingle({ template: 'server', dir: proj, dryRun: true });
+    assert.equal(r.dryRun, true);
+    assert.ok(!existsSync(proj));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: rejects missing/unknown template', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    assert.throws(() => runSingle({ dir: join(dir, 'x') }), /requires --template/);
+    assert.throws(() => runSingle({ template: 'nope', dir: join(dir, 'y') }), /Invalid --template/);
+    assert.throws(() => runSingle({ template: 'spec-center', dir: join(dir, 'z') }), /Invalid --template/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('buildSingleAgents injects module section and rewrites cross-repo conventions path', () => {
+  const merged = buildSingleAgents('server', 'demo-app');
+  assert.ok(merged.includes('## Role'));
+  assert.ok(merged.includes('Server application'));
+  assert.ok(merged.includes('committed under docs/'));          // 跨仓路径已改本仓 docs/
+  assert.ok(!merged.includes('-spec-center/conventions/'));
+  assert.ok(!merged.includes('<!-- MODULE_STACK -->'));         // 锚点已被替换
+  assert.ok(!merged.includes('{{PROJECT}}'));
 });

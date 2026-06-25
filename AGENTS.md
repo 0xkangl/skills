@@ -12,7 +12,7 @@
 2. **只做 skill 级引用**：skill 之间需要关联时，**只提对方的 skill 名**（如「见 `code-conventions` skill」）。
    - ❌ 禁止：`[testing](../code-conventions/references/testing.md)`（内容级、跨目录路径引用）
    - ✅ 允许：「实现阶段的 TDD 细则见 `code-conventions` skill」
-3. **正交不合并**：定位/触发频率不同的 skill 保持独立（如一次性的 `polyrepo-scaffold`、手动审计的 `codebase-audit` 与高频的 `code-conventions`）。作用域重合、强耦合的能力则合并——spec-first/SDD 工作流全程依赖 polyrepo 结构，已并入 `polyrepo-scaffold` 的 `spec-center/AGENTS.md` 模板，不单列 skill。
+3. **正交不合并**：定位/触发频率不同的 skill 保持独立（如一次性的 `agents-scaffold`、手动审计的 `codebase-audit` 与高频的 `code-conventions`）。作用域重合、强耦合的能力则合并——spec-first/SDD 工作流全程依赖 polyrepo 结构，已并入 `agents-scaffold` 的 `spec-center/AGENTS.md` 模板，不单列 skill。
 4. **改动可追溯**：每一处改动都应直接服务于明确需求；不顺手「优化」无关内容。
 
 ## SKILL.md 规范
@@ -22,7 +22,7 @@
   - **例外**：设了 `disable-model-invocation: true` 的 skill（仅手动 `/name` 调用，description 不进上下文、不参与自动触发判定），description 改为客观描述「这个 skill 做什么」即可，不必用「Use when …」句式（如 `codebase-audit`）。
 - 正文：开头一句话点明定位，再给可执行的步骤/索引；保持精简。
 
-## polyrepo-scaffold 专项
+## agents-scaffold 专项
 
 - 所有确定性产物（拷模板、`{{PROJECT}}` 替换、`git init`，以及 `spec-center/AGENTS.md` 的 Module Map 表 + Repository Structure 树）都在 `scripts/scaffold.mjs`（**零依赖**，仅用 `node:` 内置模块）。表/树以工作区实际存在的 `<name>-<module>/` 目录为单一真相、幂等生成（角色取自各模块 `AGENTS.md` 的 `## Role`，连接线按结构计算）——不交给 LLM 手画。SKILL.md 负责意图判定、收集输入、确认计划、调脚本、(失败时)处理 `partial:` 残留、转述输出，不手工编辑生成产物。
 - 模板在 `templates/`，用 `{{PROJECT}}` 占位。模板 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树用锚点注释（`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`）标出脚本维护区,初始只含 spec-center；脚本按实际模块重写锚点之间的内容（含自定义名模块）。正文方法论示例仍用 server/web/client 作具体举例，不代表工作区实际结构。
@@ -30,13 +30,13 @@
 - 改脚本或模板后必须跑测试：
 
 ```bash
-cd skills/polyrepo-scaffold && node --test scripts/scaffold.test.mjs
+cd skills/agents-scaffold && node --test scripts/scaffold.test.mjs
 ```
 
 ## 提交前检查
 
 - [ ] 改动的 SKILL.md `name` 与目录名一致。
 - [ ] 没有引入跨 skill 的内容级（文件路径）引用。
-- [ ] 没有指向不存在文件的死链（尤其 polyrepo-scaffold 模板）。
-- [ ] 涉及 polyrepo-scaffold 的改动已 `node --test` 全绿。
+- [ ] 没有指向不存在文件的死链（尤其 agents-scaffold 模板）。
+- [ ] 涉及 agents-scaffold 的改动已 `node --test` 全绿。
 - [ ] 新增/重命名/删除 skill 时，README 的「Skills 一览」表与「使用 → 方式一」的 `npx skills add` 命令块已同步。
