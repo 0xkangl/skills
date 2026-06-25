@@ -41,19 +41,19 @@ engineering-guidelines   code-conventions
 按需复制对应代码块执行，无需替换占位符：
 
 ```bash
-npx skills add https://github.com/0xkanglj/skills --skill engineering-guidelines
+npx skills add https://github.com/0xkangl/skills --skill engineering-guidelines
 ```
 
 ```bash
-npx skills add https://github.com/0xkanglj/skills --skill code-conventions
+npx skills add https://github.com/0xkangl/skills --skill code-conventions
 ```
 
 ```bash
-npx skills add https://github.com/0xkanglj/skills --skill polyrepo-scaffold
+npx skills add https://github.com/0xkangl/skills --skill polyrepo-scaffold
 ```
 
 ```bash
-npx skills add https://github.com/0xkanglj/skills --skill codebase-audit
+npx skills add https://github.com/0xkangl/skills --skill codebase-audit
 ```
 
 ### 方式二：本地软链
