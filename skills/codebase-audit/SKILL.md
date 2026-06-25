@@ -3,20 +3,23 @@ name: codebase-audit
 disable-model-invocation: true
 description: >
   Multi-agent codebase audit / 代码库审计 spanning architecture, code quality, security,
-  testing, dependencies/debt, and maintainability/observability: scopes the target, fans
-  out parallel dimension auditors, adversarially verifies every finding to cut false
-  positives, then synthesizes one self-contained report grouped by relevance and severity.
+  testing, dependencies/debt, maintainability/observability, and conventions compliance
+  (against the code-conventions skill): scopes the target, fans out parallel dimension
+  auditors, adversarially verifies every finding to cut false positives, then synthesizes
+  one self-contained report grouped by relevance and severity.
 ---
 
 # Codebase Audit
 
 A manual, multi-agent audit tuned for low token cost. The main agent only **scopes and orchestrates** — every auditor reads the source it needs itself, so source is never duplicated across prompts. Candidate findings pass an independent adversarial verify stage before a synthesizer merges them, which is what keeps false positives out.
 
+**The find/verify split is the one hard invariant**: the subagent that confirms a finding is never the one that wrote it. Everything else — parallelism above all — is a token/latency optimization layered on top. Degrade the optimizations freely; never collapse audit and verify into a single agent.
+
 ## Invocation
 
 `@codebase-audit [path]` — optional file or directory to scope the audit; omit to audit the whole project.
 
-**Dimensions** default to all six. Narrow or exclude them in plain language — e.g. "security only", "architecture + code quality", "skip testing", "不需要依赖审查". Run exactly the set asked for.
+**Dimensions** default to all seven. Narrow or exclude them in plain language — e.g. "security only", "architecture + code quality", "skip testing", "只做规范审计", "不需要依赖审查". Run exactly the set asked for.
 
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
@@ -37,13 +40,24 @@ main agent (orchestrator — never reads source in bulk)
 
 The verify stage mirrors the adversarial-verify pattern from Claude's workflow feature: the agent that *finds* an issue is never the one that *confirms* it.
 
+## Dispatching subagents
+
+Spawn every auditor, verifier, and the synthesizer with the **Agent / Task subagent tool** (`general-purpose` type) — that is the fan-out mechanism. Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel."
+
+Degradation order when concurrency isn't available:
+1. **Preferred** — many Agent calls in one message (parallel).
+2. **Acceptable** — invoke the subagents **one at a time** (serial). Slower, identical correctness.
+3. **Forbidden** — folding the work into the main agent. An auditor that verifies its own findings defeats the entire skill.
+
+If no subagent tool exists *at all*, do **not** silently self-verify. Tell the user the report is **single-agent, not independently verified**, label it so in the output, and let them decide — never pass self-checked findings off as adversarially verified.
+
 ## Step 1 — Scope (main agent)
 
 Resolve the target:
 - **path given** — a file means that file plus its direct callers/deps; a directory means its source tree.
 - **no path** — the whole project from the repo root.
 
-Decide the **active dimension set** (default all six; honor "only X" / "skip Y") and the **report language** (default 简体中文) from the request. Then map the scope cheaply with `git ls-files`, Glob, and `rg` over manifests — **do not read file bodies in bulk**. Build a compact brief:
+Decide the **active dimension set** (default all seven; honor "only X" / "skip Y") and the **report language** (default 简体中文) from the request. Then map the scope cheaply with `git ls-files`, Glob, and `rg` over manifests — **do not read file bodies in bulk**. Build a compact brief:
 
 ```
 Scope: <path | "whole project">
@@ -82,6 +96,7 @@ Launch every active dimension in one batch. Give each the scope brief and point 
 | Testing | TEST | `agents/audit-testing.md` | `docs/audit/<TS>/testing.md` |
 | Dependencies & debt | DEP | `agents/audit-dependencies.md` | `docs/audit/<TS>/deps.md` |
 | Maintainability & observability | OBS | `agents/audit-observability.md` | `docs/audit/<TS>/obs.md` |
+| Conventions compliance | CONV | `agents/audit-conventions.md` | `docs/audit/<TS>/conv.md` |
 
 Prompt shape:
 
@@ -94,9 +109,9 @@ Write your findings to: docs/audit/<TS>/<dim>.md
 Reply with one line only: "<PREFIX>: P0=a P1=b P2=c P3=d".
 ```
 
-## Step 3 — Adversarial verify (6 parallel subagents)
+## Step 3 — Adversarial verify (one fresh subagent per active dimension)
 
-When the auditors finish, launch one verifier per dimension:
+When the auditors finish, launch one verifier per dimension — each a **new** subagent, never the auditor that wrote the file:
 
 ```
 Read agents/verify.md and follow it.

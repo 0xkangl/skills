@@ -2,6 +2,8 @@
 
 You get one dimension's findings file. Your job is to **refute** each finding, not endorse it. A finding survives only if the cited code unambiguously supports it. You did not write these findings — stay skeptical.
 
+**Independence check first**: you must be a different agent than the one that wrote this file. If you authored these findings (or have no way to spawn as a separate subagent), stop — do not self-verify. Report that back to the caller instead of rubber-stamping your own work; a self-checked file is not a verified one.
+
 ## For each finding
 
 1. Open the cited `location` and read enough around it to judge.

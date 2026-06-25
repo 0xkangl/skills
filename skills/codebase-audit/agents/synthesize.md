@@ -43,5 +43,5 @@ Rules:
 - Write the report in the caller's **report language** (default 简体中文); keep field labels, severity codes, and `[PREFIX-N]` ids as-is.
 - Keep every confirmed finding — don't merge or drop them. Preserve each `fix` verbatim, including multi-option fixes with their recommendation.
 - Clusters appear in the step-3 order; findings within a cluster in severity order.
-- Prefix legend: SEC security · ARCH architecture · CODE code-quality · TEST testing · DEP deps/debt · OBS maintainability/observability.
+- Prefix legend: SEC security · ARCH architecture · CODE code-quality · TEST testing · DEP deps/debt · OBS maintainability/observability · CONV conventions-compliance.
 - No sub-report index, no per-dimension statistics tables, no remediation timeline.
