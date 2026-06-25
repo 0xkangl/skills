@@ -19,6 +19,7 @@
 
 - frontmatter 必填 `name`（kebab-case，与目录名一致）和 `description`。
 - `description` 用「Use when …」句式描述触发场景，措辞决定 agent 能否在正确时机命中该 skill。
+  - **例外**：设了 `disable-model-invocation: true` 的 skill（仅手动 `/name` 调用，description 不进上下文、不参与自动触发判定），description 改为客观描述「这个 skill 做什么」即可，不必用「Use when …」句式（如 `codebase-audit`）。
 - 正文：开头一句话点明定位，再给可执行的步骤/索引；保持精简。
 
 ## polyrepo-scaffold 专项

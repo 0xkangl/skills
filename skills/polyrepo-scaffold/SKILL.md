@@ -1,6 +1,7 @@
 ---
 name: polyrepo-scaffold
-description: Use when initializing a new multi-repo (polyrepo) workspace, or adding web / server / client / custom modules to an existing one. Sets up the spec-center SSOT plus per-module repos with shared AGENTS.md conventions via a zero-dependency Node script.
+disable-model-invocation: true
+description: Scaffolds a multi-repo (polyrepo) workspace, or adds web / server / client / custom modules to an existing one. Sets up the spec-center SSOT plus per-module repos with shared AGENTS.md conventions via a zero-dependency Node script.
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
