@@ -15,8 +15,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # Tooling
-# skills-lock.json (lockfile for installed skills) SHOULD be committed;
-# .agents/ holds the downloaded skill cache, treat like node_modules.
+# skills-lock.json and .agents/ are local state for installed skills;
+# treat them like a package cache and keep them out of the repo.
+skills-lock.json
 .agents/
 
 # Logs & temp
