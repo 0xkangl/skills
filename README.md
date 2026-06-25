@@ -1,4 +1,4 @@
-# skills-repo
+# SKILLS
 
 一组可独立装载的 **Agent / Claude Code Skills**，覆盖从「行为准则 → 规范 → 流程 → 工程脚手架 → 代码审计」的完整链路。每个 skill 自包含、可单独启用，彼此**只做 skill 级引用，不做内容级引用**。
 
@@ -36,7 +36,29 @@ engineering-guidelines   code-conventions
 
 ## 使用
 
-把需要的 skill 装入 Claude Code 的 skills 目录（全局或项目级）：
+### 方式一：`npx skills add`（推荐）
+
+按需复制对应代码块执行，无需替换占位符：
+
+```bash
+npx skills add https://github.com/0xkanglj/skills --skill engineering-guidelines
+```
+
+```bash
+npx skills add https://github.com/0xkanglj/skills --skill code-conventions
+```
+
+```bash
+npx skills add https://github.com/0xkanglj/skills --skill polyrepo-scaffold
+```
+
+```bash
+npx skills add https://github.com/0xkanglj/skills --skill codebase-audit
+```
+
+### 方式二：本地软链
+
+克隆本仓后，把需要的 skill 软链入 Claude Code 的 skills 目录（全局或项目级）：
 
 ```bash
 # 全局（对所有项目可用）
@@ -48,40 +70,18 @@ ln -s "$PWD/skills/<skill-name>" <project>/.claude/skills/<skill-name>
 
 装载后，agent 会依据各 skill `SKILL.md` frontmatter 里的 `description` 自动按场景匹配触发。
 
-### polyrepo-scaffold 快速上手
-
-```bash
-cd skills/polyrepo-scaffold
-
-# 预览计划（不落盘）
-node scripts/scaffold.mjs init --name myapp --modules server,web --dry-run
-
-# 正式初始化：生成 myapp-spec-center + myapp-server + myapp-web
-node scripts/scaffold.mjs init --name myapp --modules server,web
-
-# 向已有工作区新增模块（支持 name=template 自定义命名）
-node scripts/scaffold.mjs add --name myapp --dir ./myapp --modules api-gateway=server
-```
-
-## 开发与测试
-
-`polyrepo-scaffold` 的脚本是零依赖 Node（仅 `node:` 内置模块），用内置 test runner 跑：
-
-```bash
-cd skills/polyrepo-scaffold
-node --test scripts/scaffold.test.mjs
-```
+各 skill 的具体用法以其目录内的文档为准（如 `polyrepo-scaffold` 的脚本快速上手与测试见 [`skills/polyrepo-scaffold/README.md`](skills/polyrepo-scaffold/README.md)）。
 
 ## 目录结构
 
 ```
-skills-repo/
+skills/
 ├── README.md                       # 本文件
 ├── AGENTS.md                       # 在本仓工作的 agent 须知
 ├── CLAUDE.md                       # → AGENTS.md
 └── skills/
     ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）
-    ├── polyrepo-scaffold/          # SKILL.md + scripts/ + templates/
+    ├── polyrepo-scaffold/          # SKILL.md + README.md + scripts/ + templates/
     └── codebase-audit/             # SKILL.md + agents/（各维度审计指令）
 ```

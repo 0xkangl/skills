@@ -39,3 +39,4 @@ cd skills/polyrepo-scaffold && node --test scripts/scaffold.test.mjs
 - [ ] 没有引入跨 skill 的内容级（文件路径）引用。
 - [ ] 没有指向不存在文件的死链（尤其 polyrepo-scaffold 模板）。
 - [ ] 涉及 polyrepo-scaffold 的改动已 `node --test` 全绿。
+- [ ] 新增/重命名/删除 skill 时，README 的「Skills 一览」表与「使用 → 方式一」的 `npx skills add` 命令块已同步。
