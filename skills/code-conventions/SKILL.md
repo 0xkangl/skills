@@ -1,6 +1,6 @@
 ---
 name: code-conventions
-description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, or building Go backend services. Routes to the matching convention document before implementing.
+description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, naming config/env vars or handling secrets/keys, or building Go backend services. Routes to the matching convention document before implementing.
 ---
 
 # Code Conventions
@@ -13,7 +13,8 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 
 | 关注点 | 文档 | Scope | Description |
 |---|---|---|---|
-| HTTP API 设计 | [references/http-constitution.md](references/http-constitution.md) | 所有 HTTP 服务 / API | 方法选择、状态码、响应结构、分页、排序、时间格式、版本化 |
+| HTTP API 设计 | [references/http-constitution.md](references/http-constitution.md) | 所有 HTTP 服务 / API | 方法选择、状态码、响应结构、分页、排序、时间格式、版本化、`Accept-Language` 内容协商与 locale 归一化 |
+| 配置 / 密钥 | [references/configuration.md](references/configuration.md) | 所有模块 | 环境变量命名、缓存/队列双前缀、模块间 internal token、密钥与 HKDF 派生、JWT TTL（web 短时效）、第三方 stub 模式、服务端口 |
 | 日志 / 可观测性 | [references/observability.md](references/observability.md) | 所有模块 | 结构化日志（JSON/text）、日志级别、逻辑位置、traceId 关联、命名约定 |
 | 测试 | [references/testing.md](references/testing.md) | 所有模块 | 测试分类、AAA 结构、命名、mock 哲学、覆盖率目标、集成测试 |
 | 提交信息 | [references/conventional-commits.md](references/conventional-commits.md) | 所有模块 | Git 提交信息规范：type、scope、格式 |

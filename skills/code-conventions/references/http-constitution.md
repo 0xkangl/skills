@@ -184,9 +184,34 @@ Authorization: Bearer <token>
 |--------|----------|-------------|--------------|---------|
 | X-Client-Platform | Yes | Client platform | ios, android, web | ios |
 | X-Client-Version | Yes | App version, semantic versioning X.Y.Z | `^\d+\.\d+\.\d+$` | 1.2.0 |
-| X-Client-Language | Yes | Client language, BCP 47 tag | `^[a-z]{2}(-[A-Z]{2})?$` | zh-CN |
 
 Missing or invalid headers return HTTP 400 with error code 1001. Non-`/v1/` paths (e.g., `/health`, `/metrics`, `/webhooks`) are exempt from validation.
+
+### 7.4 Content Negotiation — Language (`Accept-Language`)
+
+Use the **standard** `Accept-Language` header for locale negotiation — do NOT invent a custom `X-Client-Language` header.
+
+```
+Accept-Language: zh-Hans,zh;q=0.9,en;q=0.8
+```
+
+- **Optional**: A missing or unparseable `Accept-Language` is NOT a 400. The server falls back to its configured default locale (e.g. `en`). Only `/v1/` business headers in §7.3 are mandatory.
+- **Value format**: BCP 47 language tags / quality-ranked list (RFC 9110 §12.5.4). The server resolves the best match against its **supported locale set**.
+
+**Locale model — prefer content locale (script), not region:**
+
+- The supported set MUST be expressed as **content locales using script subtags** (`zh-Hans`, `zh-Hant`, `en`), because written-language variants (Simplified vs Traditional Chinese) are a *script* distinction, not a *country* one. Region tags (`zh-CN`, `zh-TW`) over-specify and fragment translations.
+- Incoming region tags MUST be normalized to a content locale before matching:
+
+| Incoming (region / legacy) | Normalized content locale |
+|----------------------------|---------------------------|
+| `zh-CN`, `zh-SG`, `zh-Hans-*` | `zh-Hans` |
+| `zh-TW`, `zh-HK`, `zh-MO`, `zh-Hant-*` | `zh-Hant` |
+| `zh` (no script/region) | default Chinese script (`zh-Hans`) |
+| `en-US`, `en-GB`, `en-*` | `en` |
+| unsupported / unmatched | configured default locale |
+
+- The resolved locale is what drives i18n responses and is logged as a context field where relevant. Default locale and supported set are configuration — see [configuration.md](./configuration.md).
 
 ## 8. Idempotency
 
