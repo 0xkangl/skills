@@ -42,14 +42,34 @@ The verify stage mirrors the adversarial-verify pattern from Claude's workflow f
 
 ## Dispatching subagents
 
-Spawn every auditor, verifier, and the synthesizer with the **Agent / Task subagent tool** (`general-purpose` type) — that is the fan-out mechanism. Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel."
+**First check which fan-out mechanism is available, then pick the highest one that works:**
 
-Degradation order when concurrency isn't available:
-1. **Preferred** — many Agent calls in one message (parallel).
+0. **Preferred — Workflow tool.** If the `Workflow` tool exists, run the whole Audit→Verify→Synthesize pipeline through `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–4 below — the main agent still does Step 1 (Scope) and Step 5 (Deliver). See **Step 2–4 via Workflow**.
+1. **Fallback — Agent / Task subagent tool** (`general-purpose` type). Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel." Drive Steps 2–4 by hand.
 2. **Acceptable** — invoke the subagents **one at a time** (serial). Slower, identical correctness.
 3. **Forbidden** — folding the work into the main agent. An auditor that verifies its own findings defeats the entire skill.
 
-If no subagent tool exists *at all*, do **not** silently self-verify. Tell the user the report is **single-agent, not independently verified**, label it so in the output, and let them decide — never pass self-checked findings off as adversarially verified.
+If no subagent/Workflow tool exists *at all*, do **not** silently self-verify. Tell the user the report is **single-agent, not independently verified**, label it so in the output, and let them decide — never pass self-checked findings off as adversarially verified.
+
+### Step 2–4 via Workflow
+
+After Step 1 (Scope) produces `<TS>`, the scope brief, language, active dimensions, and the run dir, invoke the Workflow tool with `scriptPath` pointing at this skill's `scripts/workflows.mjs` and `args`:
+
+```
+Workflow({
+  scriptPath: "<this skill dir>/scripts/workflows.mjs",
+  args: {
+    ts:         "<TS>",                 // YYYYMMDDHH from Step 1's clock — script can't read the clock
+    scope:      "<the scope brief>",    // multiline string from Step 1
+    language:   "简体中文",             // report language
+    agentsDir:  "<this skill dir>/agents",   // absolute path so workflow agents can read the instruction files
+    meta:       "scope: <…>, date: <YYYY-MM-DD>, stack: <…>",
+    dimensions: ["arch","security",…]   // active dimension keys (subset of arch|code|security|testing|deps|obs|conv)
+  }
+})
+```
+
+The script fans out one auditor per dimension, chains a fresh verifier onto each (the find/verify split is structural — never the same agent), then runs the single synthesizer once all dimensions are verified. It writes the same files Steps 2–4 describe (`docs/audit/<TS>/<dim>.md`, `docs/audit/report-<TS>.md`) and returns the per-dimension P-counts / kept-dropped lines and report path for the Step 5 summary. Then continue to **Step 5 — Deliver & clean up**.
 
 ## Step 1 — Scope (main agent)
 
