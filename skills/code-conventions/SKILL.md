@@ -1,6 +1,6 @@
 ---
 name: code-conventions
-description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, naming config/env vars or handling secrets/keys, or building Go backend services. Routes to the matching convention document before implementing.
+description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, naming config/env vars or handling secrets/keys, writing Dockerfiles/containerizing services, or building Go backend services. Routes to the matching convention document before implementing.
 ---
 
 # Code Conventions
@@ -19,6 +19,7 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 | 测试 | [references/testing.md](references/testing.md) | 所有模块 | 测试分类、AAA 结构、命名、mock 哲学、覆盖率目标、集成测试 |
 | 提交信息 | [references/conventional-commits.md](references/conventional-commits.md) | 所有模块 | Git 提交信息规范：type、scope、格式 |
 | 错误码 | [references/error-codes.md](references/error-codes.md) | 所有 API | 业务错误码注册表：码段划分、`{code, message, details}` 信封 |
+| 容器 / Docker | [references/docker.md](references/docker.md) | 所有容器化模块 | Dockerfile 规范：多阶段构建、层缓存顺序、非 root 用户、`.dockerignore`、必要注释 |
 
 ## Go 专项规范（`references/golang/`）
 
