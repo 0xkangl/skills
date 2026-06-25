@@ -19,6 +19,7 @@ yarn-error.log*
 # treat them like a package cache and keep them out of the repo.
 skills-lock.json
 .agents/
+.claude/skills/
 
 # Logs & temp
 *.log
