@@ -111,7 +111,7 @@ Module-to-module (internal, non-public) calls MUST be authenticated with a share
   ```
 
 - Tokens are generated as random secrets (see §6), rotated per environment, and never logged.
-- This guards the internal surface only; end-user auth still uses Bearer JWT (§7). Internal endpoints stay outside the public `/v1` surface or are otherwise not exposed externally.
+- This guards the internal surface only; end-user auth still uses Bearer JWT (§7). Internal endpoints live under the `/internal/v1` prefix — separate from the public `/api/v1` surface (see [http-constitution.md](./http-constitution.md) §10) — and are not exposed externally.
 
 ## 6. Secrets & Cryptographic Keys
 

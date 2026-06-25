@@ -178,14 +178,14 @@ X-Request-Id: <uuid>
 Authorization: Bearer <token>
 ```
 
-### 7.3 Client Request Headers (required for all /v1/ endpoints)
+### 7.3 Client Request Headers (required for all `/api/v1` endpoints)
 
 | Header | Required | Description | Valid Values | Example |
 |--------|----------|-------------|--------------|---------|
 | X-Client-Platform | Yes | Client platform | ios, android, web | ios |
 | X-Client-Version | Yes | App version, semantic versioning X.Y.Z | `^\d+\.\d+\.\d+$` | 1.2.0 |
 
-Missing or invalid headers return HTTP 400 with error code 1001. Non-`/v1/` paths (e.g., `/health`, `/metrics`, `/webhooks`) are exempt from validation.
+Missing or invalid headers return HTTP 400 with error code 1001. These are end-user client-app headers, so they apply to the public `/api/v1` surface only — `/internal/v1` (service-to-service, authenticated via `X-Internal-Token`), `/admin/v1`, and infra paths (`/health`, `/metrics`, `/webhooks`) are exempt from validation.
 
 ### 7.4 Content Negotiation — Language (`Accept-Language`)
 
@@ -195,7 +195,7 @@ Use the **standard** `Accept-Language` header for locale negotiation — do NOT 
 Accept-Language: zh-Hans,zh;q=0.9,en;q=0.8
 ```
 
-- **Optional**: A missing or unparseable `Accept-Language` is NOT a 400. The server falls back to its configured default locale (e.g. `en`). Only `/v1/` business headers in §7.3 are mandatory.
+- **Optional**: A missing or unparseable `Accept-Language` is NOT a 400. The server falls back to its configured default locale (e.g. `en`). Only the `/api/v1` client headers in §7.3 are mandatory.
 - **Value format**: BCP 47 language tags / quality-ranked list (RFC 9110 §12.5.4). The server resolves the best match against its **supported locale set**.
 
 **Locale model — prefer content locale (script), not region:**
@@ -247,7 +247,7 @@ Idempotency-Key: <uuid>
 - **Correlation**: `X-Request-Id` propagation across all services (see §7.1).
 - **Metrics**: Required for HTTP services (QPS, latency, error rate).
 
-**Metrics endpoint (`GET /metrics`):** Controlled by `METRICS_PORT`. When `0`, register `/metrics` on the main HTTP server (`PORT`). When non-zero (e.g. `9090`), serve `/metrics` on a dedicated listener at that port. In both modes, `/metrics` is outside the `/v1` prefix and exempt from client header validation.
+**Metrics endpoint (`GET /metrics`):** Controlled by `METRICS_PORT`. When `0`, register `/metrics` on the main HTTP server (`PORT`). When non-zero (e.g. `9090`), serve `/metrics` on a dedicated listener at that port. In both modes, `/metrics` is outside all versioned API prefixes (`/api/v1`, `/admin/v1`, `/internal/v1`) and exempt from client header validation.
 
 ## 10. Route Prefixes & API Versioning
 
@@ -279,6 +279,7 @@ Enforce HTTPS | Input validation | Never return sensitive data | Prevent SQL inj
 ## 13. Pre-Launch Checklist
 
 - [ ] Standard HTTP methods
+- [ ] Routes namespaced by surface prefix (`/api/v1` | `/admin/v1` | `/internal/v1`)
 - [ ] Unified response structure
 - [ ] camelCase field names
 - [ ] Pagination convention
