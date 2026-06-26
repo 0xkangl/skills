@@ -23,7 +23,7 @@ A manual, multi-agent audit tuned for low token cost. The main agent only **scop
 
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
-**Workflow orchestration** is optional — to drive the audit through the deterministic Workflow pipeline, append `ultracode` to the invocation (e.g. `@codebase-audit ultracode src/`); the harness only exposes the `Workflow` tool when the caller opts in. Without it the audit runs fine on the Agent fallback.
+**Workflow orchestration** is optional — to drive the audit through the deterministic Workflow pipeline, append `ultracode` to the invocation (e.g. `@codebase-audit ultracode src/`). The `ultracode` keyword is the opt-in signal: the `Workflow` tool may sit in your tool list in any session, but you must not drive the audit through it unless the user asked. Without the keyword, fan out with the built-in `Agent` tool (the default).
 
 ## Pipeline
 
@@ -44,14 +44,17 @@ The verify stage mirrors the adversarial-verify pattern from Claude's workflow f
 
 ## Dispatching subagents
 
-**First check which fan-out mechanism is available, then pick the highest one that works.** This is a degrade ladder, not a precondition check: a level being unavailable is expected, never a blocking error — drop to the next level and keep going. The `Workflow` tool is **not exposed in a standard session** (it needs explicit opt-in), so in most runs it simply won't be in your tool list.
+Subagents are dispatched with the built-in **`Agent`** tool — a top-level tool that is always in your tool list. Call it directly. **Never `ToolSearch` for a dispatch tool**, and **never reach for the deferred `Task*` tools** (`TaskCreate`/`TaskUpdate`/… are a to-do / background-job tracker, *not* subagent dispatch). There is no separate "subagent" tool to discover — if `Agent` is in your list, that is the mechanism.
 
-0. **Preferred — Workflow tool.** If the `Workflow` tool is actually in your tool list, run the whole Audit→Verify→Synthesize pipeline through `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–4 below — the main agent still does Step 1 (Scope) and Step 5 (Deliver). See **Step 2–4 via Workflow**. If it isn't there, print a one-line notice (e.g. `ℹ️ Workflow 工具不可用，改用 Agent 并行编排`) and fall through to level 1 — don't stop.
-1. **Fallback — Agent / Task subagent tool** (`general-purpose` type). Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel." Drive Steps 2–4 by hand.
+Pick the level by the invocation, not by probing the tool list. This is a degrade ladder: a level being unavailable is expected, never a blocking error — drop to the next and keep going.
+
+0. **Preferred — Workflow (only when the user appended `ultracode`).** The opt-in keyword is the trigger, not the mere presence of the `Workflow` tool. When opted in, **`Workflow` is a built-in top-level tool — it is already in your tool list, exactly like `Agent`. Do not `ToolSearch` for it and do not conclude it's missing.** Run the whole Audit→Verify→Synthesize pipeline by calling that `Workflow` tool with `scriptPath` pointing at `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–4 below — the main agent still does Step 1 (Scope) and Step 5 (Deliver). See **Step 2–4 via Workflow**.
+   - **There is no substitute for the `Workflow` tool when `ultracode` is on.** `Agent` + `TaskCreate` is **not** an ultracode orchestration path — `TaskCreate` is a to-do tracker, not an engine. If you opted into `ultracode` but truly cannot find a `Workflow` tool in your list (rare), print one line — e.g. `ℹ️ Workflow 工具不可用，改用 Agent 并行编排` — and fall through to level 1's **`Agent`-only** parallel pipeline (never `TaskCreate`).
+1. **Default — the `Agent` tool** (`general-purpose` type). Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel." Drive Steps 2–4 by hand.
 2. **Acceptable** — invoke the subagents **one at a time** (serial). Slower, identical correctness.
 3. **Forbidden** — folding the work into the main agent. An auditor that verifies its own findings defeats the entire skill.
 
-If no subagent/Workflow tool exists *at all*, do **not** silently self-verify. Tell the user the report is **single-agent, not independently verified**, label it so in the output, and let them decide — never pass self-checked findings off as adversarially verified.
+If the `Agent` tool genuinely isn't in your tool list, do **not** silently self-verify. Tell the user the report is **single-agent, not independently verified**, label it so in the output, and let them decide — never pass self-checked findings off as adversarially verified.
 
 ### Step 2–4 via Workflow
 
