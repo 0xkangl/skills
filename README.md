@@ -10,6 +10,8 @@
 | [`code-conventions`](skills/code-conventions/) | 规范索引 + 文档库 | 写码时按需 | 横切规范的统一入口：HTTP API、可观测性、测试、提交信息、错误码，以及 Go 专项规范（`references/`） |
 | [`agents-scaffold`](skills/agents-scaffold/) | 结构性操作 | 偶发、一次性 | 零依赖脚本搭建多仓工作区（`spec-center` SSOT + 各模块仓）或原地初始化单个独立仓库，并产出含 spec-first/SDD 工作流的 `AGENTS.md` |
 | [`codebase-audit`](skills/codebase-audit/) | 多 agent 审计 | 手动 `@codebase-audit`（偶发、一次性） | 多 agent 并行审计代码库（架构/代码质量/安全/测试/依赖/可维护性/规范符合性），对抗式验证去伪后汇总单一报告；附带 `ultracode` 走 Workflow 确定性编排，否则自动降级到 Agent 并行 |
+| [`diagnose-and-fix`](skills/diagnose-and-fix/) | 单问题诊断修复 | 自动按场景 / 手动 `@diagnose-and-fix` | 「理解优先于修改」：先侦察项目、追踪代码、验证问题真实存在，产出结构化诊断报告，用户选定方案后再修复→测试→修复后验证→提交。输入为问题列表时只标记 resolved、不提交 |
+| [`diagnose-and-fix-batch`](skills/diagnose-and-fix-batch/) | 批量循环修复 | 手动 `@diagnose-and-fix-batch <问题列表文件>`（按需） | 把问题列表排成队列，逐个派发独立 subagent，每个 subagent 调用 `diagnose-and-fix` skill 完成单问题全流程，再回收终态汇总；问题列表只标记 resolved、不提交（提交时机由用户掌控）。**强依赖 `diagnose-and-fix` skill** |
 
 ## Skill 之间的关系
 
@@ -25,6 +27,13 @@ engineering-guidelines   code-conventions
   codebase-audit  ——  手动 @codebase-audit；可对任意代码库
                        做多维度审计；规范符合性维度运行时按需
                        加载 code-conventions 作基准（缺失则降级）
+
+  diagnose-and-fix  ◀────────  diagnose-and-fix-batch
+   （单问题诊断修复）   强依赖      （批量循环修复）
+   自动按场景/手动              手动；把问题列表排成队列，逐个派
+   @diagnose-and-fix          subagent 调用 diagnose-and-fix 处理
+                              单问题。二者都只标记 resolved、不提交
+                              列表，提交时机交用户掌控
 ```
 
 设计原则：
@@ -34,6 +43,7 @@ engineering-guidelines   code-conventions
 - **正交而非合并**：`agents-scaffold`（偶发结构操作）与 `code-conventions`（写码时高频引用）正交，各自独立；而 spec-first/SDD 工作流全程依赖 polyrepo 结构，属于配套能力，已并入 `agents-scaffold` 的 `spec-center/AGENTS.md` 模板，不单列。
 - `codebase-audit` 设 `disable-model-invocation: true`，仅手动 `@codebase-audit` 触发，可对任意代码库独立运行。其「规范符合性」维度会在运行时按需加载 `code-conventions` skill 作为审计基准（skill 级引用，不链入对方目录文件）；该 skill 缺失时此维度优雅降级、其余维度照常，故独立性不受影响。
 - `agents-scaffold` 产出的工作区里 `spec-center/conventions/` **初始为空**：通用规范运行时引用 `code-conventions` skill，不落地副本；`conventions/` 仅承载项目私有规范。
+- `diagnose-and-fix` 聚焦**单个**问题的诊断优先修复，可由 agent 按场景自动触发，也可手动 `@diagnose-and-fix`；`diagnose-and-fix-batch` 设 `disable-model-invocation: true` 仅手动触发，把一个**问题列表**排队循环修复，**各问题在独立 subagent 中调用 `diagnose-and-fix` skill 处理**——故 batch **强依赖** `diagnose-and-fix`（按 skill 名调用、不链入对方目录文件，仍属 skill 级引用）。两者均只在文件内标记 resolved、**不提交**问题列表（提交时机交用户掌控）。
 
 ## 使用
 
@@ -55,6 +65,15 @@ npx skills add https://github.com/0xkangl/skills --skill agents-scaffold
 
 ```bash
 npx skills add https://github.com/0xkangl/skills --skill codebase-audit
+```
+
+```bash
+npx skills add https://github.com/0xkangl/skills --skill diagnose-and-fix
+```
+
+```bash
+# batch 强依赖 diagnose-and-fix，请连同上一条一起安装
+npx skills add https://github.com/0xkangl/skills --skill diagnose-and-fix-batch
 ```
 
 ### 方式二：本地软链
@@ -84,5 +103,7 @@ skills/
     ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）
     ├── agents-scaffold/          # SKILL.md + README.md + scripts/ + templates/
-    └── codebase-audit/             # SKILL.md + agents/（各维度审计指令）
+    ├── codebase-audit/             # SKILL.md + agents/（各维度审计指令）
+    ├── diagnose-and-fix/           # SKILL.md
+    └── diagnose-and-fix-batch/     # SKILL.md
 ```
