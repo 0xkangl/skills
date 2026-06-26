@@ -1,5 +1,5 @@
 // agents-scaffold 零依赖脚手架脚本。仅用 node: 内置模块。
-import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync, mkdirSync, renameSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, cpSync, mkdirSync, renameSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join, basename, extname, relative } from 'node:path';
@@ -624,7 +624,12 @@ export function main(argv) {
 }
 
 // 主程序守卫:仅当直接执行此文件时才跑 CLI
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+// 用 realpath 归一化:.claude 可能是指向 .agents 的符号链接,import.meta.url 解析为真实路径,
+// 而 process.argv[1] 是字面路径,不归一化会导致符号链接下守卫误判、main() 不执行而静默退出。
+const realArgv = (() => {
+  try { return realpathSync(resolve(process.argv[1])); } catch { return resolve(process.argv[1]); }
+})();
+const invokedDirectly = process.argv[1] && realArgv === realpathSync(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   try {
     main(process.argv.slice(2));
