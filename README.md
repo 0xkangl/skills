@@ -49,32 +49,13 @@ engineering-guidelines   code-conventions
 
 ### 方式一：`npx skills add`（推荐）
 
-按需复制对应代码块执行，无需替换占位符：
+无需克隆本仓，直接在目标项目目录下运行，即可从远程仓库装载指定 skill：
 
 ```bash
-npx skills add https://github.com/0xkangl/skills --skill engineering-guidelines
+npx skills add https://github.com/0xkangl/skills --skill <skill-name>
 ```
 
-```bash
-npx skills add https://github.com/0xkangl/skills --skill code-conventions
-```
-
-```bash
-npx skills add https://github.com/0xkangl/skills --skill agents-scaffold
-```
-
-```bash
-npx skills add https://github.com/0xkangl/skills --skill codebase-audit
-```
-
-```bash
-npx skills add https://github.com/0xkangl/skills --skill diagnose-and-fix
-```
-
-```bash
-# batch 强依赖 diagnose-and-fix，请连同上一条一起安装
-npx skills add https://github.com/0xkangl/skills --skill diagnose-and-fix-batch
-```
+将 `<skill-name>` 替换为上方「Skills 一览」表中的 skill 目录名（如 `engineering-guidelines`、`code-conventions`、`agents-scaffold` 等）。可多次执行以装载多个 skill。
 
 ### 方式二：本地软链
 
