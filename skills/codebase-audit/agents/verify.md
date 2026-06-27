@@ -17,7 +17,7 @@ When genuinely unsure, **drop** it: a false positive costs the user more than a 
 
 ## Output
 
-Rewrite the file in place, keeping only confirmed/adjusted findings in their original format — preserve each finding's `fix` and any `quick-fix: yes` line untouched. Add one line to each kept finding:
+Rewrite the file in place, keeping only confirmed/adjusted findings in their original format. (Findings carry no `fix` yet — that's added later, after clustering.) Add one line to each kept finding:
 
 `> verified: <one-line basis>`
 

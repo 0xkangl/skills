@@ -23,7 +23,7 @@ A manual, multi-agent audit tuned for low token cost. The main agent only **scop
 
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
-**Workflow orchestration** is optional — to drive the audit through the deterministic Workflow pipeline, append `ultracode` to the invocation (e.g. `@codebase-audit ultracode src/`). The `ultracode` keyword is the opt-in signal: the `Workflow` tool may sit in your tool list in any session, but you must not drive the audit through it unless the user asked. Without the keyword, fan out with the built-in `Agent` tool (the default).
+**Workflow orchestration** is optional and opt-in: append `ultracode` to the invocation (e.g. `@codebase-audit ultracode src/`) to drive the audit through the deterministic Workflow pipeline. Without the keyword, fan out with the built-in `Agent` tool (the default) — never start a Workflow run just because the tool happens to be in your list.
 
 ## Pipeline
 
@@ -35,12 +35,15 @@ main agent (orchestrator — never reads source in bulk)
                   writes docs/audit/<TS>/<dim>.md
   3. Verify     → one adversarial verifier per active dimension; each refutes its
                   findings, keeping only what the code proves
-  4. Synthesize → 1 agent clusters survivors by relevance, orders by severity,
-                  writes the final report
-  5. Deliver    → print summary, delete docs/audit/<TS>/ (the report is standalone)
+  4. Synthesize → 1 agent clusters survivors by relevance, orders by severity —
+                  no fix yet (auditors only found & proved)
+  5. Fix        → fix-solution agent(s) add a fix + quick-fix flag to each finding,
+                  now that the full root-cause cluster is visible, then finalize the report
+                  (default: 1 agent in-place; parallel path: 1 per severity bucket → assembler)
+  6. Deliver    → print summary, delete docs/audit/<TS>/ (the report is standalone)
 ```
 
-The verify stage mirrors the adversarial-verify pattern from Claude's workflow feature: the agent that *finds* an issue is never the one that *confirms* it.
+The verify stage mirrors the adversarial-verify pattern from Claude's workflow feature: the agent that *finds* an issue is never the one that *confirms* it. Fix solutions land **after** clustering so a remedy sees the whole root-cause group across dimensions, not one dimension's slice.
 
 ## Dispatching subagents
 
@@ -48,15 +51,15 @@ Subagents are dispatched with the built-in **`Agent`** tool — a top-level tool
 
 Pick the level by the invocation, not by probing the tool list. This is a degrade ladder: a level being unavailable is expected, never a blocking error — drop to the next and keep going.
 
-0. **Preferred — Workflow (only when the user appended `ultracode`).** The opt-in keyword is the trigger, not the mere presence of the `Workflow` tool. When opted in, **`Workflow` is a built-in top-level tool — it is already in your tool list, exactly like `Agent`. Do not `ToolSearch` for it and do not conclude it's missing.** Run the whole Audit→Verify→Synthesize pipeline by calling that `Workflow` tool with `scriptPath` pointing at `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–4 below — the main agent still does Step 1 (Scope) and Step 5 (Deliver). See **Step 2–4 via Workflow**.
-   - **There is no substitute for the `Workflow` tool when `ultracode` is on.** `Agent` + `TaskCreate` is **not** an ultracode orchestration path — `TaskCreate` is a to-do tracker, not an engine. If you opted into `ultracode` but truly cannot find a `Workflow` tool in your list (rare), print one line — e.g. `ℹ️ Workflow 工具不可用，改用 Agent 并行编排` — and fall through to level 1's **`Agent`-only** parallel pipeline (never `TaskCreate`).
+0. **Preferred — Workflow (only when the user appended `ultracode`).** The opt-in keyword is the trigger, not the mere presence of the tool — which, like `Agent`, is a built-in top-level tool already in your list. Run the whole Audit→Verify→Synthesize→Fix→Assemble pipeline by calling `Workflow` with `scriptPath` pointing at `scripts/workflows.mjs` (deterministic orchestration; enforces the find/verify split structurally). This replaces Steps 2–5 below — the main agent still does Step 1 (Scope) and Step 6 (Deliver). See **Step 2–5 via Workflow**.
+   - If you opted into `ultracode` but genuinely cannot find a `Workflow` tool (rare), print one line — e.g. `ℹ️ Workflow 工具不可用，改用 Agent 并行编排` — and fall through to level 1's **`Agent`-only** parallel pipeline (never `TaskCreate`, which is a to-do tracker, not a dispatch engine).
 1. **Default — the `Agent` tool** (`general-purpose` type). Issuing several Agent calls in **one message** runs them concurrently; that, and nothing more, is "in parallel." Drive Steps 2–4 by hand.
 2. **Acceptable** — invoke the subagents **one at a time** (serial). Slower, identical correctness.
 3. **Forbidden** — folding the work into the main agent. An auditor that verifies its own findings defeats the entire skill.
 
 If the `Agent` tool genuinely isn't in your tool list, do **not** silently self-verify. Tell the user the report is **single-agent, not independently verified**, label it so in the output, and let them decide — never pass self-checked findings off as adversarially verified.
 
-### Step 2–4 via Workflow
+### Step 2–5 via Workflow
 
 After Step 1 (Scope) produces `<TS>`, the scope brief, language, active dimensions, and the run dir, invoke the Workflow tool with `scriptPath` pointing at this skill's `scripts/workflows.mjs` and `args`:
 
@@ -74,7 +77,7 @@ Workflow({
 })
 ```
 
-The script fans out one auditor per dimension, chains a fresh verifier onto each (the find/verify split is structural — never the same agent), then runs the single synthesizer once all dimensions are verified. It writes the same files Steps 2–4 describe (`docs/audit/<TS>/<dim>.md`, `docs/audit/report-<TS>.md`) and returns the per-dimension P-counts / kept-dropped lines and report path for the Step 5 summary. Then continue to **Step 5 — Deliver & clean up**.
+The script fans out one auditor per dimension, chains a fresh verifier onto each (the find/verify split is structural — never the same agent), runs the synthesizer once all dimensions are verified (it buckets clusters into `docs/audit/<TS>/fix/p0..p3.md` + `_summary.md`), then fans out one fix-solution agent per non-empty severity bucket and a final assembler that writes `docs/audit/report-<TS>.md`. It returns the per-dimension P-counts / kept-dropped lines, the fix/assemble lines, and the report path for the Step 6 summary. Then continue to **Step 6 — Deliver & clean up**.
 
 ## Step 1 — Scope (main agent)
 
@@ -147,15 +150,30 @@ Reply with one line only: "<PREFIX>: kept=x dropped=y".
 
 ## Step 4 — Synthesize (1 subagent)
 
+Clusters and orders the verified findings; adds **no fix** (auditors only found & proved). For the default Agent path use Mode A — the synthesizer writes the fix-less report skeleton that Step 5 then fills in place:
+
 ```
-Read agents/synthesize.md and follow it.
+Read agents/synthesize.md and follow it (Mode A — single report skeleton, no fix).
 Verified findings files (active dimensions only):
 - docs/audit/<TS>/<dim>.md   (one line per active dimension)
-Final report: docs/audit/report-<TS>.md
+Report skeleton (no fix, no quick-fix list yet): docs/audit/report-<TS>.md
 Meta — scope: <…>, date: <YYYY-MM-DD>, stack: <…>, report language: <…>.
 ```
 
-## Step 5 — Deliver & clean up (main agent)
+## Step 5 — Fix solutions (1 subagent, default path)
+
+Now the clusters are visible, add a fix to every finding. One fix-solution agent rewrites the report in place — appends `**fix**` (and `**quick-fix**` where mechanical) to each finding and compiles the `## 可直接修复（批量）` list:
+
+```
+Read agents/fix-solution.md and follow it.
+Whole report (rewrite in place — add a fix to each finding, build the batch list): docs/audit/report-<TS>.md
+Report language: <…>.
+Reply with one line only: "fix: all n=x quick=y".
+```
+
+**Parallel upgrade (optional).** To speed the fix stage, run Step 4 in Mode B instead (synthesizer buckets clusters by top severity into `docs/audit/<TS>/fix/p0..p3.md` + `_summary.md`, writes no report), launch one fix-solution agent per non-empty bucket in one batch, then a final assembler (`agents/assemble.md`) that stitches the buckets P0→P3 into `docs/audit/report-<TS>.md` and builds the batch list. Whole clusters are bucketed by their top severity, so a root cause is never split across agents. This is what the Workflow path does; serial buckets or the single-agent Mode A above are equal-correctness degrades.
+
+## Step 6 — Deliver & clean up (main agent)
 
 The final report lives at `docs/audit/report-<TS>.md` (outside the run dir). Once it's written, delete the scaffolding — the report is self-contained:
 
@@ -185,4 +203,4 @@ Report: docs/audit/report-<TS>.md
 - **Scope-then-dispatch** — the main agent never ingests source in bulk; auditors read their own slices. This is the main token lever.
 - **Evidence or it didn't happen** — every finding cites code; verify drops anything it can't substantiate.
 - **Honest severity** — P0 means a genuine critical, not an inflated nit.
-- **Constructive** — every finding carries a fix; strengths are reported alongside problems.
+- **Constructive** — every finding carries a fix (added after clustering, so the remedy sees the whole root-cause group); strengths are reported alongside problems.

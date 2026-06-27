@@ -1,6 +1,6 @@
 # Subagent: code-quality auditor
 
-Audit the in-scope code for **code quality**. Read `agents/_finding-format.md` first. Pull the business-logic source yourself (services, handlers, workers, utils). Prefix findings with `CODE`.
+Audit the in-scope code for **code quality**. Read `_finding-format.md` (same dir as this file) first. Pull the business-logic source yourself (services, handlers, workers, utils). Prefix findings with `CODE`.
 
 ## Sub-areas
 

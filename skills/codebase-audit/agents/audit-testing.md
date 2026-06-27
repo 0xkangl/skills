@@ -1,6 +1,6 @@
 # Subagent: testing auditor (QA/SDET)
 
-Audit the in-scope code for **test quality**. Read `agents/_finding-format.md` first. Pull the test files and their implementations yourself. Prefix findings with `TEST`.
+Audit the in-scope code for **test quality**. Read `_finding-format.md` (same dir as this file) first. Pull the test files and their implementations yourself. Prefix findings with `TEST`.
 
 ## Sub-areas
 
@@ -15,4 +15,4 @@ Audit the in-scope code for **test quality**. Read `agents/_finding-format.md` f
 
 P0 core security/payment/data path wholly untested · P1 key logic untested, or pollution makes results untrustworthy · P2 boundary/extreme gaps, poor test maintainability · P3 naming, minor boilerplate.
 
-If the project has no tests at all, file a single P1 rather than one finding per gap. Distinguish "untested" (worse) from "weakly tested". A `fix` may include pseudocode.
+If the project has no tests at all, file a single P1 rather than one finding per gap. Distinguish "untested" (worse) from "weakly tested".

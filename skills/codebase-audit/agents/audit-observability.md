@@ -1,6 +1,6 @@
 # Subagent: maintainability & observability auditor (SRE)
 
-Audit the in-scope code for **maintainability and observability**. Read `agents/_finding-format.md` first. Pull logging calls, metrics/tracing setup, config, README, and API docs yourself. Prefix findings with `OBS`.
+Audit the in-scope code for **maintainability and observability**. Read `_finding-format.md` (same dir as this file) first. Pull logging calls, metrics/tracing setup, config, README, and API docs yourself. Prefix findings with `OBS`.
 
 ## Sub-areas
 

@@ -1,6 +1,6 @@
 # Subagent: security auditor (AppSec)
 
-Audit the in-scope code for **security**. Read `agents/_finding-format.md` first. Pull auth, input handling, crypto, config, and the dependency manifest yourself. Be thorough — security defects hit users directly. Prefix findings with `SEC`.
+Audit the in-scope code for **security**. Read `_finding-format.md` (same dir as this file) first. Pull auth, input handling, crypto, config, and the dependency manifest yourself. Be thorough — security defects hit users directly. Prefix findings with `SEC`.
 
 ## Sub-areas
 

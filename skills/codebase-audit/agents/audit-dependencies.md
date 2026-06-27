@@ -1,6 +1,6 @@
 # Subagent: dependencies & tech-debt auditor
 
-Audit the in-scope code for **dependency health and technical debt**. Read `agents/_finding-format.md` first. Pull the manifest(s) (go.mod, package.json, requirements.txt, pom.xml…) and grep the source yourself. Prefix findings with `DEP`.
+Audit the in-scope code for **dependency health and technical debt**. Read `_finding-format.md` (same dir as this file) first. Pull the manifest(s) (go.mod, package.json, requirements.txt, pom.xml…) and grep the source yourself. Prefix findings with `DEP`.
 
 ## Sub-areas
 

@@ -1,6 +1,6 @@
 # Subagent: conventions-compliance auditor
 
-Audit the in-scope code for **compliance with the project's cross-cutting conventions**. Read `agents/_finding-format.md` first. Prefix findings with `CONV`.
+Audit the in-scope code for **compliance with the project's cross-cutting conventions**. Read `_finding-format.md` (same dir as this file) first. Prefix findings with `CONV`.
 
 ## Load the normative rules first
 
