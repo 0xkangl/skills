@@ -8,8 +8,14 @@ export const meta = {
   ],
 }
 
-// args 由主 agent 在 Scope 阶段算好后传入（脚本内不能取时钟）
-const { ts, scope, language, agentsDir, meta: runMeta, groups, flows } = args
+// args 由主 agent 在 Scope 阶段算好后传入（脚本内不能取时钟，也无文件系统——scope 以文件路径传入，由 agent 自读）
+// 守卫：args 被当成 JSON 字符串传入时解构出来全是 undefined，这里直接点破，而非在后面以「空输出」告终
+if (typeof args !== 'object' || args === null) {
+  throw new Error(`args 不是对象（typeof=${typeof args}）——大概率被当成 JSON 字符串传入，应传真正的 JSON 值`)
+}
+const { ts, scopeFile, language, agentsDir, meta: runMeta, groups, flows } = args
+const missing = ['ts', 'scopeFile', 'agentsDir'].filter((k) => args[k] == null)
+if (missing.length) throw new Error(`args 缺字段：${missing.join(', ')}；收到的 keys：${Object.keys(args).join(', ') || '（空）'}`)
 const outDir = `docs/api-audit/${ts}`
 const apiReport = `docs/api-audit/api-report-${ts}.md`
 const flowReport = `docs/api-audit/flow-report-${ts}.md`
@@ -27,10 +33,8 @@ if (!items.length) throw new Error('no endpoint groups or flows passed in args.g
 
 const outPath = (it) => `${outDir}/${it.subdir}/${it.key}.md`
 
-const auditPrompt = (it) => `<scope>
-${scope}
-</scope>
-You audit the ${it.kind === 'api' ? 'endpoint group' : 'business flow'} "${it.name}". The inventory in the scope is your map.
+const auditPrompt = (it) => `Read the scope brief at ${scopeFile} first — its endpoint inventory is your map.
+You audit the ${it.kind === 'api' ? 'endpoint group' : 'business flow'} "${it.name}".
 Read ${agentsDir}/${it.instruction} and follow it. Pull the handler source yourself.
 Write your file to: ${outPath(it)}
 Reply with one line only: "${it.prefix}[${it.key}]: ${it.kind === 'api' ? 'endpoints' : 'steps'}=n P0=a P1=b P2=c P3=d".`

@@ -75,14 +75,17 @@ If the `Agent` tool genuinely isn't in your tool list, do **not** silently self-
 
 ### Steps 2–4 via Workflow
 
-After Step 1 (Scope) produces `<TS>`, the scope brief, language, endpoint groups, and candidate flows, invoke the Workflow tool with `scriptPath` pointing at `scripts/workflows.mjs` and `args`:
+After Step 1 (Scope) produces `<TS>`, the scope brief, language, endpoint groups, and candidate flows:
+
+1. **Write the scope brief to `docs/api-audit/<TS>/scope.md`.** The workflow script runs sandboxed (no filesystem, no clock); it can't read files — but the auditor agents can. Passing a *path* instead of the inline text keeps `args` tiny and immune to serialization issues, and avoids re-embedding the whole inventory in every auditor prompt.
+2. **Invoke the Workflow tool** with `scriptPath` and `args`. **`args` must be a real JSON object** — never a JSON-encoded string (a stringified payload destructures to all-`undefined` and the run aborts with `args 不是对象 …`).
 
 ```
 Workflow({
   scriptPath: "<this skill dir>/scripts/workflows.mjs",
   args: {
     ts:        "<TS>",                  // YYYYMMDDHH from Step 1's clock — script can't read the clock
-    scope:     "<the scope brief incl. inventory skeleton>",
+    scopeFile: "docs/api-audit/<TS>/scope.md",  // scope brief on disk; agents read it themselves
     language:  "简体中文",
     agentsDir: "<this skill dir>/agents",  // absolute path so workflow agents can read instruction files
     meta:      "scope: <…>, date: <YYYY-MM-DD>, stack: <…>",

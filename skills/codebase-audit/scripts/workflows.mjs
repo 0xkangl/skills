@@ -21,8 +21,14 @@ const DIMS = {
   conv:     { name: 'Conventions compliance',          prefix: 'CONV', instruction: 'audit-conventions.md' },
 }
 
-// args 由主 agent 在 Scope 阶段算好后传入（脚本内不能取时钟）
-const { ts, scope, language, agentsDir, meta: runMeta, dimensions } = args
+// args 由主 agent 在 Scope 阶段算好后传入（脚本内不能取时钟，也无文件系统——scope 以文件路径传入，由 agent 自读）
+// 守卫：args 被当成 JSON 字符串传入时解构出来全是 undefined，这里直接点破，而非在后面以「空输出」告终
+if (typeof args !== 'object' || args === null) {
+  throw new Error(`args 不是对象（typeof=${typeof args}）——大概率被当成 JSON 字符串传入，应传真正的 JSON 值`)
+}
+const { ts, scopeFile, language, agentsDir, meta: runMeta, dimensions } = args
+const missing = ['ts', 'scopeFile', 'agentsDir'].filter((k) => args[k] == null)
+if (missing.length) throw new Error(`args 缺字段：${missing.join(', ')}；收到的 keys：${Object.keys(args).join(', ') || '（空）'}`)
 const outDir = `docs/audit/${ts}`
 const fixDir = `${outDir}/fix`
 const summaryPath = `${outDir}/_summary.md`
@@ -35,9 +41,7 @@ if (!active.length) throw new Error('no active dimensions passed in args.dimensi
 const dropped = (dimensions || []).filter((key) => !DIMS[key])
 if (dropped.length) log(`忽略未知维度 key：${dropped.join(', ')}`)
 
-const auditPrompt = (d) => `<scope>
-${scope}
-</scope>
+const auditPrompt = (d) => `Read the scope brief at ${scopeFile} first for context.
 Read ${agentsDir}/${d.instruction} and follow it. Pull the source you need yourself.
 Write your findings to: ${outDir}/${d.key}.md
 Reply with one line only: "${d.prefix}: P0=a P1=b P2=c P3=d".`
