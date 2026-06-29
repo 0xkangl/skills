@@ -87,12 +87,48 @@ USER app
 - 解释非显而易见的决策：版本固定原因、`CGO_ENABLED=0` 等编译开关、缓存挂载、非 root/`--chown` 配置。
 - 不写 `# install deps` 这类与 `RUN npm ci` 等价的废话注释。
 
-## 6. Hardening Checklist
+## 6. Healthcheck & Runtime Hardening
+
+容器应可被编排层探活，并以最小运行时权限运行。
+
+- 提供 `HEALTHCHECK`（或由编排层 liveness/readiness 接管），探活打到轻量健康端点：
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -qO- http://localhost:8080/health || exit 1
+```
+
+- compose / 编排层加运行时加固：禁提权、只读根文件系统、丢弃多余 capability。
+
+```yaml
+services:
+  app:
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    cap_add: ["NET_BIND_SERVICE"]   # 仅当需绑定 <1024 端口
+```
+
+## 7. Image Scanning & Build Secrets
+
+- **镜像扫描**：CI 中对构建出的镜像跑漏洞扫描（`trivy image` / `grype`），高危设为阻断项；按需产出 SBOM（`syft`）。
+- **关键镜像 digest pin**：基础镜像除 tag 外用 `@sha256:...` 固定，防 tag 漂移与供应链替换。
+- **构建期密钥不入层**：需要私有凭据（私服 token、SSH key）时用 BuildKit `--mount=type=secret`，**绝不** `ARG` / `ENV` / `COPY` 进镜像层（会被 `docker history` 还原）。
+
+```dockerfile
+# 凭据仅在该 RUN 内可见，不写入任何镜像层
+RUN --mount=type=secret,id=npm_token \
+    NPM_TOKEN=$(cat /run/secrets/npm_token) npm ci --omit=dev
+```
+
+## 8. Hardening Checklist
 
 - [ ] 多阶段：最终镜像不含编译器/构建工具。
 - [ ] 基础镜像固定 tag（避免 `latest`），优先 digest pin 关键镜像。
 - [ ] 依赖层与源码层分离，缓存顺序正确。
 - [ ] `.dockerignore` 已排除 `.git`、依赖目录、密钥、本地配置。
 - [ ] 以非 root `USER` 运行，端口 >1024。
-- [ ] 提供 `HEALTHCHECK`（或由编排层接管）。
+- [ ] 提供 `HEALTHCHECK`（或由编排层接管），运行时加固（no-new-privileges / 只读 rootfs / cap_drop）。
+- [ ] 镜像经漏洞扫描（trivy/grype），构建期密钥用 `--mount=type=secret` 不入层。
 - [ ] 关键决策有注释，无废话注释。
