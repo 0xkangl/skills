@@ -2,8 +2,9 @@
 name: codebase-audit
 disable-model-invocation: true
 description: >
-  Multi-agent codebase audit / 代码库审计 spanning architecture, code quality, security,
-  testing, dependencies/debt, maintainability/observability, and conventions compliance
+  Multi-agent codebase audit / 代码库审计 spanning architecture, performance/scalability,
+  code quality, security, testing, dependencies/debt, maintainability/observability,
+  build/deploy/infra, frontend a11y/i18n, and conventions compliance
   (against the code-conventions skill): scopes the target, fans out parallel dimension
   auditors, adversarially verifies every finding to cut false positives, then synthesizes
   one self-contained report grouped by relevance and severity.
@@ -17,13 +18,13 @@ A manual, multi-agent audit tuned for low token cost. The main agent only **scop
 
 ## Invocation
 
-`@codebase-audit [path]` — optional file or directory to scope the audit; omit to audit the whole project.
+`/codebase-audit [path]` — optional file or directory to scope the audit; omit to audit the whole project.
 
-**Dimensions** default to all seven. Narrow or exclude them in plain language — e.g. "security only", "architecture + code quality", "skip testing", "只做规范审计", "不需要依赖审查". Run exactly the set asked for.
+**Dimensions** default to all applicable ones — architecture, performance, code quality, security, testing, dependencies/debt, maintainability/observability, build/deploy/infra, and conventions; the frontend (a11y/i18n) dimension is added only when Scope detects a web/frontend stack. Narrow or exclude them in plain language — e.g. "security only", "architecture + code quality", "skip testing", "只做规范审计", "不需要依赖审查". Run exactly the set asked for.
 
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
-**Workflow orchestration** is optional and opt-in: append `ultracode` to the invocation (e.g. `@codebase-audit ultracode src/`) to drive the audit through the deterministic Workflow pipeline. Without the keyword, fan out with the built-in `Agent` tool (the default) — never start a Workflow run just because the tool happens to be in your list.
+**Workflow orchestration** is optional and opt-in: append `ultracode` to the invocation (e.g. `/codebase-audit ultracode src/`) to drive the audit through the deterministic Workflow pipeline. Without the keyword, fan out with the built-in `Agent` tool (the default) — never start a Workflow run just because the tool happens to be in your list.
 
 ## Pipeline
 
@@ -75,7 +76,7 @@ Workflow({
     language:   "简体中文",             // report language
     agentsDir:  "<this skill dir>/agents",   // absolute path so workflow agents can read the instruction files
     meta:       "scope: <…>, date: <YYYY-MM-DD>, stack: <…>",
-    dimensions: ["arch","security",…]   // active dimension keys (subset of arch|code|security|testing|deps|obs|conv)
+    dimensions: ["arch","security",…]   // active dimension keys (subset of arch|perf|code|security|testing|deps|obs|infra|fe|conv)
   }
 })
 ```
@@ -88,7 +89,7 @@ Resolve the target:
 - **path given** — a file means that file plus its direct callers/deps; a directory means its source tree.
 - **no path** — the whole project from the repo root.
 
-Decide the **active dimension set** (default all seven; honor "only X" / "skip Y") and the **report language** (default 简体中文) from the request. Then map the scope cheaply with `git ls-files`, Glob, and `rg` over manifests — **do not read file bodies in bulk**. Build a compact brief:
+Decide the **active dimension set** and the **report language** (default 简体中文) from the request. Default to all universally-applicable dimensions (arch, perf, code, security, testing, deps, obs, infra, conv); add `fe` only when stack detection finds a web/frontend stack (React/Vue/Svelte, a frontend build like vite/webpack, a `package.json` with a UI framework). Honor "only X" / "skip Y". Then map the scope cheaply with `git ls-files`, Glob, and `rg` over manifests — **do not read file bodies in bulk**. Build a compact brief:
 
 ```
 Scope: <path | "whole project">
@@ -122,11 +123,14 @@ Launch every active dimension in one batch. Give each the scope brief and point 
 | Dimension | Prefix | Instruction | Output |
 |-----------|--------|-------------|--------|
 | Architecture | ARCH | `agents/audit-architecture.md` | `docs/audit/<TS>/arch.md` |
+| Performance & scalability | PERF | `agents/audit-performance.md` | `docs/audit/<TS>/perf.md` |
 | Code quality | CODE | `agents/audit-code-quality.md` | `docs/audit/<TS>/code.md` |
 | Security | SEC | `agents/audit-security.md` | `docs/audit/<TS>/security.md` |
 | Testing | TEST | `agents/audit-testing.md` | `docs/audit/<TS>/testing.md` |
 | Dependencies & debt | DEP | `agents/audit-dependencies.md` | `docs/audit/<TS>/deps.md` |
 | Maintainability & observability | OBS | `agents/audit-observability.md` | `docs/audit/<TS>/obs.md` |
+| Build / deploy / infra | INFRA | `agents/audit-infra.md` | `docs/audit/<TS>/infra.md` |
+| Frontend a11y / i18n (web stacks only) | FE | `agents/audit-frontend.md` | `docs/audit/<TS>/fe.md` |
 | Conventions compliance | CONV | `agents/audit-conventions.md` | `docs/audit/<TS>/conv.md` |
 
 Prompt shape:

@@ -29,11 +29,11 @@ This skill is about interface **logic** (completeness / self-consistency / neces
 
 ## Invocation
 
-`@api-audit [path]` — optional file or directory to scope the audit (a service subtree, a router file, an `api/` package); omit to audit the whole project's HTTP surface.
+`/api-audit [path]` — optional file or directory to scope the audit (a service subtree, a router file, an `api/` package); omit to audit the whole project's HTTP surface.
 
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
-**Workflow orchestration** is optional and opt-in: append `ultracode` (e.g. `@api-audit ultracode internal/api/`) to drive the audit through the deterministic Workflow pipeline. Without the keyword, fan out with the built-in `Agent` tool (the default) — never start a Workflow run just because the tool happens to be in your list.
+**Workflow orchestration** is optional and opt-in: append `ultracode` (e.g. `/api-audit ultracode internal/api/`) to drive the audit through the deterministic Workflow pipeline. Without the keyword, fan out with the built-in `Agent` tool (the default) — never start a Workflow run just because the tool happens to be in your list.
 
 ## Pipeline
 

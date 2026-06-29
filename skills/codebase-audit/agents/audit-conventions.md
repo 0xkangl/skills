@@ -13,7 +13,7 @@ You audit only against what those docs actually mandate. Every finding must cite
 
 ## Sub-areas (only those whose convention doc you loaded)
 
-- **HTTP API** — method/status-code choice, response envelope, pagination, sorting, time format, versioning, content negotiation.
+- **HTTP API** — path/resource naming (against the documented naming rule), HTTP method choice, status-code choice, parameter design (name, location query/path/body/header, value range, default), response envelope, pagination, sorting, time format, versioning, content negotiation.
 - **配置 / 密钥** — env-var naming & prefixes, inter-module tokens, secret handling / key derivation, token TTLs, service ports.
 - **日志 / 可观测性** — structured-log format, levels, traceId correlation, naming.
 - **测试** — test classification, AAA structure, naming, mock philosophy, coverage targets.

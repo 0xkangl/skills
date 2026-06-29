@@ -12,13 +12,16 @@ export const meta = {
 
 // 维度元数据：key 同时作为产物文件名（docs/audit/<TS>/<key>.md），与 SKILL.md 表格一致
 const DIMS = {
-  arch:     { name: 'Architecture',                    prefix: 'ARCH', instruction: 'audit-architecture.md' },
-  code:     { name: 'Code quality',                    prefix: 'CODE', instruction: 'audit-code-quality.md' },
-  security: { name: 'Security',                        prefix: 'SEC',  instruction: 'audit-security.md' },
-  testing:  { name: 'Testing',                         prefix: 'TEST', instruction: 'audit-testing.md' },
-  deps:     { name: 'Dependencies & debt',             prefix: 'DEP',  instruction: 'audit-dependencies.md' },
-  obs:      { name: 'Maintainability & observability', prefix: 'OBS',  instruction: 'audit-observability.md' },
-  conv:     { name: 'Conventions compliance',          prefix: 'CONV', instruction: 'audit-conventions.md' },
+  arch:     { name: 'Architecture',                    prefix: 'ARCH',  instruction: 'audit-architecture.md' },
+  perf:     { name: 'Performance & scalability',       prefix: 'PERF',  instruction: 'audit-performance.md' },
+  code:     { name: 'Code quality',                    prefix: 'CODE',  instruction: 'audit-code-quality.md' },
+  security: { name: 'Security',                        prefix: 'SEC',   instruction: 'audit-security.md' },
+  testing:  { name: 'Testing',                         prefix: 'TEST',  instruction: 'audit-testing.md' },
+  deps:     { name: 'Dependencies & debt',             prefix: 'DEP',   instruction: 'audit-dependencies.md' },
+  obs:      { name: 'Maintainability & observability', prefix: 'OBS',   instruction: 'audit-observability.md' },
+  infra:    { name: 'Build / deploy / infra',          prefix: 'INFRA', instruction: 'audit-infra.md' },
+  fe:       { name: 'Frontend a11y / i18n',            prefix: 'FE',    instruction: 'audit-frontend.md' },
+  conv:     { name: 'Conventions compliance',          prefix: 'CONV',  instruction: 'audit-conventions.md' },
 }
 
 // args 由主 agent 在 Scope 阶段算好后传入（脚本内不能取时钟，也无文件系统——scope 以文件路径传入，由 agent 自读）
