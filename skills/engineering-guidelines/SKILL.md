@@ -81,7 +81,7 @@ Analyze from root cause, not surface symptoms.
 
 ## 6. Code Style
 
-- Comment language follows the project's convention.
+- Comment language follows the project's convention, default to simplified Chinese.
 - Keep explanations concise — no preamble.
 
 ## After Coding Checklist
