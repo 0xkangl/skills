@@ -9,13 +9,22 @@ export const meta = {
 }
 
 // args 由主 agent 在 Scope 阶段算好后传入（脚本内不能取时钟，也无文件系统——scope 以文件路径传入，由 agent 自读）
-// 守卫：args 被当成 JSON 字符串传入时解构出来全是 undefined，这里直接点破，而非在后面以「空输出」告终
-if (typeof args !== 'object' || args === null) {
-  throw new Error(`args 不是对象（typeof=${typeof args}）——大概率被当成 JSON 字符串传入，应传真正的 JSON 值`)
+// 兜底：本入口由 LLM 反复调用，易把 JSON 字面量误传成字符串（skill 已专门警告）。
+// 这里做一次幂等的 string→object 反解，既兼容正确的对象传参，也容错被序列化成字符串的情形。
+let input = args
+if (typeof input === 'string') {
+  try {
+    input = JSON.parse(input)
+  } catch (e) {
+    throw new Error(`args 是字符串且无法 JSON.parse（${e.message}）——应传真正的 JSON 对象；前 120 字符：${input.slice(0, 120)}`)
+  }
 }
-const { ts, scopeFile, language, agentsDir, meta: runMeta, groups, flows } = args
-const missing = ['ts', 'scopeFile', 'agentsDir'].filter((k) => args[k] == null)
-if (missing.length) throw new Error(`args 缺字段：${missing.join(', ')}；收到的 keys：${Object.keys(args).join(', ') || '（空）'}`)
+if (typeof input !== 'object' || input === null) {
+  throw new Error(`args 不是对象（typeof=${typeof input}）——应传真正的 JSON 对象`)
+}
+const { ts, scopeFile, language, agentsDir, meta: runMeta, groups, flows } = input
+const missing = ['ts', 'scopeFile', 'agentsDir'].filter((k) => input[k] == null)
+if (missing.length) throw new Error(`args 缺字段：${missing.join(', ')}；收到的 keys：${Object.keys(input).join(', ') || '（空）'}`)
 const outDir = `docs/api-audit/${ts}`
 const apiReport = `docs/api-audit/api-report-${ts}.md`
 const flowReport = `docs/api-audit/flow-report-${ts}.md`

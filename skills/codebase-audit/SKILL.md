@@ -65,7 +65,7 @@ If the `Agent` tool genuinely isn't in your tool list, do **not** silently self-
 After Step 1 (Scope) produces `<TS>`, the scope brief, language, active dimensions, and the run dir:
 
 1. **Write the scope brief to `docs/audit/<TS>/scope.md`.** The workflow script runs sandboxed (no filesystem, no clock); it can't read files — but the auditor agents can. Passing a *path* instead of the inline text keeps `args` tiny and immune to serialization issues, and avoids re-embedding the whole brief in every auditor prompt.
-2. **Invoke the Workflow tool** with `scriptPath` and `args`. **`args` must be a real JSON object** — never a JSON-encoded string (a stringified payload destructures to all-`undefined` and the run aborts with `args 不是对象 …`).
+2. **Invoke the Workflow tool** with `scriptPath` and `args`. **`args` must be a real JSON object** — pass `args: { … }` directly, never `JSON.stringify(...)` and never wrap it in quotes. The script self-recovers if a stringified payload slips through (it `JSON.parse`s it), but the object form is the contract — don't rely on the fallback.
 
 ```
 Workflow({
