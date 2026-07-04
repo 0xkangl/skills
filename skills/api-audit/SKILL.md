@@ -8,8 +8,9 @@ description: >
   auditor families in parallel — per-endpoint auditors (correctness, reasonableness,
   simplification/optimization, necessity) and per-business-flow auditors (cross-endpoint
   flow correctness, design soundness, contradictions, missing endpoints/features) — each
-  finding adversarially verified to cut false positives, then synthesized into two
-  self-contained reports: an interface report and a business/flow report.
+  finding adversarially verified to cut false positives, then synthesized into three
+  self-contained documents: an interface report, a business/flow report, and a
+  consolidated issues summary (api + flow findings by severity).
 ---
 
 # API Audit
@@ -19,7 +20,7 @@ A manual, multi-agent audit of an HTTP service's **interface logic** — not gen
 1. **接口清单**：每个接口的路径、方法、使用时机、限制（认证/鉴权/限流/校验/幂等）、与其他接口的配合。
 2. **逐接口分析**：流程与逻辑是否正确、是否合理、有无简化/优化空间、这个接口**是否有存在的必要**。
 3. **业务/流程闭环**：项目里重要的功能及其业务流程，跨接口串起来是否正确、设计是否合理、有无矛盾、是否缺接口/功能才能完成流转。
-4. **两份报告**：接口报告 + 业务/流程报告，各自从**完备性、合理性、简化/优化空间**给结论。
+4. **三份产出**：接口报告 + 业务/流程报告（各自从**完备性、合理性、简化/优化空间**给结论），另加一份整合两族问题、按严重度排列的**问题汇总**——按严重度的问题清单只出现在这份文档里，不在前两份报告里重复。
 
 The main agent only **scopes and orchestrates** — it builds the endpoint inventory cheaply (route registrations, not handler bodies), then every auditor reads the source it needs itself, so source is never duplicated across prompts. Candidate findings pass an independent adversarial verify stage before synthesizers assemble the reports, which is what keeps false positives out.
 
@@ -51,13 +52,14 @@ main agent (orchestrator — never reads handler bodies in bulk)
                      → docs/api-audit/<TS>/flow/<flow>.md
   3. Verify    → one adversarial verifier per auditor file; refutes findings, keeps only
                  what the code proves (inventory/flow-map description is left intact)
-  4. Synthesize → 2 agents in parallel:
-                 - api synthesizer  → docs/api-audit/api-report-<TS>.md   (接口报告)
-                 - flow synthesizer → docs/api-audit/flow-report-<TS>.md  (业务/流程报告)
-  5. Deliver   → print summary, delete docs/api-audit/<TS>/ (the two reports are standalone)
+  4. Synthesize → 3 agents in parallel:
+                 - api synthesizer    → docs/api-audit/api-report-<TS>.md    (接口报告)
+                 - flow synthesizer   → docs/api-audit/flow-report-<TS>.md   (业务/流程报告)
+                 - issues synthesizer → docs/api-audit/issues-report-<TS>.md (问题汇总, api+flow 整合)
+  5. Deliver   → print summary, delete docs/api-audit/<TS>/ (the three documents are standalone)
 ```
 
-The verify stage mirrors the adversarial-verify pattern: the agent that *finds* an issue is never the one that *confirms* it. The two report families share one verify pass but synthesize separately, because the interface report is endpoint-indexed and the flow report is flow-indexed — different shapes, different audiences.
+The verify stage mirrors the adversarial-verify pattern: the agent that *finds* an issue is never the one that *confirms* it. The two report families share one verify pass but synthesize separately, because the interface report is endpoint-indexed and the flow report is flow-indexed — different shapes, different audiences. A third synthesizer reads **both** families' verified findings and consolidates them into the severity-sorted 问题汇总 — the only place the per-severity issue list appears.
 
 ## Dispatching subagents
 
@@ -71,7 +73,7 @@ Pick the level by the invocation, not by probing the tool list. This is a degrad
 2. **Acceptable** — invoke the subagents **one at a time** (serial). Slower, identical correctness.
 3. **Forbidden** — folding the work into the main agent. An auditor that verifies its own findings defeats the entire skill.
 
-If the `Agent` tool genuinely isn't in your tool list, do **not** silently self-verify. Tell the user the reports are **single-agent, not independently verified**, label them so, and let them decide.
+If the `Agent` tool genuinely isn't in your tool list, do **not** silently self-verify. Tell the user the reports are **single-agent, not independently verified**, label them so, and let them decide. Still produce all three documents — interface report, flow report, and the consolidated 问题汇总 (follow `agents/synthesize-issues.md`); the 问题汇总 is a fixed deliverable, not optional, even in this fallback.
 
 ### Steps 2–4 via Workflow
 
@@ -95,7 +97,7 @@ Workflow({
 })
 ```
 
-The script fans out one endpoint-auditor per group and one flow-auditor per flow, chains a fresh verifier onto each (find/verify split is structural), then runs the two synthesizers in parallel and returns the per-file kept/dropped lines and both report paths for the Step 5 summary. Continue to **Step 5 — Deliver**.
+The script fans out one endpoint-auditor per group and one flow-auditor per flow, chains a fresh verifier onto each (find/verify split is structural), then runs the three synthesizers in parallel and returns the per-file kept/dropped lines and the three document paths for the Step 5 summary. Continue to **Step 5 — Deliver**.
 
 ## Step 1 — Scope (main agent)
 
@@ -189,9 +191,9 @@ File (rewrite in place — refute findings; leave the inventory/flow-map descrip
 Reply with one line only: "<PREFIX>[{key}]: kept=x dropped=y".
 ```
 
-## Step 4 — Synthesize (2 subagents, in parallel)
+## Step 4 — Synthesize (3 subagents, in parallel)
 
-Two synthesizers run together — one per report. Each reads only its family's verified files.
+Three synthesizers run together. The api/flow synthesizers each read only their family's verified files; the issues synthesizer reads both families and is the only one that produces the per-severity issue list.
 
 ```
 # API report
@@ -206,11 +208,17 @@ Verified flow files: docs/api-audit/<TS>/flow/*.md
 Also available for cross-reference: docs/api-audit/<TS>/api/*.md
 Final report: docs/api-audit/flow-report-<TS>.md
 Meta — scope: <…>, date: <YYYY-MM-DD>, stack: <…>, report language: <…>.
+
+# Issues summary (问题汇总)
+Read agents/synthesize-issues.md and follow it.
+Verified files: docs/api-audit/<TS>/api/*.md and docs/api-audit/<TS>/flow/*.md
+Final report: docs/api-audit/issues-report-<TS>.md
+Meta — scope: <…>, date: <YYYY-MM-DD>, stack: <…>, report language: <…>.
 ```
 
 ## Step 5 — Deliver & clean up (main agent)
 
-The two reports live at `docs/api-audit/api-report-<TS>.md` and `docs/api-audit/flow-report-<TS>.md` (outside the run dir). Only after **both** reports are confirmed written, delete the scaffolding — the reports are self-contained:
+The three documents live at `docs/api-audit/api-report-<TS>.md`, `docs/api-audit/flow-report-<TS>.md`, and `docs/api-audit/issues-report-<TS>.md` (outside the run dir). Only after **all three** are confirmed written, delete the scaffolding — the documents are self-contained:
 
 ```bash
 rm -rf docs/api-audit/<TS>/
@@ -223,11 +231,12 @@ Then summarize for the user:
 ```
 ✅ API audit complete
 Endpoints: N in G groups · Flows: F
-Totals: 🔴 P0×N  🟠 P1×N  🟡 P2×N  🔵 P3×N
+Totals: 🔴 P0×N  🟠 P1×N  🟡 P2×N  🔵 P3×N   ← 取自 issues-report 的回复行（已跨族去重），勿直接累加 api/flow 两份的计数
 Top risk: <one line>   Biggest gap: <one missing endpoint/feature, or "none">
 Reports:
   接口报告: docs/api-audit/api-report-<TS>.md
   业务/流程报告: docs/api-audit/flow-report-<TS>.md
+  问题汇总: docs/api-audit/issues-report-<TS>.md
 ```
 
 ## Failure handling
@@ -243,6 +252,7 @@ Reports:
 - **Inventory first, then judge** — the descriptive layer (path/时机/限制/配合, flow steps) is documentation the user asked for; it stays even when there are zero findings. Findings are the judgment layer on top.
 - **Scope-then-dispatch** — the main agent enumerates routes but never ingests handler bodies in bulk; auditors read their own slices. The main token lever.
 - **Evidence or it didn't happen** — every finding cites code; verify drops anything it can't substantiate. A "missing endpoint" finding must show the flow step that has no endpoint to serve it.
-- **Necessity is a real verdict** — for each endpoint, say whether it's necessary, redundant (with which), or dubious. Don't dodge it.
+- **三份产出是固定的** — 无论用户措辞提到几份，固定产出接口报告、流程报告、问题汇总三份文档；用户只点名其中一份时，其余两份仍照常产出（不因措辞省略）。
+- **Necessity is a real verdict** — judge every endpoint (necessary / redundant-with-which / dubious) and write the `必要性` line for **every** endpoint in the 清单 (necessary / redundant / dubious); redundant or dubious ones also get a `必要性` finding. Writing the line for every endpoint is what makes a skipped judgment observable. Don't dodge the judgment.
 - **Honest severity** — P0 means a genuine critical (broken core path, data-corrupting logic, a flow that cannot complete), not an inflated nit.
 - **Constructive** — every finding carries a concrete fix/improvement; strengths are reported alongside problems.

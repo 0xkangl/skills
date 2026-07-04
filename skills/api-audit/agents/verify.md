@@ -10,7 +10,7 @@ These files have a description block before the findings:
 - endpoint files: `## 接口清单`
 - flow files: `## 流程图`
 
-That block (and any `## Strengths`) is documentation, not a claim to refute. **Preserve it verbatim.** You only refute the `## Findings` section. (One exception: if while checking a finding you discover the description states something the code flatly contradicts — e.g. an endpoint listed at a location that has no such handler — fix that line and note it, because a wrong inventory misleads the reader.)
+That block (and any `## Strengths`) is documentation, not a claim to refute. **Preserve it verbatim.** You only refute the `## Findings` section. (Two exceptions, both because a description contradicting the verified findings misleads the reader: (1) if while checking a finding you discover the description states something the code flatly contradicts — e.g. an endpoint listed at a location that has no such handler — fix that line and note it; (2) if you drop a `必要性` finding — e.g. the "redundant/dubious" endpoint turned out to have a live caller — also update the matching `必要性` line in the 接口清单: change it to `必要` or remove it. A dangling `冗余…见 [API-N]` line that points at a finding you just removed is worse than no line.)
 
 ## For each finding
 

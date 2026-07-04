@@ -14,7 +14,7 @@ Read the handler and the middleware/decorators on its route, then capture:
 - **使用时机**: 什么场景下被谁调用（前端页面、其它服务、定时任务）；是流程的哪一步。
 - **限制**: 认证/鉴权（谁能调）、入参校验、限流/配额、幂等性、分页上限、事务边界等——有就写，明显缺失就记一条 finding。
 - **与其他接口的配合**: 前置依赖（必须先调 X 拿到 token/id）、后续接口、读写同一资源的接口、状态前置条件。
-- **必要性**: 这个接口是否必要？三种结论之一——**必要** / **冗余**（与哪个接口重复或可合并）/ **存疑**（无调用方、功能与他者重叠）。冗余或存疑要落一条 `必要性` finding。
+- **必要性**: 这个接口是否必要？三种结论之一——**必要** / **冗余**（与哪个接口重复或可合并）/ **存疑**（无调用方、功能与他者重叠）。每个接口的清单都写 `必要性` 行（写明三种结论之一，便于核对是否每个接口都已判断），冗余或存疑另落一条 `必要性` finding。
 
 Then judge — emit a finding when you see:
 
@@ -39,8 +39,12 @@ Write one Markdown file to the path the caller gives, in this exact shape:
 - **配合**: 产出的 token 被所有 `Authorization: Bearer` 接口消费；与 `POST /refresh` 配对。
 - **必要性**: 必要。
 
-### `GET /users/me`
-- …
+### `GET /sessions/current`
+- **位置**: `handler/session.go:40`
+- **使用时机**: …
+- **限制**: …
+- **配合**: …
+- **必要性**: 冗余——与 `GET /users/me` 返回同一份数据（见 [API-3]）。
 
 ## Strengths
 - <做得好的具体点>            ← 没有就整段省略
@@ -57,6 +61,6 @@ Write one Markdown file to the path the caller gives, in this exact shape:
 
 Notes:
 
-- The `## 接口清单` block is mandatory and covers **every** endpoint in your group — even ones with no findings. Keep each entry tight (the four lines above).
+- The `## 接口清单` block is mandatory and covers **every** endpoint in your group — even ones with no findings. Keep each entry tight（位置/使用时机/限制/配合/必要性 五行）.
 - One finding per real problem; don't manufacture a finding per endpoint.
 - Reply to the caller with only: `API[{group key}]: endpoints=n P0=a P1=b P2=c P3=d`.
