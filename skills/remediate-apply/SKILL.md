@@ -5,8 +5,8 @@ description: >
   手动触发的「问题&推荐方案文档 → 逐条落地修复」执行器。接收一份 remediation 文档（典型如 remediate-suggest
   产出的 *-remediation.md，或任意带推荐方案的 finding 清单），按原文档顺序逐个派独立 subagent——每个在隔离
   上下文里先复核该 finding 是否已被修复，再按选定方案改代码、跑测试、修复后验证、提交（一问题一 commit），并在
-  文档对应块回写状态标签。多方案无明确的方案选择表达（字段名不限）时不臆测推荐项，标「待人工选定」自动跳过下一条。代码修复
-  提交；remediation 文档的标签更新只写回、不提交。
+  文档对应块回写状态标签。多方案无明确的方案选择表达（字段名不限，`[推荐]` 标记不算人工选择）时不臆测推荐项，
+  标「待人工选定」后跳过该条、继续下一条。代码修复提交；remediation 文档的标签更新只写回、不提交。
 ---
 
 # Remediate Apply Skill
@@ -16,7 +16,7 @@ description: >
 /remediate-apply <remediation 文档路径> SEC ARCH    # 仅修复 id 命中前缀的 finding
 ```
 
-> 始终**手动指定** remediation 文档路径。已带状态标签（`✅ 已修复` / `⏭️ already-solved` / `⚠️ 待人工选定方案` / `❌ 修复未达标`）的 finding 自动跳过——可断点续跑。
+> 始终**手动指定** remediation 文档路径。已带状态标签（`✅ 已修复` / `⏭️ already-solved` / `⚠️ 待人工选定方案` / `⚠️ 待人工核实` / `❌ 修复未达标`）的 finding 自动跳过——可断点续跑；人工处理后删除该条 `- **status**:` 行即重新入队。
 
 ## 定位
 
@@ -24,7 +24,7 @@ description: >
 
 **逐条串行 + 一问题一提交**：subagent 串行启动（一条提交完才进下一条，避免工作区冲突）；每条修复独立 commit，便于回滚与审查。
 
-**多方案谨慎**：只有单方案、或带明确**方案选择表达**的多方案才执行（任何能看出「最终选了哪个」的写法都算，字段名不限——`solution: B` / `✅ 采用 B` / `已选 B` / `最终方案: B` 等）；多方案无明确选择 → 不臆测推荐项，标 `待人工选定方案` 自动跳过下一条。
+**多方案谨慎**：只有单方案、或带明确**方案选择表达**的多方案才执行（任何能看出「最终选了哪个」的写法都算，字段名不限——`solution: B` / `✅ 采用 B` / `已选 B` / `最终方案: B` 等）。`remediate-suggest` 产物里的 `[推荐]` 标记是分析器推荐、**不算**人工选择。多方案无明确选择 → 不臆测推荐项，标 `待人工选定方案` 后跳过该条、继续下一条。
 
 **文档只写不提交**：remediation 文档对应 finding 块回写状态标签（已修复/已跳过/待人工），但该文档变更**不提交**（与 `diagnose-and-fix` 处理问题列表的惯例一致，提交时机交用户掌控）。
 
@@ -66,10 +66,10 @@ description: >
 
 ### Step 2 — 串行派发 subagent
 
-**逐条串行**（非并行——每条要提交代码，并行会工作区冲突）。每条派一个 `general-purpose` subagent，prompt 指示其先读 `agents/remediate-one.md` 并遵循它，并注入：
+**逐条串行**（非并行——每条要提交代码，并行会工作区冲突）。每条派一个 `general-purpose` subagent，prompt 指示其先读 `<本 skill 目录绝对路径>/agents/remediate-one.md` 并遵循它，并注入：
 
 - 该 finding 块原文（id/title/severity/location/evidence/impact/推荐方案表达/方案选择表达（若有）/related）
-- **关联 finding 的已修复状态**：若本条 `related` 指向本批次已处理的 finding，主 agent 摘其结论（已修方案 / 已判 already-solved），供 subagent 复核「关联消解」时参考；无则空。
+- **关联 finding 的已修复状态**：若本条 `related` 指向已处理的 finding（本批次处理的，或文档中已带状态标签的），主 agent 摘其结论（已修方案 / 已判 already-solved），供 subagent 复核「关联消解」时参考；无则空。
 - `code-conventions` 是否装载
 
 subagent 返回结构化 RESULT（见 `agents/remediate-one.md`）。主 agent 收到后：
@@ -107,6 +107,8 @@ code-conventions: <已装载 | ⚠️ 降级>
 需人工跟进: 列出 pending-decision / unsupported / test-failed 的 id
 ```
 
+有需人工跟进的条目时补一句续跑指引：pending-decision 在该块写明方案选择（如 `solution: B`）、unsupported 补全所缺信息后，**删除该条 `- **status**:` 行**再重跑 `/remediate-apply <文档路径>` 即可续处理（其余已带标签的条目仍自动跳过）。全部 fixed 则本审计链（codebase-audit → remediate-suggest → remediate-apply）到此闭环。
+
 ---
 
 ## 硬约束
@@ -127,6 +129,6 @@ code-conventions: <已装载 | ⚠️ 降级>
 | 某 finding 推荐方案表达缺失 / 不可核实 | subagent 返回 `unsupported`，回写标签，继续下一条 |
 | 多方案无明确的方案选择表达 | subagent 返回 `pending-decision`，回写标签，继续下一条 |
 | subagent 测试 / 修复验证重试超 3 次 | subagent 返回 `test-failed`，**不提交**，回写标签，继续下一条 |
-| subagent 崩溃 / 未返回 RESULT | 记为失败（status 留空），回写 `⚠️ 待人工核实: subagent 未返回`，继续下一条 |
+| subagent 崩溃 / 未返回 RESULT | 记为失败，回写 `- **status**: ⚠️ 待人工核实 · subagent 未返回`，继续下一条 |
 | 零待修（全部已处理） | 正常收尾，提示「无可修 finding」 |
 | git 未初始化 | subagent 跳过提交（`code_commit: none`），其余流程照常，摘要注明 |

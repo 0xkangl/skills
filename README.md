@@ -31,7 +31,9 @@ engineering-guidelines   code-conventions
                        识别出重要业务流程即附带流程审计——原独立的
                        接口审计 skill 已并入）；规范符合性维度运行时
                        按需加载 code-conventions 作基准（缺失则降级）
-
+        │
+        │ issues-report（审计完成时提示下游，不自动调用）
+        ▼
   remediate-suggest  （审计后处理·补推荐方案·只分析）
    手动 /remediate-suggest <issues-report 路径>（偶发、可分批追加）
    接收 codebase-audit 的 issues-report，按问题根因/维度分组并行派
@@ -39,7 +41,9 @@ engineering-guidelines   code-conventions
    复核存在性（含关联消解）后写 suggest（标准推荐方案结构）。
    只分析不修复——不改被审代码、不跑测试、不提交。产物
    <issues 文档名>-remediation.md，与输入同目录
-
+        │
+        │ *-remediation.md（分析完成时提示下游，不自动调用）
+        ▼
   remediate-apply  （审计后处理·落地修复·与 remediate-suggest 对仗）
    手动 /remediate-apply <remediation 文档路径>（偶发、可断点续跑）
    消费 *-remediation.md（或任意 finding + 推荐方案文档），按原文档
@@ -64,7 +68,7 @@ engineering-guidelines   code-conventions
 - `agents-scaffold` 产出的工作区里 `spec-center/conventions/` **初始为空**：通用规范运行时引用 `code-conventions` skill，不落地副本；`conventions/` 仅承载项目私有规范。
 - `diagnose-and-fix` 聚焦**单个**问题的诊断优先修复，可由 agent 按场景自动触发，也可手动 `/diagnose-and-fix`；`diagnose-and-fix-batch` 设 `disable-model-invocation: true` 仅手动触发，把一个**问题列表**排队循环修复，**各问题在独立 subagent 中调用 `diagnose-and-fix` skill 处理**——故 batch **强依赖** `diagnose-and-fix`（按 skill 名调用、不链入对方目录文件，仍属 skill 级引用）。两者均只在文件内标记 resolved、**不提交**问题列表（提交时机交用户掌控）。
 - `remediate-suggest` 设 `disable-model-invocation: true` 仅手动触发，是 `codebase-audit` 的下游后处理——接收其 `issues-report` 产物，按问题根因/维度分派**并行** subagent 给每条 finding 补 `suggest` 字段（推荐修复方案），**只分析不修复**（不改被审代码、不跑测试、不提交），产物命名跟随输入（`<issues 文档名>-remediation.md`，与输入同目录）。推荐方案的字段口径（整体方案+落点+实现细节与注意事项+改动量、`[quick-fix]`/`[推荐]` 标记）是本 skill 自身定义的标准结构，不依赖其它 skill；subagent 写方案前按 skill 级引用加载 `code-conventions` 作规范基准（缺失则降级、摘要注明）。支持渐进补全——同目录已有该产物时自动**追加**（补剩余 finding、原地更新），存在未合并的片段目录时自动**续传**（复用有效片段、只重派缺失组）。
-- `remediate-apply` 设 `disable-model-invocation: true` 仅手动触发，与 `remediate-suggest` 对仗——后者只分析给推荐方案，本 skill **落地执行**那些方案。接收 remediation 文档（典型为 `remediate-suggest` 的 `*-remediation.md` 产物，但**不强依赖**其精确字段名，任何「finding + 推荐方案」表达都可），按原文档顺序**逐条串行**派 subagent：每个先复核该 finding 是否已被修复（含关联消解），再按选定方案改码 → 测试 → 修复验证 → 提交。**一问题一 commit**；多方案无明确的方案选择表达（字段名不限）时不臆测推荐项、标「待人工选定」自动跳过下一条。**代码改动提交；remediation 文档的状态标签只写回、不提交**（提交时机交用户掌控，与 `diagnose-and-fix` 处理问题列表的惯例一致）。subagent 改码前按 skill 级引用加载 `code-conventions` 作规范基准（缺失则降级、摘要注明）。与 `diagnose-and-fix` / `diagnose-and-fix-batch` 正交——后两者处理自由文本单问题与泛型问题列表（非 remediation 文档形态）。
+- `remediate-apply` 设 `disable-model-invocation: true` 仅手动触发，与 `remediate-suggest` 对仗——后者只分析给推荐方案，本 skill **落地执行**那些方案。接收 remediation 文档（典型为 `remediate-suggest` 的 `*-remediation.md` 产物，但**不强依赖**其精确字段名，任何「finding + 推荐方案」表达都可），按原文档顺序**逐条串行**派 subagent：每个先复核该 finding 是否已被修复（含关联消解），再按选定方案改码 → 测试 → 修复验证 → 提交。**一问题一 commit**；多方案无明确的方案选择表达（字段名不限，`[推荐]` 标记不算人工选择）时不臆测推荐项、标「待人工选定」后跳过该条继续下一条。**代码改动提交；remediation 文档的状态标签只写回、不提交**（提交时机交用户掌控，与 `diagnose-and-fix` 处理问题列表的惯例一致）。subagent 改码前按 skill 级引用加载 `code-conventions` 作规范基准（缺失则降级、摘要注明）。与 `diagnose-and-fix` / `diagnose-and-fix-batch` 正交——后两者处理自由文本单问题与泛型问题列表（非 remediation 文档形态）。
 
 ## 使用
 
@@ -104,7 +108,7 @@ skills/
 └── skills/
     ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）
-    ├── agents-scaffold/          # SKILL.md + README.md + scripts/ + templates/
+    ├── agents-scaffold/            # SKILL.md + README.md + scripts/ + templates/
     ├── codebase-audit/             # SKILL.md + agents/（维度/接口/流程审计指令）+ scripts/ + evals/
     ├── remediate-suggest/          # SKILL.md + agents/（remediate-group 子指令）
     ├── remediate-apply/            # SKILL.md + agents/（remediate-one 子指令）

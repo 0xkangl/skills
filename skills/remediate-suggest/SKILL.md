@@ -8,7 +8,7 @@ description: >
   主 agent 合并产出与输入同目录的 <issues 文档名>-remediation.md（带 suggest 的镜像）。
   同目录已有该产物时自动进入追加模式——只补原报告里尚未进 remediation 的 finding，原地更新；
   同目录存在未合并的 <issues 文档名>-remediations/ 片段时自动续传——复用有效片段，只重派缺失的组。
-  只分析不修复：不改被审代码、不跑测试、不提交。
+  只分析不修复：不改被审代码、不跑测试、不提交；产物可交下游 remediate-apply skill 逐条落地修复。
 ---
 
 # Remediate Suggest Skill
@@ -27,8 +27,9 @@ description: >
 
 **渐进补全**：remediation 产物是原 report 的**子集镜像**——只含已分析过的 finding（带 suggest），未分析的不进文档。首次跑只处理一部分维度（如 `/remediate-suggest report.md SEC ARCH`）后，再跑会自动追加剩余维度，产物逐渐长成完整镜像。中途 session 断了（片段目录在、最终产物没合并）下次自动续传。
 
-**与两个 skill 的关系（均为 skill 级引用，不链入对方目录文件）**：
+**与相关 skill 的关系（均为 skill 级引用，不链入对方目录文件）**：
 - **上游输入**：`codebase-audit`——本 skill 的输入契约就是其 issues-report 产物的固定格式（按 P0/P1/P2/P3 分节、每条 `### [ID] <title>` 带 `sub-area/location/evidence/impact`）。
+- **下游消费**：`remediate-apply`——逐条把 suggest 落地修复（改码、测试、提交）。本 skill 完成时在摘要中提示、**不自动调用**。
 - **规范基准**：`code-conventions`——每个 subagent 写 `suggest` 前加载它，确保推荐方案贴合项目约定。缺失则降级、摘要注明。
 
 > 推荐方案的字段口径（整体方案 + 落点 + 实现细节与注意事项 + 改动量、`[quick-fix]` / `[推荐]` 标记规则）是本 skill 自身定义的标准结构，不依赖其它 skill。
@@ -40,7 +41,7 @@ description: >
 ### Step 0 — 依赖与输入检查
 
 - **输入文件存在？** 不存在 → 报错停止。
-- **格式像 issues-report？** 必须含 `## 🔴 P0` / `### [` 头节结构。不像 → 提示「输入应是 codebase-audit 的 issues-report 产物」后停止，不臆测。
+- **格式像 issues-report？** 头部须有 meta 行（`> scope: … · 🔴 P0×a …`），正文须含至少一个严重度分节（`## 🔴 P0` ～ `## 🔵 P3` 任一——某档无问题时整段省略是合法的）及其 `### [ID]` 块；totals 全 0 的零 finding 报告除外（直接按「零 finding」正常收尾）。不像 → 提示「输入应是 codebase-audit 的 issues-report 产物」后停止，不臆测。
 - **已有产物检测（决定首轮 / 追加）**：查 `<issuesDir>/<issuesStem>-remediation.md` 是否存在。
   - 存在 → 读它，抽出 `alreadyDoneIds`（其中出现的 finding id 集合），标 `appendMode=true`。
   - 不存在 → 首轮，`alreadyDoneIds = ∅`。
@@ -88,7 +89,7 @@ description: >
 
 ### Step 2 — 并行派发 subagent
 
-**只派 `dispatchGroups`**（`reuseGroups` 跳过）。**同一条 message 里发全部 Agent 调用 = 并行**（参考 `codebase-audit` 的并行派发约定）。每个 subagent 用 `general-purpose` 类型，prompt：
+**只派 `dispatchGroups`**（`reuseGroups` 跳过）。**同一条 message 里发全部 Agent 调用 = 并行**。每个 subagent 用 `general-purpose` 类型，prompt：
 
 ```
 你是审计问题修复方案分析 agent。只分析、不修复——不改被审代码、不跑测试、不提交。
@@ -104,7 +105,7 @@ stack: <报告头部 stack>
 <关联已有结论（若组内 finding 的 related 指向已进 remediation 的 finding，主 agent 在此摘其 suggest 结论；无则为空）>
 {例：[SEC-2] 已有方案——给 adminGroup 挂 middleware.RequireRole("admin")；若 [SEC-5] 与之同根因，判 (b) 时参考。}
 
-先读 agents/remediate-group.md 并遵循它。核心三步：
+先读 <本 skill 目录绝对路径>/agents/remediate-group.md 并遵循它。核心三步：
 1. 加载 code-conventions skill 作为推荐方案的规范基准（按 skill 名引用，不链入其目录文件）。
 2. 存在性复核：对每条 finding 读 evidence 指向的代码，验证(a)问题是否真实存在；(b)同组关联问题
    或 <关联已有结论> 里的已补 finding 修复后，本条是否仍需独立方案。不存在/已消解 → 标
@@ -136,6 +137,12 @@ stack: <报告头部 stack>
 code-conventions: <已装载 | ⚠️ 降级>
 ```
 
+产物就绪且含可落地方案（累计 kept ≥ 1，非仅本次）时提示下游——**只提示、不自动调用**：
+
+> remediation 已就绪。如需把推荐方案逐条落地修复（一问题一 commit），可使用 `remediate-apply` skill：
+> `/remediate-apply <issuesDir>/<issuesStem>-remediation.md`
+> 多方案条目请先在文档中写明人工选择（如 `solution: B`）——仅有 `[推荐]` 标记会被判「待人工选定」跳过。
+
 ---
 
 ## suggest 字段口径（subagent 遵守）
@@ -159,7 +166,7 @@ code-conventions: <已装载 | ⚠️ 降级>
 | 情况 | 处理 |
 |------|------|
 | 输入文件不存在 | Step 0 报错停止 |
-| 输入不像 issues-report（无 P0/P1 分节、无 `[ID]` 块） | 提示格式不符后停止，不臆测 |
+| 输入不像 issues-report（无头部 meta 行、无任一严重度分节与 `[ID]` 块，且非零 finding 报告） | 提示格式不符后停止，不臆测 |
 | `code-conventions` 未装载 | 降级继续，摘要标注 |
 | 某 subagent 片段缺失/崩溃 | 该组 finding 的 suggest 填 `待人工核实: subagent 未返回`，其余组照常合并 |
 | subagent 判定 evidence 不可核实 | 该条标 `待人工核实: <缺什么>`，计入 `unsupported` |

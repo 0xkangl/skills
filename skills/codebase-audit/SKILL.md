@@ -10,7 +10,8 @@ description: >
   audit（业务流程审计）whenever important flows are identified (any project type):
   scopes the target, fans out parallel auditors, adversarially verifies every finding
   to cut false positives, then synthesizes two standalone documents — 审计报告 +
-  按严重度问题汇总。只发现与整理问题，不产出修复方案。
+  按严重度问题汇总。只发现与整理问题，不产出修复方案；issues-report 可交下游
+  remediate-suggest skill 补推荐方案（完成时提示、不自动调用）。
 ---
 
 # Codebase Audit
@@ -278,7 +279,8 @@ Reports:
 
 （仅在 issues-report 成功生成时）告知用户有下游 skill 可选——**只提示、不自动调用**：
 
-> 问题汇总已就绪。如需给每条问题补推荐修复方案（只分析不修复），可使用 `remediate-suggest` skill 处理这份 issues-report。
+> 问题汇总已就绪。如需给每条问题补推荐修复方案（只分析不修复），可使用 `remediate-suggest` skill：
+> `/remediate-suggest docs/audit/issues-report-<TS>.md`
 
 ## Failure handling
 
