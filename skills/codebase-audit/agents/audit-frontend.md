@@ -16,4 +16,4 @@ Audit the in-scope code for **frontend accessibility, internationalization, and 
 
 P0 关键功能对辅助技术/键盘完全不可用 · P1 系统性 a11y 缺陷或核心文案不可本地化、明显的包体积/渲染瓶颈拖垮可用性 · P2 局部 a11y/i18n 缺口、可优化的体积/重渲染 · P3 细节与微优化。
 
-Frame each **risk** around 终端用户可用性、可访问性合规、加载/交互性能。
+Frame each **impact** around 终端用户可用性、可访问性合规、加载/交互性能。

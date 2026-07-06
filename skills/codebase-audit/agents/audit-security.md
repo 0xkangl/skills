@@ -15,4 +15,4 @@ Audit the in-scope code for **security**. Read `_finding-format.md` (same dir as
 
 P0 directly exploitable (RCE, SQLi, auth bypass, hard-coded key) · P1 conditionally exploitable (broken access control, info leak, weak crypto) · P2 misconfig with no clear exploit path · P3 best-practice / version-bump advice.
 
-In each finding, make **evidence** show why it's exploitable and **risk** describe attacker leverage and blast radius.
+In each finding, make **evidence** show why it's exploitable and **impact** describe attacker leverage and blast radius.

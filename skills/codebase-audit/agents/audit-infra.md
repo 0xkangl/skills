@@ -18,4 +18,4 @@ Audit the in-scope project for **build, CI/CD, deployment, and infrastructure**.
 
 P0 镜像/流水线泄密或可被攻击（密钥进镜像/日志、特权容器、fork PR 拿到密钥） · P1 无探针/无优雅停机/无资源限制/构建不可复现/CI 无门禁 · P2 局部不规范（未固定 action、缺 .dockerignore、单阶段构建） · P3 优化建议。
 
-若项目**没有任何**构建/CI/部署产物，写**单条** P3 说明「未发现构建/部署/基建产物，本维度跳过」，不要编造 finding。Frame each **risk** around 部署安全、供应链、可复现性与运维可靠性。
+若项目**没有任何**构建/CI/部署产物，写**单条** P3 说明「未发现构建/部署/基建产物，本维度跳过」，不要编造 finding。Frame each **impact** around 部署安全、供应链、可复现性与运维可靠性。

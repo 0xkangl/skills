@@ -29,4 +29,4 @@ CONV is about **deviation from a documented rule**, not general judgment. File a
 
 P1 systemic or contract-breaking deviation — wrong error envelope across the API, env-var/inter-module-token naming that breaks the cross-module contract, missing mandated structured logging on core paths · P2 localized deviation in some endpoints/modules, inconsistent error codes, partial test-convention gaps · P3 cosmetic/naming deviations, commit-message format slips.
 
-Frame each **risk** around interoperability, cross-module contracts, and onboarding/consistency cost.
+Frame each **impact** around interoperability, cross-module contracts, and onboarding/consistency cost.

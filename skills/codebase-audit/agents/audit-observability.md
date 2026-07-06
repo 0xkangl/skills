@@ -16,4 +16,4 @@ Audit the in-scope code for **maintainability and observability**. Read `_findin
 
 P0 core service with no logging/monitoring — undebuggable in an incident · P1 key path unlogged, wrong levels hiding errors or flooding prod, debug/verbose logging shipping to production unguarded, heavy hard-coded prod config, no instrumentation at all · P2 unstructured logs, mis-leveled or over-detailed logs, scattered magic numbers, missing docs · P3 log-format nits, stale docs, thin interface comments.
 
-Frame each **risk** around ops/debugging/collaboration impact.
+Frame each **impact** around ops/debugging/collaboration impact.

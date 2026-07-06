@@ -18,4 +18,4 @@ This is the dedicated performance lens carved out of ARCH — ARCH keeps data-mo
 
 P0 已在生产造成瓶颈/雪崩（OOM、连接池耗尽、热路径阻塞致超时） · P1 可预见的扩展瓶颈（N+1、缺索引、随数据量退化、无背压） · P2 无运行期影响的低效设计 · P3 微优化。
 
-Frame each **risk** around latency, throughput, resource cost, or scaling ceiling — quantify (数量级/随 N 增长) where the code lets you.
+Frame each **impact** around latency, throughput, resource cost, or scaling ceiling — quantify (数量级/随 N 增长) where the code lets you.
