@@ -34,6 +34,8 @@ A manual, multi-agent audit tuned for low token cost. The main agent only **scop
 
 Narrow or exclude in plain language — e.g. "security only", "architecture + code quality", "skip testing", "只审接口", "skip flow". Run exactly the set asked for.
 
+**并发控制**：并发子 agent 上限默认 **5**，用户可用自然语言改（如「并发 3」「maxConcurrency 8」）。Workflow 模式经 `args.maxConcurrency` 传入（clamp 到 [1, 16]）；默认 Agent 模式按批派发——每批至多 N 个，一批全部回完再发下一批。上限越低，遇到超限熔断时已在飞、无法取消的调用越少，第三方限流严格时可主动调低。
+
 **Report language** defaults to Simplified Chinese (简体中文). Honor an explicit request for another language.
 
 **Workflow orchestration** is optional and opt-in: append `ultracode` to the invocation (e.g. `/codebase-audit ultracode src/`) to drive the audit through the deterministic Workflow pipeline. Without the keyword, fan out with the built-in `Agent` tool (the default) — never start a Workflow run just because the tool happens to be in your list.
@@ -90,12 +92,15 @@ Workflow({
     meta:       "scope: <…>, date: <YYYY-MM-DD>, stack: <…>",
     dimensions: ["arch","security",…],  // 常规维度 key（含 fe）；「只审接口/流程」时传 []
     groups:     [{ key: "users", name: "用户/认证" }, …],   // 可选；非空即激活 api 维度（仅 HTTP 项目）
-    flows:      [{ key: "checkout", name: "下单结算" }, …]  // 可选；非空即激活 flow 维度（不限 HTTP）
+    flows:      [{ key: "checkout", name: "下单结算" }, …], // 可选；非空即激活 flow 维度（不限 HTTP）
+    maxConcurrency: 5                   // 可选；并发子 agent 上限，默认 5（clamp 1–16）
   }
 })
 ```
 
 The script fans out one auditor per dimension / endpoint group / business flow, chains a fresh verifier onto each (the find/verify split is structural — never the same agent), then runs the two synthesizers in parallel with the **explicit list** of surviving verified files. It returns the per-item audit/verify lines plus `reportPath` / `issuesReportPath` — 合成器失败时对应值为 **null**，Deliver 据此保留现场。Then continue to **Step 5 — Deliver & clean up**.
+
+脚本内置**超限熔断**：脚本拿不到错误码（子 agent 终端失败只表现为 null），以「连续 ≥2 个子 agent 终端失败」为超限信号（429/限流/配额类，第三方中转 provider 尤其常见）——触发即停止派发所有剩余子任务并抛错，不进合成。主 agent 收到该错误时按 Failure handling 的「LLM 超限」条目处置：保留现场、告知用户等配额重置，恢复后用 `Workflow({scriptPath, resumeFromRunId})` 续跑（已完成调用命中缓存，只重跑失败与未派发的）。
 
 ## Step 1 — Scope (main agent)
 
@@ -155,7 +160,7 @@ Launching <N> auditors in parallel…
 
 ## Step 2 — Auditors (in parallel)
 
-Launch every active item in one batch: 常规维度 + 每个接口组 + 每条流程. Give each the scope brief and point it at its instruction file and output path; the auditor reads its own source. (Full set below — run only the active ones.)
+Launch the active items: 常规维度 + 每个接口组 + 每条流程——按并发上限（默认 5，见 Invocation）分批派发，每批在一条消息里发出、全部回完再发下一批. Give each the scope brief and point it at its instruction file and output path; the auditor reads its own source. (Full set below — run only the active ones.)
 
 | Auditor | Prefix | Instruction | Output |
 |-----------|--------|-------------|--------|
@@ -284,6 +289,7 @@ Reports:
 
 ## Failure handling
 
+- **LLM 超限（rate limit / quota，第三方 API 尤甚）** — 任一子 agent 因超限类错误终端失败（错误信息含 `429` / `rate limit` / `quota` / `exceeded` / `resource exhausted` 等，或 Workflow 抛出熔断错误），**立即暂停整个 run**：不再派发任何新的 auditor/verifier/合成器（已在跑的等其自然结束即可），保留 `docs/audit/<TS>/` 与已完成文件，告知用户疑似配额超限、等重置后重试。**不要**把剩余 item 挨个试完才停——超限是系统性故障，逐个重试只会烧配额。恢复时只补跑缺失 item（Workflow 模式用 `resumeFromRunId` 续跑）。
 - **Auditor produced nothing** — verifier/合成器跳过该文件；摘要注明「<item>: not produced」，不阻塞。
 - **Auditor timed out** — proceed with whatever finished.
 - **未发现路由但用户点名要接口审计** — 扩大 grep / 查 spec 文件 / 询问路由注册位置后再派发。

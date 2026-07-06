@@ -36,7 +36,7 @@ if (typeof input === 'string') {
 if (typeof input !== 'object' || input === null) {
   throw new Error(`args 不是对象（typeof=${typeof input}）——应传真正的 JSON 对象`)
 }
-const { ts, scopeFile, language, agentsDir, meta: runMeta, dimensions, groups, flows } = input
+const { ts, scopeFile, language, agentsDir, meta: runMeta, dimensions, groups, flows, maxConcurrency } = input
 const missing = ['ts', 'scopeFile', 'agentsDir', 'meta', 'language'].filter((k) => input[k] == null)
 if (missing.length) throw new Error(`args 缺字段：${missing.join(', ')}；收到的 keys：${Object.keys(input).join(', ') || '（空）'}`)
 const outDir = `docs/audit/${ts}`
@@ -76,6 +76,54 @@ const flowItems = (flows || []).map((f) => {
 const items = [...dimItems, ...groupItems, ...flowItems]
 if (!items.length) throw new Error('no items：args.dimensions / args.groups / args.flows 全为空')
 
+// —— 超限熔断（circuit breaker）——
+// agent() 因终端 API 错误死掉时只返回 null，脚本拿不到错误码；而 429/限流/配额超限
+//（第三方中转 provider 尤其常见）是系统性故障，会让并发中的所有子 agent 接连失败。
+// 单个 null 可能只是用户手动 skip；连续 ≥TRIP_AFTER 个 null 即判定系统性超限——立即熔断：
+// 不再派发任何新子 agent（已在飞的无法取消，等其自然结束），抛错保留现场，
+// 等配额重置后用 Workflow({scriptPath, resumeFromRunId}) 续跑。
+const TRIP_AFTER = 2
+let consecutiveFails = 0
+let tripped = false
+
+// 脚本层并发闸：harness 对超额 agent() 调用的排队发生在 agent() 内部，已进内部队列的
+// 调用熔断拦不住；让排队发生在这里，tripped 才能拦下所有尚未派发的调用。
+// 上限由 args.maxConcurrency 控制（默认 5，clamp 到 [1, 16]——16 为 harness 硬上限）；
+// 越低，超限熔断时已在飞、无法取消的调用越少，适合第三方限流严格的场景。
+const rawMax = Number(maxConcurrency)
+const MAX_INFLIGHT = Number.isFinite(rawMax) && rawMax >= 1 ? Math.min(16, Math.floor(rawMax)) : 5
+let inflight = 0
+const waiters = []
+const acquire = () => {
+  if (inflight < MAX_INFLIGHT) { inflight++; return Promise.resolve() }
+  return new Promise((resolve) => waiters.push(resolve))
+}
+const release = () => {
+  const next = waiters.shift()
+  if (next) next() // 槽位直接转交给下一个等待者，inflight 不变
+  else inflight--
+}
+
+const guardedAgent = async (prompt, opts) => {
+  await acquire()
+  try {
+    if (tripped) throw new Error(`已熔断，未派发：${opts.label}`)
+    const line = await agent(prompt, opts)
+    if (line == null) {
+      consecutiveFails++
+      if (!tripped && consecutiveFails >= TRIP_AFTER) {
+        tripped = true
+        log(`⛔ 连续 ${consecutiveFails} 个子 agent 终端失败——疑似 LLM 配额/限流超限，已暂停派发剩余子任务`)
+      }
+    } else {
+      consecutiveFails = 0
+    }
+    return line
+  } finally {
+    release()
+  }
+}
+
 const auditPrompt = (it) => it.kind === 'dim'
   ? `Read the scope brief at ${scopeFile} first for context.
 Read ${agentsDir}/${it.instruction} and follow it. Pull the source you need yourself.
@@ -102,12 +150,12 @@ const results = await pipeline(
   items,
   async (it) => {
     // agent() 失败时返回 null（非抛错），需显式抛错才能让 pipeline 把该 item 落为 null、跳过后续 verify
-    const auditLine = await agent(auditPrompt(it), { label: `audit:${it.key}`, phase: 'Audit', agentType: 'general-purpose' })
+    const auditLine = await guardedAgent(auditPrompt(it), { label: `audit:${it.key}`, phase: 'Audit', agentType: 'general-purpose' })
     if (!auditLine) throw new Error(`auditor produced nothing: ${it.key}`)
     return { it, auditLine }
   },
   async (prev) => {
-    const verifyLine = await agent(verifyPrompt(prev.it), { label: `verify:${prev.it.key}`, phase: 'Verify', agentType: 'general-purpose' })
+    const verifyLine = await guardedAgent(verifyPrompt(prev.it), { label: `verify:${prev.it.key}`, phase: 'Verify', agentType: 'general-purpose' })
     // 与 audit 阶段一致：verify 失败必须显式抛错、让该 item 落为 null 并跳过合成。
     // 否则未验证的 auditor 文件会带着原始 findings 进入合成阶段，静默破坏 find/verify 分离这一核心不变量。
     if (!verifyLine) throw new Error(`verifier produced nothing: ${prev.it.key}`)
@@ -117,6 +165,15 @@ const results = await pipeline(
 
 // await pipeline 返回即所有 audit+verify 已完成；失败的 item 已落为 null，filter 跳过
 const survivors = results.filter(Boolean)
+
+// 熔断触发时不进合成——半程结果出报告会误导；抛错让主 agent 保留现场、告知用户等配额重置
+if (tripped) {
+  throw new Error(
+    `疑似 LLM 配额/限流超限（连续子 agent 终端失败），已暂停全部剩余子任务：` +
+    `audit+verify 完成 ${survivors.length}/${items.length}。` +
+    `docs/audit/${ts}/ 现场已保留；等配额重置后用 Workflow({scriptPath, resumeFromRunId}) 续跑（已完成调用命中缓存）。`
+  )
+}
 if (!survivors.length) throw new Error('all auditors failed; nothing to synthesize')
 
 // 幸存文件的显式列表（不含 scope.md）——合成器只读这些、不 glob，避免把 scope.md 误读为 findings
@@ -139,8 +196,8 @@ Reply with one line only: "issues-report: P0=a P1=b P2=c P3=d → ${issuesReport
 // 两个合成器并行：report（结论+描述层）与 issues（按严重度问题清单的唯一所在）
 phase('Synthesize')
 const [reportLine, issuesLine] = await parallel([
-  () => agent(synthReportPrompt, { label: 'synthesize:report', phase: 'Synthesize', agentType: 'general-purpose' }),
-  () => agent(synthIssuesPrompt, { label: 'synthesize:issues', phase: 'Synthesize', agentType: 'general-purpose' }),
+  () => guardedAgent(synthReportPrompt, { label: 'synthesize:report', phase: 'Synthesize', agentType: 'general-purpose' }),
+  () => guardedAgent(synthIssuesPrompt, { label: 'synthesize:issues', phase: 'Synthesize', agentType: 'general-purpose' }),
 ])
 
 // 合成器失败时对应路径置 null——Deliver 据此保留 docs/audit/<TS>/ 现场、不清理
