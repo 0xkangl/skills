@@ -119,6 +119,47 @@ docs/audit/
 | 重写 | `codebase-audit/SKILL.md`（frontmatter description 一并更新）；`agents/_finding-format.md`（合并两版：通用 severity 标尺 + 接口味注记、统一 finding shape、两族 sub-area）；`agents/verify.md`（合并两版：描述层不动 + 必要性/缺失类严格反驳指引）；`scripts/workflows.mjs` |
 | 新增 | `agents/synthesize-report.md`、`agents/synthesize-issues.md` |
 | 合并 | `api-audit/evals/evals.json` → `codebase-audit/evals/evals.json` |
+| 核对 | 10 个常规维度指令文件（`audit-*.md`）逐一核对：sub-area 定义保留；示例中若出现 `risk` 字段随统一改为 `impact`；其余内容不动 |
+
+### agents 指令文件合并细案（扬长补短、查缺补漏）
+
+#### _finding-format.md（合并两版）
+
+- **severity 标尺**：以 codebase 通用版为基底，附 api 版接口味注记（api/flow 维度下 P0 如「鉴权绕过、关键流转根本无法完成」、P1 如「缺失接口使重要场景无法支撑」）；保留「维度文件可收紧标尺」。
+- **保留 api 版「简化优化 判定基准」**四条（逻辑可简化 / 流程可优化 / YAGNI 不过度设计 / 行业成熟方案）与「资深工程师会不会觉得过度复杂」自问。
+- **文件骨架沿 codebase 版**（`# {…} — findings` + `## Strengths`（无则省）+ `## Findings`）；接口/流程文件的描述层模板仍在 `audit-endpoint.md` / `audit-flow.md`，本文件只定义所有 auditor 共享的 finding 块形状。
+- **字段**：severity / sub-area / location / evidence / **impact**（`risk` 更名；含义合并两版——留着不管的具体后果：错误结果 / 事故 / 流程受阻 / 白费的接口）。
+- **id 规则**：常规维度 `[<PREFIX>-N]`；接口/流程 `[API-<group>-N]` / `[FLOW-<flow>-N]`（key 与文件名一致，防跨组撞号）。
+- **sub-area**：常规维度由各维度文件定义；endpoint 族（正确性/合理性/简化优化/必要性）与 flow 族（正确性/设计合理性/简化优化/矛盾/缺失）在本文件列出。
+- **规则合并**：报告语言；evidence 必须可核（verifier 将反驳）；不推断未见上下文；一真问题一条不凑数；缺失类 finding 的 evidence = 无接口可用的那个流程步骤/调用方；不产出修复方案/改进建议；无统计无总结。
+
+#### verify.md（合并两版）
+
+- 独立性检查保留 codebase 版更全的措辞（self-checked ≠ verified）；判决三态 confirmed/adjusted/dropped、拿不准就 drop、`> verified:` 行照旧；删除旧版「fix 稍后添加」句。
+- **描述层与 Strengths 保护（补漏）**：`## Strengths` 在**所有**文件中原样保留（codebase 旧版未提及，属漏洞）；接口/流程文件的 接口清单/流程图 原样保留，两条例外沿 api 版（描述与代码相悖时修正该行；drop 必要性 finding 时同步改 必要性 行）。
+- **悬挂引用规则推广（补漏）**：描述层**任何** `见 [id]` / ⚠️ 标记，所指 finding 被 drop 时必须同步更新（改回正常表述或删去）——api 版只覆盖了 必要性 行，流程图步骤标记同样会悬挂。
+- **分类反驳指引**：通用四问（证据是否误读 / 别处是否有 guard / 是否惯用且安全 / 是否依赖未见上下文）+ api 版两条从严（必要性：先 grep 调用方再同意冗余；缺失：最易夸大、确认无别的路由/动词/参数已覆盖）+ 新增一条（**简化优化**：确认「更简单的做法」不丢代码里真实存在的约束——并发/边界/兼容性；复杂度实际承重则 drop）。
+- 回复行按文件类型：常规 `<PREFIX>: kept=x dropped=y`；接口/流程 `<PREFIX>[<key>]: kept=x dropped=y`。
+
+#### synthesize-report.md（新增；融合旧 synthesize + synthesize-api + synthesize-flow）
+
+- 输入：全部已验证文件（`<TS>/*.md`、`<TS>/api/*.md`、`<TS>/flow/*.md`）；只组织与下结论，**不重判、不发明 findings**。
+- 结构即第 4 节 report 模板；继承规则：
+  - **覆盖性**（api 版之长）：每个激活维度必有结论小节（零 findings 也写状态结论）；接口清单覆盖每个接口（无问题写「—」，必要性 行逐接口必写）；流程覆盖每条；清单字段逐行搬运不压缩。
+  - 冗余/存疑接口与缺失接口在 概览 与对应章节突出（去掉建议形态，只述问题）。
+  - **Strengths 跨维度去重、标注来源维度**（codebase 版之长）。
+  - **反臃肿三禁令**（codebase 版之长）：不做子报告索引、不做每维统计表、不做修复时间线；按严重度问题清单**不出现在本报告**（分工线）。
+  - prefix 图例扩展 API/FLOW。
+- 回复行：`report: dims=<n> endpoints=<n|-> flows=<n|-> → <path>`。
+
+#### synthesize-issues.md（自 api 版扩展为全维度）
+
+- 输入同上，只读各文件 `## Findings`（描述层不搬运）；模板沿 api 版（P0→P3 分节；字段 sub-area / location / evidence / impact；维度由 id 前缀体现，不另设字段）。
+- **evidence 必留**及理由原话保留（唯一 triage 入口、运行目录会删，丢了无处可查）。
+- **同根因合并推广（补漏）**：从「两族之间」推广到**任意维度之间**（如 SEC 与 ARCH 撞同一根因）——合并一条、标题后并列 id、字段取更完整方。
+- **同档排序**：按影响大小；同模块/同文件条目相邻排列（吸收旧 clustering 的可读性价值）；跨档同根因不合并时各加一行 `- **related**: [id]` 互指。
+- **空清单行为（补漏）**：零 findings 仍产出文档——头部 totals 全 0 + 一句「未发现可证实的问题」。
+- 回复行：`issues-report: P0=a P1=b P2=c P3=d → <path>`（跨维度去重后的计数）；SKILL.md Step 5 摘要的 Totals **取自本行、不得累加各文件计数**（api 版防重复计数规则，推广到全维度）。
 
 ### workflows.mjs 要点
 
@@ -156,3 +197,5 @@ docs/audit/
 4. SKILL.md `name` 与目录名一致；无跨 skill 内容级路径引用；无死链。
 5. README 一览表 / 命令块 / 目录树、AGENTS.md skill 数目与原则案例均已同步。
 6. 产出路径全仓统一为 `docs/audit/`（`report-<TS>.md`、`issues-report-<TS>.md`、临时 `<TS>/`），不再出现 `docs/api-audit/` 或 `docs/audit/{codebase,api}/`。
+7. `rg -n '\*\*risk\*\*' skills/codebase-audit/agents/` 无匹配（finding 字段已全量统一为 `impact`）。
+8. 回复行契约三处一致：SKILL.md 各 Step 的 prompt、`workflows.mjs` 各 prompt、对应 agents 文件末尾的回复行约定，逐字比对无出入。
