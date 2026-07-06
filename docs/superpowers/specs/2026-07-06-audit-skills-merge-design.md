@@ -184,7 +184,8 @@ docs/audit/
 ## 7. 仓库文档同步
 
 - **README.md**：Skills 一览表删 api-audit 行；`npx skills add` 命令块同步；介绍段「api-audit 与 codebase-audit 正交」改为合并说明（codebase-audit 描述补充：HTTP 项目自动附带接口/流程审计）；**「Skill 之间的关系」ASCII 图删 api-audit 块**、合并说明并入其中的 codebase-audit 块；目录树删 api-audit 条目、**codebase-audit 行补 `evals/`**，并顺手修正目录树里现存的 codebase-audit 重复两行（预存 bug，同一编辑区）。
-- **AGENTS.md**：「当前四个 skill」改为**六个**——README 一览表现有 7 个 skill，AGENTS.md 的「四个」本就过时，删 api-audit 后为 6，本次一并修正；核心原则 3 的合并案例补充「api-audit 并入 codebase-audit（同为手动一次性审计、作用域重合）」。
+- **AGENTS.md**：「当前四个 skill」改为**六个**——README 一览表现有 7 个 skill，AGENTS.md 的「四个」本就过时，删 api-audit 后为 6，本次一并修正；核心原则 3 的合并案例补充「接口/流程审计（原独立的接口审计 skill）并入 codebase-audit——同为手动一次性审计、作用域重合」。
+- **措辞约束**：README 与 AGENTS.md 的合并说明**不得出现字面 `api-audit`**（用「原独立的接口审计 skill」等表述）——验收 1 的 grep 范围含这两个文件，字面残留会挂验收。
 
 ## 8. 失败处理（合并两版）
 
