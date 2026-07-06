@@ -15,7 +15,7 @@ const DIMS = {
   code:     { name: 'Code quality',                    prefix: 'CODE',  instruction: 'audit-code-quality.md' },
   security: { name: 'Security',                        prefix: 'SEC',   instruction: 'audit-security.md' },
   testing:  { name: 'Testing',                         prefix: 'TEST',  instruction: 'audit-testing.md' },
-  deps:     { name: 'Dependencies & debt',             prefix: 'DEP',  instruction: 'audit-dependencies.md' },
+  deps:     { name: 'Dependencies & debt',             prefix: 'DEP',   instruction: 'audit-dependencies.md' },
   obs:      { name: 'Maintainability & observability', prefix: 'OBS',   instruction: 'audit-observability.md' },
   infra:    { name: 'Build / deploy / infra',          prefix: 'INFRA', instruction: 'audit-infra.md' },
   fe:       { name: 'Frontend a11y / i18n',            prefix: 'FE',    instruction: 'audit-frontend.md' },
