@@ -1,6 +1,6 @@
 # 设计：api-audit 并入 codebase-audit，聚焦问题发现与整理
 
-> 日期：2026-07-06 · 状态：已定稿（用户确认）
+> 日期：2026-07-06 · 状态：已定稿（用户确认；同日二次评审查缺补漏，修订已原位融入各节）
 
 ## 1. 背景与目标
 
@@ -30,7 +30,7 @@
 - **通用 9 个**（不变）：arch、perf、code、security、testing、deps、obs、infra、conv。
 - **条件 3 个**：
   - `fe`——检测到 web/前端栈时激活（现状不变）。
-  - `api`（接口审计）——**仅当 Scope 检测到 HTTP 服务**（路由注册 / OpenAPI spec）时激活；检测逻辑与端点枚举表（框架 grep 提示表、spec drift 处理）沿用原 api-audit Step 1。
+  - `api`（接口审计）——**仅当 Scope 检测到 HTTP 服务**（路由注册 / OpenAPI spec）时激活；检测逻辑与端点枚举表（框架 grep 提示表、spec drift 处理）沿用原 api-audit Step 1。**分工句保留**：REST 语义、命名、错误码等规范符合性归 `conv` 维度（基准来自 code-conventions skill），api 维度只审接口逻辑的完备性/自洽性/必要性——这句写进 SKILL.md 的维度说明与 `audit-endpoint.md`，减少同一次 run 里 API 与 CONV/SEC 撞根因（issues 合成端的同根因合并只是兜底，上游少产重复更省）。
   - `flow`（业务流程审计）——**不限 HTTP 项目**：Scope 识别出重要业务流程（用户点名，或项目存在明显的多步核心路径）即激活。HTTP 项目的流程步骤映射到接口（接口清单为地图）；非 HTTP 项目映射到承载点（模块/函数/命令/消息处理器/定时任务）。
 
 并行粒度保留原 api-audit 设计：`api` 维度按接口分组各出一个 auditor、`flow` 按流程各出一个，其余维度各一个 auditor。自然语言收窄照常适用（「只审接口」「skip flow」「security only」等）。
@@ -120,10 +120,10 @@ docs/audit/
 |---|---|
 | 删除 | `skills/api-audit/` 整目录；`skills/codebase-audit/agents/fix-solution.md`、`agents/assemble.md`、`agents/synthesize.md` |
 | 迁入并改 | `audit-endpoint.md`、`audit-flow.md` → `codebase-audit/agents/`（删 suggest、id 带 key、impact 字段、输出路径改 `docs/audit/<TS>/api-<group>.md` / `flow-<flow>.md`）；`audit-flow.md` 措辞泛化：「步骤→接口」改「步骤→承载点」（HTTP 项目以接口为主形态，非 HTTP 为模块/函数/命令/消息处理器/定时任务），缺失类 = 该步骤在项目中无任何承载 |
-| 重写 | `codebase-audit/SKILL.md`（frontmatter description 一并更新）；`agents/_finding-format.md`（合并两版：通用 severity 标尺 + 接口味注记、统一 finding shape、两族 sub-area）；`agents/verify.md`（合并两版：描述层不动 + 必要性/缺失类严格反驳指引）；`scripts/workflows.mjs` |
+| 重写 | `codebase-audit/SKILL.md`（frontmatter description 一并更新，**保留 `disable-model-invocation: true`**）；`agents/_finding-format.md`（合并两版：通用 severity 标尺 + 接口味注记、统一 finding shape、两族 sub-area）；`agents/verify.md`（合并两版：描述层不动 + 必要性/缺失类严格反驳指引）；`scripts/workflows.mjs` |
 | 新增 | `agents/synthesize-report.md`、`agents/synthesize-issues.md` |
 | 合并 | `api-audit/evals/evals.json` → `codebase-audit/evals/evals.json` |
-| 核对 | 10 个常规维度指令文件（`audit-*.md`）逐一核对：sub-area 定义保留；示例中若出现 `risk` 字段随统一改为 `impact`；其余内容不动 |
+| 核对 | 10 个常规维度指令文件（`audit-*.md`）逐一核对：sub-area 定义保留；**正文与示例中的 `**risk**` 全量改 `impact`**——不止示例块，`audit-infra/frontend/observability/security/performance/conventions` 六个文件的指令正文有「Frame each **risk** around …」句式，漏改任一处验收 7 的 grep 会挂；其余内容不动 |
 
 ### agents 指令文件合并细案（扬长补短、查缺补漏）
 
@@ -153,12 +153,12 @@ docs/audit/
   - 冗余/存疑接口与缺失接口在 概览 与对应章节突出（去掉建议形态，只述问题）。
   - **Strengths 跨维度去重、标注来源维度**（codebase 版之长）。
   - **反臃肿三禁令**（codebase 版之长）：不做子报告索引、不做每维统计表、不做修复时间线；按严重度问题清单**不出现在本报告**（分工线）。
-  - prefix 图例扩展 API/FLOW。
+  - prefix 图例**写全 12 个**：10 个常规前缀（ARCH/PERF/CODE/SEC/TEST/DEP/OBS/INFRA/FE/CONV）+ API/FLOW——旧 synthesize.md 图例漏了 PERF/INFRA/FE（预存缺陷），重写时不照抄。
 - 回复行：`report: dims=<n> endpoints=<n|-> flows=<n|-> → <path>`。
 
 #### synthesize-issues.md（自 api 版扩展为全维度）
 
-- 输入同上，只读各文件 `## Findings`（描述层不搬运）；模板沿 api 版（P0→P3 分节；字段 sub-area / location / evidence / impact；维度由 id 前缀体现，不另设字段）。
+- 输入同上，只读各文件 `## Findings`（描述层不搬运）；模板沿 api 版（P0→P3 分节；字段 sub-area / location / evidence / impact；维度由 id 前缀体现，不另设字段），但**文档标题改项目级**——「项目审计报告 · 问题汇总」（不照抄旧模板的「接口审计报告 · 问题汇总」，与 report 的「项目审计报告」配套）。
 - **evidence 必留**及理由原话保留（唯一 triage 入口、运行目录会删，丢了无处可查）。
 - **同根因合并推广（补漏）**：从「两族之间」推广到**任意维度之间**（如 SEC 与 ARCH 撞同一根因）——合并一条、标题后并列 id、字段取更完整方。
 - **同档排序**：按影响大小；同模块/同文件条目相邻排列（吸收旧 clustering 的可读性价值）；跨档同根因不合并时各加一行 `- **related**: [id]` 互指。
@@ -168,21 +168,23 @@ docs/audit/
 ### workflows.mjs 要点
 
 - args：`{ ts, scopeFile, language, agentsDir, meta, dimensions, groups?, flows? }`。`dimensions` 只含常规维度 key（含 fe）；`groups` 非空即激活 api 维度（仅 HTTP 项目会传），`flows` 非空即激活 flow 维度（不限 HTTP）——避免「声明了维度却没给清单」的不一致态。字符串 args 的 JSON.parse 兜底保留。
+- **必填字段沿 api 版查全五个**：`ts / scopeFile / agentsDir / meta / language`（现 codebase 版只查前三，合并版统一）。
+- **空校验改看总 items**：`dimensions` 允许为空数组（「只审接口」「只审流程」收窄时的合法态），仅当 常规维度 + groups + flows 的总 items 为空才抛错——这是对现 codebase 版「dimensions 为空即抛错」的行为变更；未知维度 key 的忽略日志（`忽略未知维度 key：…`）保留。
 - Audit→Verify pipeline：items = 常规维度 + group items + flow items，audit 与 verify 必为不同 agent；verify 失败显式抛错落 null（沿用 api 版的严格处理）。
 - 产物路径平铺：`${outDir}/api-<group>.md`、`${outDir}/flow-<flow>.md`（`safeKey` 消毒后拼前缀，无子目录）。
 - Synthesize：`parallel` 跑 2 个合成器（report + issues），prompt 里传幸存文件的**显式列表**（不含 `scope.md`），不用 glob。
 - 删除：桶解析（`buckets=` 正则）、Fix phase、Assemble phase。phases 变为 Audit / Verify / Synthesize。
-- key 消毒（`safeKey`）沿用 api 版，防路径越界。
-- 返回值：`{ reportPath, issuesReportPath, items(各 audit/verify 行), synthesize: { report, issues } }`。
+- key 消毒（`safeKey`）沿用 api 版，防路径越界；**消毒后撞名加序号后缀去重**——两个 group/flow key 消毒后同名会互相覆盖产物文件（api 版预存问题，顺带修）。
+- 返回值：`{ reportPath, issuesReportPath, items(各 audit/verify 行), synthesize: { report, issues } }`。**失败语义沿 api 版**：合成器失败时对应路径置 null（`reportPath: reportLine ? … : null`、`issuesReportPath: issuesLine ? … : null`）——Deliver 据 null 判断保留 `<TS>/` 现场，这是第 8 节「任一合成器失败保留现场」在 Workflow 路径上的可观测信号来源。
 
 ### evals.json 要点
 
-新建 `codebase-audit/evals/`，合并原 api-audit 三条 eval（prompt 改为 `/codebase-audit` 措辞，期望输出改为「两份文档、findings 只带证据与后果、缺失接口不给形态建议、按严重度清单只在 issues-report」），另加一条非 HTTP 项目 eval（断言 report 无接口清单章节、api 维度未激活；若该项目识别出重要业务流程，flow 维度照常激活、报告含业务流程章节且步骤映射到模块/函数等承载点）。
+新建 `codebase-audit/evals/`，合并原 api-audit 三条 eval（prompt 改为 `/codebase-audit` 措辞，期望输出改为「两份文档、findings 只带证据与后果、缺失接口不给形态建议、按严重度清单只在 issues-report」），另加一条非 HTTP 项目 eval（断言 report 无接口清单章节、api 维度未激活；若该项目识别出重要业务流程，flow 维度照常激活、报告含业务流程章节且步骤映射到模块/函数等承载点）。`skill_name` 字段改 `"codebase-audit"`、notes 同步改写；全文件（含期望输出文案）不得出现英文 `suggest` 字样——验收 2 的 grep 范围是整个 `skills/codebase-audit/`，含 `evals/`。
 
 ## 7. 仓库文档同步
 
-- **README.md**：Skills 一览表删 api-audit 行；`npx skills add` 命令块同步；介绍段「api-audit 与 codebase-audit 正交」改为合并说明（codebase-audit 描述补充：HTTP 项目自动附带接口/流程审计）；目录树删 api-audit 条目。
-- **AGENTS.md**：「当前四个 skill」改为三个；核心原则 3 的合并案例补充「api-audit 并入 codebase-audit（同为手动一次性审计、作用域重合）」。
+- **README.md**：Skills 一览表删 api-audit 行；`npx skills add` 命令块同步；介绍段「api-audit 与 codebase-audit 正交」改为合并说明（codebase-audit 描述补充：HTTP 项目自动附带接口/流程审计）；**「Skill 之间的关系」ASCII 图删 api-audit 块**、合并说明并入其中的 codebase-audit 块；目录树删 api-audit 条目、**codebase-audit 行补 `evals/`**，并顺手修正目录树里现存的 codebase-audit 重复两行（预存 bug，同一编辑区）。
+- **AGENTS.md**：「当前四个 skill」改为**六个**——README 一览表现有 7 个 skill，AGENTS.md 的「四个」本就过时，删 api-audit 后为 6，本次一并修正；核心原则 3 的合并案例补充「api-audit 并入 codebase-audit（同为手动一次性审计、作用域重合）」。
 
 ## 8. 失败处理（合并两版）
 
