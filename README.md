@@ -9,8 +9,7 @@
 | [`engineering-guidelines`](skills/engineering-guidelines/) | 行为准则 | 每次写/改代码前 | LLM/agent 编码行为：think-before-coding、simplicity-first、surgical-changes、goal-driven、root-cause reasoning |
 | [`code-conventions`](skills/code-conventions/) | 规范索引 + 文档库 | 写码时按需 | 横切规范的统一入口：编码风格、设计模式、安全基线、HTTP API、可观测性、测试、提交信息、错误码，以及多语言专项规范（Go/Python/TypeScript/Rust/React/Flutter，见 `references/`） |
 | [`agents-scaffold`](skills/agents-scaffold/) | 结构性操作 | 偶发、一次性 | 零依赖脚本搭建多仓工作区（`spec-center` SSOT + 各模块仓）或原地初始化单个独立仓库，并产出含 spec-first/SDD 工作流的 `AGENTS.md` |
-| [`codebase-audit`](skills/codebase-audit/) | 多 agent 审计 | 手动 `/codebase-audit`（偶发、一次性） | 多 agent 并行审计代码库（架构/性能/代码质量/安全/测试/依赖/可维护性/构建部署基建/规范符合性，前端 a11y/i18n 仅 web 栈），对抗式验证去伪后汇总单一报告；附带 `ultracode` 走 Workflow 确定性编排，否则自动降级到 Agent 并行 |
-| [`api-audit`](skills/api-audit/) | 多 agent 审计 | 手动 `/api-audit`（偶发、一次性） | 多 agent 审计 HTTP 服务**接口逻辑**的完备性/自洽性：main agent 枚举接口清单（路径/方法/时机/限制/配合）后并行派发逐接口审计（正确性/合理性/简化优化/必要性）与业务流程审计（跨接口闭环/设计/矛盾/缺失接口），对抗式 verify 去伪后产出**三份文档**（接口报告 + 业务/流程报告 + 问题汇总）；附带 `ultracode` 走 Workflow，否则降级 Agent 并行 |
+| [`codebase-audit`](skills/codebase-audit/) | 多 agent 审计 | 手动 `/codebase-audit`（偶发、一次性） | 多 agent 并行审计代码库（架构/性能/代码质量/安全/测试/依赖/可维护性/构建部署基建/规范符合性；条件维度：前端 a11y/i18n 仅 web 栈、接口审计仅 HTTP 项目、业务流程审计凡识别出重要流程即激活），对抗式验证去伪后产出**两份文档**（审计报告 + 按严重度问题汇总）；附带 `ultracode` 走 Workflow 确定性编排，否则自动降级到 Agent 并行 |
 | [`diagnose-and-fix`](skills/diagnose-and-fix/) | 单问题诊断修复 | 自动按场景 / 手动 `/diagnose-and-fix` | 「理解优先于修改」：先侦察项目、追踪代码、验证问题真实存在，产出结构化诊断报告，用户选定方案后再修复→测试→修复后验证→提交。输入为问题列表时只标记 resolved、不提交 |
 | [`diagnose-and-fix-batch`](skills/diagnose-and-fix-batch/) | 批量循环修复 | 手动 `/diagnose-and-fix-batch <问题列表文件>`（按需） | 把问题列表排成队列，逐个派发独立 subagent，每个 subagent 调用 `diagnose-and-fix` skill 完成单问题全流程，再回收终态汇总；问题列表只标记 resolved、不提交（提交时机由用户掌控）。**强依赖 `diagnose-and-fix` skill** |
 
@@ -26,12 +25,10 @@ engineering-guidelines   code-conventions
     spec-center/AGENTS.md 直接承载，不单列 skill）
 
   codebase-audit  ——  手动 /codebase-audit；可对任意代码库
-                       做多维度审计；规范符合性维度运行时按需
-                       加载 code-conventions 作基准（缺失则降级）
-
-  api-audit  ——  手动 /api-audit；与 codebase-audit 正交
-                  （它审接口逻辑完备性/自洽性 + 业务流程闭环，
-                   非通用代码质量），独立运行、产出三份文档（接口报告 + 业务/流程报告 + 问题汇总）
+                       做多维度审计（HTTP 项目自动附带接口审计，
+                       识别出重要业务流程即附带流程审计——原独立的
+                       接口审计 skill 已并入）；规范符合性维度运行时
+                       按需加载 code-conventions 作基准（缺失则降级）
 
   diagnose-and-fix  ◀────────  diagnose-and-fix-batch
    （单问题诊断修复）   强依赖      （批量循环修复）
@@ -46,8 +43,7 @@ engineering-guidelines   code-conventions
 - **独立性优先**：每个 skill 可单独启用，不依赖其它 skill 的内部文件。
 - **只做 skill 级引用**：需要关联时只提对方的 **skill 名**（如「见 `code-conventions` skill」），绝不链入对方目录里的具体文件路径。
 - **正交而非合并**：`agents-scaffold`（偶发结构操作）与 `code-conventions`（写码时高频引用）正交，各自独立；而 spec-first/SDD 工作流全程依赖 polyrepo 结构，属于配套能力，已并入 `agents-scaffold` 的 `spec-center/AGENTS.md` 模板，不单列。
-- `codebase-audit` 设 `disable-model-invocation: true`，仅手动 `/codebase-audit` 触发，可对任意代码库独立运行。其「规范符合性」维度会在运行时按需加载 `code-conventions` skill 作为审计基准（skill 级引用，不链入对方目录文件）；该 skill 缺失时此维度优雅降级、其余维度照常，故独立性不受影响。
-- `api-audit` 设 `disable-model-invocation: true`，仅手动 `/api-audit` 触发，可对任意 HTTP 服务独立运行。它与 `codebase-audit` **正交不合并**：后者审通用代码质量多维度（架构/性能/代码质量/安全/测试/依赖/可维护性/构建部署基建/规范，前端 a11y/i18n 按栈），前者只审**接口逻辑**的完备性/自洽性与业务流程闭环，复用同一套「main agent 只 scope+编排 → 并行审计 → 对抗式 verify 分离 → 汇总」范式但聚焦点与产物（三份文档，含问题汇总）不同。
+- `codebase-audit` 设 `disable-model-invocation: true`，仅手动 `/codebase-audit` 触发，可对任意代码库独立运行。其「规范符合性」维度会在运行时按需加载 `code-conventions` skill 作为审计基准（skill 级引用，不链入对方目录文件）；该 skill 缺失时此维度优雅降级、其余维度照常，故独立性不受影响。原独立的接口审计 skill 已并入本 skill：接口审计（仅 HTTP 项目激活）与业务流程审计（识别出重要流程即激活，不限 HTTP）成为条件维度，产出统一为「审计报告 + 问题汇总」两份文档。
 - `agents-scaffold` 产出的工作区里 `spec-center/conventions/` **初始为空**：通用规范运行时引用 `code-conventions` skill，不落地副本；`conventions/` 仅承载项目私有规范。
 - `diagnose-and-fix` 聚焦**单个**问题的诊断优先修复，可由 agent 按场景自动触发，也可手动 `/diagnose-and-fix`；`diagnose-and-fix-batch` 设 `disable-model-invocation: true` 仅手动触发，把一个**问题列表**排队循环修复，**各问题在独立 subagent 中调用 `diagnose-and-fix` skill 处理**——故 batch **强依赖** `diagnose-and-fix`（按 skill 名调用、不链入对方目录文件，仍属 skill 级引用）。两者均只在文件内标记 resolved、**不提交**问题列表（提交时机交用户掌控）。
 
@@ -90,9 +86,7 @@ skills/
     ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）
     ├── agents-scaffold/          # SKILL.md + README.md + scripts/ + templates/
-   ├── codebase-audit/             # SKILL.md + agents/（各维度审计指令）
-   ├── codebase-audit/             # SKILL.md + agents/（各维度审计指令）+ scripts/
-    ├── api-audit/                  # SKILL.md + agents/（接口/流程审计指令）+ scripts/ + evals/
+    ├── codebase-audit/             # SKILL.md + agents/（维度/接口/流程审计指令）+ scripts/ + evals/
     ├── diagnose-and-fix/           # SKILL.md
     └── diagnose-and-fix-batch/     # SKILL.md
 ```
