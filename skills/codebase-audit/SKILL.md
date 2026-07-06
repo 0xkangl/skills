@@ -276,6 +276,10 @@ Reports:
   问题汇总: docs/audit/issues-report-<TS>.md
 ```
 
+（仅在 issues-report 成功生成时）告知用户有下游 skill 可选——**只提示、不自动调用**：
+
+> 问题汇总已就绪。如需给每条问题补推荐修复方案（只分析不修复），可使用 `remediate-suggest` skill 处理这份 issues-report。
+
 ## Failure handling
 
 - **Auditor produced nothing** — verifier/合成器跳过该文件；摘要注明「<item>: not produced」，不阻塞。
