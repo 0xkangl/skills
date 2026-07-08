@@ -103,8 +103,8 @@ ln -s "$PWD/skills/<skill-name>" <project>/.claude/skills/<skill-name>
 ```
 skills/
 ├── README.md                       # 本文件
-├── AGENTS.md                       # 在本仓工作的 agent 须知
-├── CLAUDE.md                       # → AGENTS.md
+├── CLAUDE.md                       # 在本仓工作的 agent 须知
+├── AGENTS.md                       # → CLAUDE.md
 └── skills/
     ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）

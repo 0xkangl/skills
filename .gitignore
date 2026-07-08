@@ -19,7 +19,11 @@ yarn-error.log*
 # treat them like a package cache and keep them out of the repo.
 skills-lock.json
 .agents/
-.claude/skills/
+.claude/settings.local.json
+# ignore installed-skill caches, but keep this repo's own project skills tracked
+.claude/skills/*
+!.claude/skills/skill-check/
+!.claude/skills/new-skill/
 
 # Logs & temp
 *.log

@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | { read -r f; case \"$f\" in *.mjs) node --check \"$f\" || exit 2 ;; esac; }",
+            "timeout": 30,
+            "statusMessage": "node --check (.mjs 语法检查)"
+          }
+        ]
+      }
+    ]
+  }
+}
