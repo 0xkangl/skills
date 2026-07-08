@@ -122,7 +122,7 @@ stack: <报告头部 stack>
 
 - 头部镜像原报告 meta 行（`scope · date · stack · 🔴 P0×a …`），追加一行 `> remediate-suggest 产物 · 只分析不修复 · code-conventions: <已装载|降级>`（追加模式下沿用原行、更新统计数）。
 - **来自已有 remediation 的 finding 块**：逐字保留（含其 `suggest`），不重写。
-- **来自本次片段（reuse + dispatch）的 finding 块**：原字段（`sub-area/location/evidence/impact`）逐字保留，块末嵌片段里的 `suggest` 字段。**不重写 evidence/impact，不发明新问题**。
+- **来自本次片段（reuse + dispatch）的 finding 块**：原字段（`sub-area/location/evidence/impact`）逐字保留，块末嵌片段里的 `suggest` 字段（多方案条目含其后留空的 `solution` 行）。**不重写 evidence/impact，不发明新问题**。
 - 同档内排序沿用原报告（不重排）；合并确认后删除片段目录 `<issuesStem>-remediations/`（合并失败则保留供重试）。
 
 ### Step 4 — 收尾摘要
@@ -141,14 +141,14 @@ code-conventions: <已装载 | ⚠️ 降级>
 
 > remediation 已就绪。如需把推荐方案逐条落地修复（一问题一 commit），可使用 `remediate-apply` skill：
 > `/remediate-apply <issuesDir>/<issuesStem>-remediation.md`
-> 多方案条目请先在文档中写明人工选择（如 `solution: B`）——仅有 `[推荐]` 标记会被判「待人工选定」跳过。
+> 多方案条目请先在其预置的 `solution:` 行填写采用的方案（如 `solution: B`）——留空或仅有 `[推荐]` 标记会被判「待人工选定」跳过。
 
 ---
 
 ## suggest 字段口径（subagent 遵守）
 
 - **单方案**（根因清晰、最佳解唯一）：给一个，附一句「为何不考虑其它思路」。
-- **多方案**（2–3 个各有取舍、代码本身无法裁决）：并列，每个配一句 trade-off，推荐项标 `[推荐]`。
+- **多方案**（2–3 个各有取舍、代码本身无法裁决）：并列，每个配一句 trade-off，推荐项标 `[推荐]`；`suggest` 字段后追加一行**留空的** `- **solution**:` 供用户填写采用的方案（单方案 / quick-fix 不加）。
 - **机械修复**（无歧义、纯机械：日志级别、缺失 nil 检查、硬编码提配置、拼写、死导入）：名称后标 `[quick-fix]`，省去多方案对比。
 - 字段内容：整体方案说明 + 落点文件/函数 + 实现细节与注意事项 + 改动量（小 <20 行 / 中 20–100 / 大 >100）。
 - **存在性结果优先于方案**：finding 不复存在或随关联修复消解时，suggest 只写 `已消解/不复存在: <原因>` 或 `随 [id] 修复后消解`，**不编方案**。

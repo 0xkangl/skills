@@ -36,12 +36,12 @@
 
 方案数量规则：
 - 根因清晰、最佳解唯一 → **单方案**，附一句「为何不考虑其它思路」。
-- 2–3 个各有取舍、代码无法裁决 → **并列**，每个一句 trade-off，推荐项标 `[推荐]`。
+- 2–3 个各有取舍、代码无法裁决 → **并列**，每个一句 trade-off，推荐项标 `[推荐]`；并在 `suggest` 字段后追加一行**留空的** `- **solution**:`（供用户填写采用的方案，如 `solution: B`；单方案 / quick-fix 不加）。
 - 无歧义纯机械（日志级别、缺失 nil/error 检查、硬编码提配置、键名拼写、死导入）→ 名称后标 `[quick-fix]`，省去多方案对比。**任何需要设计取舍的都不是 quick-fix。**
 
 ## 输出：片段文件
 
-写到主 agent 给的路径——`<issuesStem>-remediations/<组key>.md`（与输入 issues 文档同目录；`issuesStem` = 文档名去 `.md`）。**原 finding 块逐字保留**（id/title/severity/sub-area/location/evidence/impact 不改写、不发明新问题），仅在**每个块末尾追加** `- **suggest**:` 字段：
+写到主 agent 给的路径——`<issuesStem>-remediations/<组key>.md`（与输入 issues 文档同目录；`issuesStem` = 文档名去 `.md`）。**原 finding 块逐字保留**（id/title/severity/sub-area/location/evidence/impact 不改写、不发明新问题），仅在**每个块末尾追加** `- **suggest**:` 字段（多方案条目在其后再追加一行留空的 `- **solution**:`）：
 
 ```markdown
 ### [SEC-2] 鉴权中间件未覆盖 /admin 路由
@@ -56,6 +56,18 @@
   - 实现细节与注意事项：①先确认 `RequireRole` 已在业务路由验证过 admin 角色；②注意 group 上中间件的注册顺序（auth 需在 logger 之后、业务 handler 之前）；③补一条「未授权访问 /admin 返回 401」的集成测试；④若存在公开健康检查子路径，单独 `Group` 排除。
   - 改动量：小（<20 行，主要是中间件挂载 + 1 条测试）。
   - 规范贴合：401 响应体用 `{code,message,details}` 信封（code-conventions 错误码篇）。
+```
+
+多方案条目示例（`suggest` 后带留空的 `solution` 行，供用户填写采用的方案）：
+
+```markdown
+### [PERF-3] 订单列表接口 N+1 查询
+- ……（原字段逐字保留）……
+- **suggest**:
+  - 方案 A [推荐]：在 ORM 查询处加预加载（`Preload("Items")`），改动小、贴合现有查询风格；trade-off——大列表时单次查询体积变大。
+  - 方案 B：拆为两段查询后内存 join，可控性更强；trade-off——多一处手写聚合逻辑，改动量升为中。
+  - 改动量：A 小（<20 行）/ B 中（20–100 行）。
+- **solution**:
 ```
 
 不存在的 finding 片段示例：
