@@ -28,3 +28,6 @@ skills-lock.json
 # Logs & temp
 *.log
 /tmp/
+
+# 外部参考仓库(本地 clone,不入库)
+ref-repo/
