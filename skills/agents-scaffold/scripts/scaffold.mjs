@@ -39,19 +39,19 @@ export function getAvailableTemplateNames() {
     .map((e) => e.name);
 }
 
-// 从 AGENTS.md 文本的 "## Role" 下首行提取角色描述
+// 从 CLAUDE.md 文本的 "## Role" 下首行提取角色描述
 export function extractRole(content) {
   const match = content.match(/## Role\n(.+)/);
   return match ? match[1].trim() : null;
 }
 
-// 从模板 AGENTS.md 提取角色(自定义模块改名时用)
+// 从模板 CLAUDE.md 提取角色(自定义模块改名时用)
 export function getModuleRole(templateName) {
-  const content = readFileSync(resolveTemplatesDir(templateName, 'AGENTS.md'), 'utf-8');
+  const content = readFileSync(resolveTemplatesDir(templateName, 'CLAUDE.md'), 'utf-8');
   return extractRole(content) || templateName;
 }
 
-// 从已生成模块目录的 AGENTS.md 读角色(生成 Module Map 时用,以文件系统为单一真相)
+// 从已生成模块目录的 CLAUDE.md 读角色(生成 Module Map 时用,以文件系统为单一真相)
 export function readModuleRole(agentsPath, fallback) {
   try {
     return extractRole(readFileSync(agentsPath, 'utf-8')) || fallback;
@@ -104,7 +104,7 @@ function escapeRegExp(str) {
 const TEXT_FILE_EXTENSIONS = new Set([
   '.md', '.txt', '.json', '.yaml', '.yml', '.toml',
   '.js', '.ts', '.jsx', '.tsx', '.go', '.py', '.rb',
-  '.sh', '.bash', '.zsh', '.mdc',
+  '.sh', '.bash', '.zsh',
 ]);
 
 const TEXT_DOTFILES = new Set([
@@ -219,7 +219,7 @@ export function createModule(templateRef, modDir, projectName, mod, opts = {}) {
 const SPEC_CENTER_SUFFIX = '-spec-center';
 const SPEC_CENTER_NAME = 'spec-center';
 
-// spec-center/AGENTS.md 中由脚本维护的两处区块锚点(HTML 注释,不渲染)
+// spec-center/CLAUDE.md 中由脚本维护的两处区块锚点(HTML 注释,不渲染)
 const MODULE_MAP_START = '<!-- MODULE_MAP_START -->';
 const MODULE_MAP_END = '<!-- MODULE_MAP_END -->';
 const REPO_TREE_START = '<!-- REPO_TREE_START -->';
@@ -251,7 +251,7 @@ function scanModuleNames(workspaceDir, projectName) {
 function renderModuleMapRows(workspaceDir, projectName, moduleNames) {
   return moduleNames
     .map((m) => {
-      const role = readModuleRole(join(workspaceDir, `${projectName}-${m}`, 'AGENTS.md'), `${m} application`);
+      const role = readModuleRole(join(workspaceDir, `${projectName}-${m}`, 'CLAUDE.md'), `${m} application`);
       return `| \`${projectName}-${m}\` | ${role} |`;
     })
     .join('\n');
@@ -277,7 +277,7 @@ function renderTreeNodes(nodes, prefix) {
 // 渲染整棵 Repository Structure 树(含 ``` 围栏);连接线由结构确定,杜绝手画错。
 function renderRepoTree(projectName, moduleNames) {
   const specCenterChildren = [
-    { label: 'AGENTS.md', comment: 'This file - global project rules' },
+    { label: 'CLAUDE.md', comment: 'This file - global project rules' },
     { label: 'api/', comment: 'API specifications (OpenAPI / endpoint specs)' },
     { label: 'conventions/', comment: 'Cross-cutting convention docs (starts empty)' },
     { label: 'specs/', comment: 'Shared specs affecting 2+ modules' },
@@ -285,21 +285,21 @@ function renderRepoTree(projectName, moduleNames) {
     { label: 'events/', comment: 'Inter-module event definitions' },
   ];
   const moduleSubtree = () => [
-    { label: 'AGENTS.md' },
+    { label: 'CLAUDE.md' },
     { label: 'docs/', children: [{ label: 'specs/' }, { label: 'plans/' }] },
   ];
   const top = [
-    { label: 'AGENTS.md', comment: `Root reference → ${projectName}-spec-center/AGENTS.md` },
+    { label: 'CLAUDE.md', comment: `Root reference → ${projectName}-spec-center/CLAUDE.md` },
     { label: `${projectName}-spec-center/`, comment: 'SSOT - shared specs and contracts', children: specCenterChildren },
     ...moduleNames.map((m) => ({ label: `${projectName}-${m}/`, children: moduleSubtree() })),
   ];
   return ['```', 'workspace/', ...renderTreeNodes(top, ''), '```'].join('\n');
 }
 
-// 按文件系统真相重写 spec-center/AGENTS.md 的 Module Map 与 Repository Structure 两处区块。
+// 按文件系统真相重写 spec-center/CLAUDE.md 的 Module Map 与 Repository Structure 两处区块。
 // 幂等:workspace/module/重跑结果一致,不解析旧内容,只看实际存在的模块目录。
 export function updateSpecCenterAgents(workspaceDir, projectName) {
-  const agentsPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'AGENTS.md');
+  const agentsPath = join(workspaceDir, `${projectName}${SPEC_CENTER_SUFFIX}`, 'CLAUDE.md');
   const moduleNames = scanModuleNames(workspaceDir, projectName);
   let content = readFileSync(agentsPath, 'utf-8');
   content = replaceBetween(content, MODULE_MAP_START, MODULE_MAP_END, renderModuleMapRows(workspaceDir, projectName, moduleNames));
@@ -493,11 +493,11 @@ export function runModule(flags) {
 const SINGLE_TEMPLATE = 'single';
 const MODULE_STACK_MARKER = '<!-- MODULE_STACK -->';
 
-// 合并生成单仓库 AGENTS.md:把所选 stack 模板 AGENTS.md 从 "## Role" 起的模块片段
-// 注入治理片段 templates/single/AGENTS.md 的 <!-- MODULE_STACK --> 锚点。
+// 合并生成单仓库 CLAUDE.md:把所选 stack 模板 CLAUDE.md 从 "## Role" 起的模块片段
+// 注入治理片段 templates/single/CLAUDE.md 的 <!-- MODULE_STACK --> 锚点。
 export function buildSingleAgents(stackTemplate, projectName) {
-  const gov = readFileSync(resolveTemplatesDir(SINGLE_TEMPLATE, 'AGENTS.md'), 'utf-8');
-  const stack = readFileSync(resolveTemplatesDir(stackTemplate, 'AGENTS.md'), 'utf-8');
+  const gov = readFileSync(resolveTemplatesDir(SINGLE_TEMPLATE, 'CLAUDE.md'), 'utf-8');
+  const stack = readFileSync(resolveTemplatesDir(stackTemplate, 'CLAUDE.md'), 'utf-8');
 
   const roleIdx = stack.indexOf('## Role');
   let moduleSection = roleIdx >= 0 ? stack.slice(roleIdx).trimEnd() : '';
@@ -532,7 +532,11 @@ export function runSingle(flags) {
   }
 
   if (flags.dryRun) {
-    return { mode: 'single', dryRun: true, dir, name, template, conflicts: detectTreeConflicts(template, dir), onConflict };
+    const conflicts = [
+      ...detectTreeConflicts(template, dir),
+      ...detectTreeConflicts(`${SINGLE_TEMPLATE}/.claude`, join(dir, '.claude')),
+    ];
+    return { mode: 'single', dryRun: true, dir, name, template, conflicts, onConflict };
   }
 
   const created = [];
@@ -547,8 +551,12 @@ export function runSingle(flags) {
     const cp = copyAndReplace(template, dir, { PROJECT: name, STRIP_SUFFIX: template }, { onConflict });
     backedUp.push(...cp.backedUp);
     if (dirExisted) created.push(...cp.created);   // 既有目录:逐文件记录本次可安全回滚项
-    // 用合并后的治理文档覆盖 dir/AGENTS.md(契约/约定文档直接放 docs/,无需额外子目录)
-    writeFileSync(join(dir, 'AGENTS.md'), buildSingleAgents(template, name), 'utf-8');
+    // 用合并后的治理文档覆盖 dir/CLAUDE.md(契约/约定文档直接放 docs/,无需额外子目录;AGENTS.md 保持模板里的 @CLAUDE.md 指针)
+    writeFileSync(join(dir, 'CLAUDE.md'), buildSingleAgents(template, name), 'utf-8');
+    // single 模板不整体铺开,仅铺其 .claude/ 子树(单仓措辞的 engineering-guidelines rule)
+    const rules = copyAndReplace(`${SINGLE_TEMPLATE}/.claude`, join(dir, '.claude'), { PROJECT: name }, { onConflict });
+    backedUp.push(...rules.backedUp);
+    if (dirExisted) created.push(...rules.created);
     // git:已有 .git 则复用,否则 git init + main;--no-git 全跳过
     if (!flags.noGit && !existsSync(join(dir, '.git'))) gitInit(dir, name);
   } catch (err) {

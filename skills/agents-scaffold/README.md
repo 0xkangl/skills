@@ -1,6 +1,6 @@
 # agents-scaffold
 
-零依赖 Node 脚本搭建多仓工作区（`spec-center` SSOT + 各模块仓），或在目标目录原地初始化单个独立仓库；并产出含 spec-first/SDD 工作流的 `AGENTS.md`。
+零依赖 Node 脚本搭建多仓工作区（`spec-center` SSOT + 各模块仓），或在目标目录原地初始化单个独立仓库；并产出含 spec-first/SDD 工作流的 `CLAUDE.md`（`AGENTS.md` 为一行 `@CLAUDE.md` 指针）。
 
 skill 的完整意图判定与工作流见 [SKILL.md](SKILL.md)；下面是直接调脚本的快速上手。
 

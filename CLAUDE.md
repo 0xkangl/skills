@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **只做 skill 级引用**：skill 之间需要关联时，**只提对方的 skill 名**（如「见 `code-conventions` skill」）。
    - ❌ 禁止：`[testing](../code-conventions/references/testing.md)`（内容级、跨目录路径引用）
    - ✅ 允许：「实现阶段的 TDD 细则见 `code-conventions` skill」
-3. **正交不合并**：定位/触发频率不同的 skill 保持独立；作用域重合、强耦合的能力才合并。现状：spec-first/SDD 工作流已并入 `agents-scaffold` 的 `spec-center/AGENTS.md` 模板，不单列；接口/流程审计已并入 `codebase-audit` 作条件维度；审计后处理链 `codebase-audit` → `remediate-suggest` → `remediate-apply` 保持三个独立 skill——发现、分析、执行定位不同，衔接只靠各自完成时的摘要提示下一步（不自动调用）。
+3. **正交不合并**：定位/触发频率不同的 skill 保持独立；作用域重合、强耦合的能力才合并。现状：spec-first/SDD 工作流已并入 `agents-scaffold` 的 `spec-center/CLAUDE.md` 模板，不单列；接口/流程审计已并入 `codebase-audit` 作条件维度；审计后处理链 `codebase-audit` → `remediate-suggest` → `remediate-apply` 保持三个独立 skill——发现、分析、执行定位不同，衔接只靠各自完成时的摘要提示下一步（不自动调用）。
 4. **改动可追溯**：每一处改动都应直接服务于明确需求；不顺手「优化」无关内容。
 
 ## SKILL.md 规范
@@ -29,8 +29,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## agents-scaffold 专项
 
-- 所有确定性产物（拷模板、`{{PROJECT}}` 替换、`git init`，以及 `spec-center/AGENTS.md` 的 Module Map 表 + Repository Structure 树）都在 `scripts/scaffold.mjs`，以工作区实际存在的 `<name>-<module>/` 目录为单一真相、幂等生成——不交给 LLM 手画。SKILL.md 只负责意图判定、收集输入、确认计划、调脚本、（失败时）处理 `partial:` 残留、转述输出，不手工编辑生成产物。
-- 模板在 `templates/`，用 `{{PROJECT}}` 占位。模板 `spec-center/AGENTS.md` 的脚本维护区用锚点注释（`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`）标出，不要手工编辑锚点之间的内容。
+- 所有确定性产物（拷模板、`{{PROJECT}}` 替换、`git init`，以及 `spec-center/CLAUDE.md` 的 Module Map 表 + Repository Structure 树）都在 `scripts/scaffold.mjs`，以工作区实际存在的 `<name>-<module>/` 目录为单一真相、幂等生成——不交给 LLM 手画。SKILL.md 只负责意图判定、收集输入、确认计划、调脚本、（失败时）处理 `partial:` 残留、转述输出，不手工编辑生成产物。
+- 模板在 `templates/`，用 `{{PROJECT}}` 占位。模板以 `CLAUDE.md` 为正文第一文件，`AGENTS.md` 只是一行 `@CLAUDE.md` 指针。模板 `spec-center/CLAUDE.md` 的脚本维护区用锚点注释（`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`）标出，不要手工编辑锚点之间的内容。
 - 模板产出的工作区 `spec-center/conventions/` **初始为空**（仅 `.gitkeep`），不内联规范副本——规范来源是 `code-conventions` skill。新增/修改模板时不要重新引入指向不存在文件的死链。
 - 改脚本或模板后必须跑测试：
 
