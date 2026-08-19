@@ -5,7 +5,7 @@ Audit the in-scope code for **security**. Read `_finding-format.md` (same dir as
 ## Sub-areas
 
 - **Input validation** — SQLi, XSS, path traversal, command injection.
-- **AuthN/AuthZ** — JWT/session checks, broken access control, privilege escalation, unguarded endpoints.
+- **AuthN/AuthZ** — JWT/session checks, broken access control, privilege escalation, unguarded endpoints；入站 webhook 的**签名校验发生在解析可信字段之后**（顺序反了等于没验）；cookie 会话的写操作缺 CSRF 防护。
 - **Secrets** — hard-coded credentials/keys/tokens, sensitive fields in logs, internal info in responses.
 - **Crypto** — weak algorithms (MD5/SHA1 for passwords, DES), non-CSPRNG randomness, TLS config.
 - **Dependency CVEs** — known vulns inferable from versions (no live lookup).

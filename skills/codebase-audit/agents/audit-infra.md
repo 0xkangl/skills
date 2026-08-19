@@ -13,6 +13,7 @@ Audit the in-scope project for **build, CI/CD, deployment, and infrastructure**.
 - **IaC** — k8s/terraform 配置安全（特权容器、`hostNetwork`、宽松 RBAC/安全组、明文 secret）、缺 state 锁、环境间漂移。
 - **部署安全** — 缺 liveness/readiness 探针、无优雅停机（SIGTERM 处理）、缺资源 requests/limits、无回滚路径、单副本无 PDB。
 - **构建与发布** — 构建不可复现（无锁定/时间戳/网络依赖）、版本号/制品来源不可追溯、发布脚本无幂等/无校验。
+- **数据迁移** — 原地改列名/改类型（未走 expand-contract）、删列早于删代码、加 `NOT NULL` 无 default 或索引非并发创建导致锁表、回填不分批/不可重入、已在共享环境跑过的迁移被修改、回滚只有未经演练的 `down`、迁移与滚动发布耦合（新旧版本代码无法共存）。
 
 ## Severity calibration
 
