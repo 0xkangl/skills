@@ -19,6 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - ✅ 允许：「实现阶段的 TDD 细则见 `code-conventions` skill」
 3. **正交不合并**：定位/触发频率不同的 skill 保持独立；作用域重合、强耦合的能力才合并。现状：spec-first/SDD 工作流已并入 `agents-scaffold` 的 `spec-center/CLAUDE.md` 模板，不单列；接口/流程审计已并入 `codebase-audit` 作条件维度；审计后处理链 `codebase-audit` → `remediate-suggest` → `remediate-apply` 保持三个独立 skill——发现、分析、执行定位不同，衔接只靠各自完成时的摘要提示下一步（不自动调用）。
 4. **改动可追溯**：每一处改动都应直接服务于明确需求；不顺手「优化」无关内容。
+5. **引入外部机制只抄机制**：从别的仓库/插件集借鉴时——① 只抄想法与结构，**不抄实现与依赖**，一律重写成本仓形态（零依赖、自包含、只提 skill 名）；② 范围有增删就改用本仓原生命名，不沿用上游名；③ 落地前自问「不知道上游那个仓的人，能否看懂这个 skill 是干什么的」，答不上就说明抄的是别人的产品身份而不是能力。
 
 ## SKILL.md 规范
 
