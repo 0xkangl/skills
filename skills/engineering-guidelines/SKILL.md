@@ -14,9 +14,11 @@ Don't assume. Don't hide confusion. Surface tradeoffs.
 Before implementing:
 
 - Read relevant files, understand the architecture, find existing implementations.
-- State your assumptions explicitly. If uncertain, ask.
+- Read the project's own rules first (root `CLAUDE.md` / `AGENTS.md`, nearby README) — project conventions outrank your defaults.
+- A file, function, or flag someone names is not proof it exists — check before relying on it. If it doesn't exist, say so; never invent a signature or a config key.
+- State your assumptions explicitly. If the request already carries concrete constraints, act on them and note your assumptions inline — don't re-ask what the user already settled.
 - If multiple interpretations exist, present them — don't pick silently.
-- If requirements are ambiguous, ask **all** clarifying questions at once before acting — no partial starts.
+- Ask only when different readings would produce materially different work; then ask **all** clarifying questions at once, before acting — no partial starts.
 - If a simpler approach exists, say so. Push back when warranted.
 
 ## 2. Simplicity First
@@ -28,7 +30,8 @@ Minimum code that solves the problem. Nothing speculative.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
 - Don't duplicate existing abstractions.
-- If you write 200 lines and it could be 50, rewrite it.
+- Before adding a dependency, prove that neither an existing dependency nor the standard library solves it; if you add one, say why in one line.
+- Don't introduce a second library for a capability the project already has (fetch → no axios, date-fns → no moment). Dependency auditing and licensing live in the `code-conventions` skill.
 
 Ask yourself: *"Would a senior engineer say this is overcomplicated?"* If yes, simplify.
 
@@ -68,13 +71,14 @@ For multi-step tasks, state a brief plan:
 3. [Step] → verify: [check]
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+**Evidence before assertions:** Never call work done, fixed, or passing without having run the check — claiming "verified", "searched", or "the docs say" means you can show the command, its output, or the source. If you cannot verify, say why, once; absent a claim, no disclaimer is needed either.
 
 ## 5. Reasoning Standards
 
 Analyze from root cause, not surface symptoms.
 
 - **First principles:** Trace to root cause; don't patch surface symptoms.
+- **No bypasses:** Never comment out an error, skip or disable a test, or add a bypass flag to make things pass — fix the cause, or report the blocker.
 - **Facts over feelings:** Correct mistakes directly, list options, recommend the best one.
 - **When challenged:** Validate from requirements first, not from pressure — if the premise is flawed, push back with a question.
 - **When evaluating solutions:** Think in industry-standard, production-grade terms. Ignore implementation time cost; weigh operational cost.
