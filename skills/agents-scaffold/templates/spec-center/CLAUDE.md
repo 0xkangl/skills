@@ -66,6 +66,19 @@ Not every document carries the same authority — distinguish two kinds:
 - **Reading / verifying / "what does the system do today"** → **current code is the source of truth**. A design spec states intent when written, not necessarily current behavior.
 - **Spec and code disagree** → never silently trust the spec. For a *design spec*, treat it as drift: verify against code and flag the spec for update. For a *contract*, the opposite default — the contract wins and the code is suspect.
 
+### Amending a Contract
+
+「deliberately amend the contract first」之后要做什么，由这一节规定。每个模块是**独立仓、独立发版**，所以契约变更期间必然存在「服务端已上线新版、客户端还跑在旧字段上」的窗口——单仓靠一次编译就能暴露的问题，这里只会在生产暴露。
+
+1. **先列消费者**：修订前写下哪些模块消费这个契约（记在该 spec 或 ROADMAP 的对应条目里）。不知道谁在用，就没资格改。
+2. **分类变更**：
+   - **Additive**（加可选字段、加新端点、放宽枚举）→ 可直接上，但必须确认旧消费者在**不改代码**的情况下仍然正常。
+   - **Breaking**（删字段、改字段名、改字段类型、改既有字段的语义、收紧枚举、把可选改必填）→ 走版本化（新端点/新版本号）或 expand-contract 分阶段（新旧字段并存 → 消费者切换 → 删旧字段），**绝不原地复用既有字段名承载新语义**。
+3. **在任一模块内改了字段名而不改契约，即为破坏性变更——该模块测试全绿不构成豁免**。绿灯只证明这个模块自洽，证明不了它的消费者还能用。
+4. **验真实序列化输出**，不要以编译期类型通过为准：类型断言能掩盖运行时的不兼容。
+
+数据库侧的同类问题（改列名、删列、回填）见 `code-conventions` skill 的数据库迁移规范——同一套 expand-contract 思路，落在存储层。
+
 ## Progress Tracking
 
 [ROADMAP.md](./ROADMAP.md) is the **live status** of the workspace — current phase, in-progress work, blockers, open questions, todo, done. It is not a spec: specs state what the system should be, the roadmap states where the work stands right now. One roadmap covers all modules; modules do not keep their own.
