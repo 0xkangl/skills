@@ -52,6 +52,16 @@ Not every document carries the same authority — distinguish two kinds:
 - **Reading / verifying / "what does the system do today"** → **current code is the source of truth**. A design spec states intent when written, not necessarily current behavior.
 - **Spec and code disagree** → never silently trust the spec. For a *design spec*, treat it as drift: verify against code and flag the spec for update. For a *contract*, the opposite default — the contract wins and the code is suspect.
 
+## Progress Tracking
+
+[ROADMAP.md](./ROADMAP.md) is the **live status** of this project — current phase, in-progress work, blockers, open questions, todo, done. It is not a spec: specs state what the system should be, the roadmap states where the work stands right now.
+
+- **Read it first** when picking up work — current phase, blockers, next step — before planning or coding.
+- **Update it whenever project state changes**: a feature shipped, a bug fixed, a spec or contract landed, a significant investigation concluded. Read-only work (queries, analysis, reviews, throwaway commands) changes no state and needs no update.
+- **Done means verified** — an item moves to Done only after it is implemented *and* verified, with the verification recorded in the entry. Implemented but unverified stays In Progress.
+- **Never guess** — anything unconfirmed goes to Open Questions, not into Todo or Done as if settled.
+- **Scope** — a README describes what the project is and how to use it; ROADMAP.md carries what changes.
+
 ## Implementation Plans
 
 Feature plans live under `docs/plans/`. Each plan declares its goal, scope, dependencies, steps, and acceptance criteria, and links the spec(s) it implements.
@@ -113,6 +123,8 @@ A static map of the repo. Contract and convention documents live directly under 
 {{PROJECT}}/
 ├── CLAUDE.md          # This file - project rules, conventions, and module guide
 ├── AGENTS.md          # → @CLAUDE.md
+├── CONTEXT.md         # Ubiquitous language (project glossary)
+├── ROADMAP.md         # Live project status (phase, in progress, blocked, done)
 └── docs/
     ├── specs/         # Feature / design specifications (the "what")
     ├── plans/         # Implementation plans (the "how")

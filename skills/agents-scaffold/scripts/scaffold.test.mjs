@@ -697,6 +697,7 @@ test('single: CONTEXT.md lands in the repo root with placeholders replaced', () 
     assert.ok(!existsSync(join(proj, 'docs', 'CONTEXT.md')));   // 只有仓库根一份,不分叉
     const agents = fsReadFileSync(join(proj, 'CLAUDE.md'), 'utf-8');
     assert.ok(agents.includes('[CONTEXT.md](./CONTEXT.md)'));
+    assert.ok(agents.includes('├── CONTEXT.md'));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -714,6 +715,59 @@ test('single: an existing CONTEXT.md is backed up, never silently overwritten', 
     // dry-run 也应把它列进冲突预览
     const dry = runSingle({ template: 'server', dir: proj, noGit: true, dryRun: true });
     assert.ok(dry.conflicts.some((p) => p.endsWith('CONTEXT.md')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace: ROADMAP.md lands in spec-center root and is listed in the repo tree', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
+    // 一个工作区只有一份进度表,落在 SSOT 仓库根;模块仓不各自留一份
+    const roadmap = fsReadFileSync(join(ws, 'myapp-spec-center', 'ROADMAP.md'), 'utf-8');
+    assert.ok(roadmap.startsWith('# Roadmap — myapp'));
+    assert.ok(!roadmap.includes('{{PROJECT}}'));
+    assert.ok(!existsSync(join(ws, 'myapp-server', 'ROADMAP.md')));
+    // 索引规则:spec-center 下每个治理文档都要出现在 CLAUDE.md 的树或 SSOT 列表里
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    assert.ok(sc.includes('├── ROADMAP.md'));
+    assert.ok(sc.includes('[ROADMAP.md](./ROADMAP.md)'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: ROADMAP.md lands in the repo root with placeholders replaced', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    runSingle({ template: 'server', dir: proj, noGit: true });
+    const roadmap = fsReadFileSync(join(proj, 'ROADMAP.md'), 'utf-8');
+    assert.ok(roadmap.startsWith('# Roadmap — demo-app'));
+    assert.ok(!roadmap.includes('{{PROJECT}}'));
+    assert.ok(!existsSync(join(proj, 'docs', 'ROADMAP.md')));   // 只有仓库根一份
+    const agents = fsReadFileSync(join(proj, 'CLAUDE.md'), 'utf-8');
+    assert.ok(agents.includes('[ROADMAP.md](./ROADMAP.md)'));
+    assert.ok(agents.includes('├── ROADMAP.md'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: an existing ROADMAP.md is backed up, never silently overwritten', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    mkdirSync(proj, { recursive: true });
+    writeFileSync(join(proj, 'ROADMAP.md'), '# my progress\n', 'utf-8');
+    const r = runSingle({ template: 'server', dir: proj, noGit: true });
+    assert.ok(r.backedUp.some((p) => p.endsWith('ROADMAP.md.bak')));
+    assert.equal(fsReadFileSync(join(proj, 'ROADMAP.md.bak'), 'utf-8'), '# my progress\n');
+    // dry-run 也应把它列进冲突预览
+    const dry = runSingle({ template: 'server', dir: proj, noGit: true, dryRun: true });
+    assert.ok(dry.conflicts.some((p) => p.endsWith('ROADMAP.md')));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

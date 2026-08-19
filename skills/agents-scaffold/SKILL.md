@@ -109,6 +109,8 @@ node scripts/scaffold.mjs single \
 
 **词汇表落点**:项目的 ubiquitous language 落在 `CONTEXT.md`,位置固定在**仓库根**——workspace 模式是 `<project>-spec-center/CONTEXT.md`,single 模式是项目根。这与外部 grilling / domain-modeling 类工具默认读写的路径一致,避免同一个项目分叉出两份词汇表。`CLAUDE.md` 的 Core Domain Concepts 只留指针,不重复定义术语。目标位置已有 `CONTEXT.md` 时按 §10 备份,绝不无声覆盖。
 
+**进度表落点**:项目的活状态文档 `ROADMAP.md`(当前阶段/进行中/阻塞/待确认/待办/已完成)同样固定在**仓库根**——workspace 是 `<project>-spec-center/ROADMAP.md`(一个工作区只有一份,模块仓不各自留),single 是项目根。维护规则写在生成的 `CLAUDE.md` 的 Progress Tracking 一节;scaffold 只铺空骨架,不预填内容。目标位置已有同名文件时按 §10 备份。
+
 **失败残留处理(脚本非原子)**:脚本中途失败时会在 stderr 打印:
 
 ```

@@ -279,6 +279,7 @@ function renderRepoTree(projectName, moduleNames) {
   const specCenterChildren = [
     { label: 'CLAUDE.md', comment: 'This file - global project rules' },
     { label: 'CONTEXT.md', comment: 'Ubiquitous language (project glossary)' },
+    { label: 'ROADMAP.md', comment: 'Live project status (phase, in progress, blocked, done)' },
     { label: 'api/', comment: 'API specifications (OpenAPI / endpoint specs)' },
     { label: 'conventions/', comment: 'Cross-cutting convention docs (starts empty)' },
     { label: 'specs/', comment: 'Shared specs affecting 2+ modules' },
@@ -493,6 +494,8 @@ export function runModule(flags) {
 // 单仓库治理片段模板名(与 root 一样不进 workspace/module 的可选模块列表)
 const SINGLE_TEMPLATE = 'single';
 const MODULE_STACK_MARKER = '<!-- MODULE_STACK -->';
+// single 模式下从 single 模板铺到仓库根的治理文档(其余 single 模板文件不整体铺开)
+const SINGLE_ROOT_DOCS = ['CONTEXT.md', 'ROADMAP.md'];
 
 // 合并生成单仓库 CLAUDE.md:把所选 stack 模板 CLAUDE.md 从 "## Role" 起的模块片段
 // 注入治理片段 templates/single/CLAUDE.md 的 <!-- MODULE_STACK --> 锚点。
@@ -536,7 +539,7 @@ export function runSingle(flags) {
     const conflicts = [
       ...detectTreeConflicts(template, dir),
       ...detectTreeConflicts(`${SINGLE_TEMPLATE}/.claude`, join(dir, '.claude')),
-      ...(existsSync(join(dir, 'CONTEXT.md')) ? [join(dir, 'CONTEXT.md')] : []),
+      ...SINGLE_ROOT_DOCS.filter((f) => existsSync(join(dir, f))).map((f) => join(dir, f)),
     ];
     return { mode: 'single', dryRun: true, dir, name, template, conflicts, onConflict };
   }
@@ -555,12 +558,15 @@ export function runSingle(flags) {
     if (dirExisted) created.push(...cp.created);   // 既有目录:逐文件记录本次可安全回滚项
     // 用合并后的治理文档覆盖 dir/CLAUDE.md(契约/约定文档直接放 docs/,无需额外子目录;AGENTS.md 保持模板里的 @CLAUDE.md 指针)
     writeFileSync(join(dir, 'CLAUDE.md'), buildSingleAgents(template, name), 'utf-8');
-    // 词汇表落仓库根(而非 docs/),与外部 grilling/domain-modeling 类工具认的路径一致,避免分叉出第二份词汇表
-    const ctxDest = join(dir, 'CONTEXT.md');
-    const ctxExisted = existsSync(ctxDest);
-    if (ctxExisted && onConflict === 'backup') backedUp.push(backupConflict(ctxDest));
-    writeFileSync(ctxDest, readFileSync(resolveTemplatesDir(SINGLE_TEMPLATE, 'CONTEXT.md'), 'utf-8').replace(/\{\{PROJECT\}\}/g, name), 'utf-8');
-    if (dirExisted && (!ctxExisted || onConflict === 'backup')) created.push(ctxDest);
+    // 词汇表与进度表落仓库根(而非 docs/):CONTEXT.md 与外部 grilling/domain-modeling 类工具认的路径一致,
+    // ROADMAP.md 是接手项目时第一个要读的活状态文档 —— 都不该藏进子目录
+    for (const doc of SINGLE_ROOT_DOCS) {
+      const dest = join(dir, doc);
+      const existed = existsSync(dest);
+      if (existed && onConflict === 'backup') backedUp.push(backupConflict(dest));
+      writeFileSync(dest, readFileSync(resolveTemplatesDir(SINGLE_TEMPLATE, doc), 'utf-8').replace(/\{\{PROJECT\}\}/g, name), 'utf-8');
+      if (dirExisted && (!existed || onConflict === 'backup')) created.push(dest);
+    }
     // single 模板不整体铺开,仅铺其 .claude/ 子树(单仓措辞的 engineering-guidelines rule)
     const rules = copyAndReplace(`${SINGLE_TEMPLATE}/.claude`, join(dir, '.claude'), { PROJECT: name }, { onConflict });
     backedUp.push(...rules.backedUp);

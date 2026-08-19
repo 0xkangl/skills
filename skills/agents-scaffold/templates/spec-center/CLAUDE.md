@@ -66,6 +66,16 @@ Not every document carries the same authority — distinguish two kinds:
 - **Reading / verifying / "what does the system do today"** → **current code is the source of truth**. A design spec states intent when written, not necessarily current behavior.
 - **Spec and code disagree** → never silently trust the spec. For a *design spec*, treat it as drift: verify against code and flag the spec for update. For a *contract*, the opposite default — the contract wins and the code is suspect.
 
+## Progress Tracking
+
+[ROADMAP.md](./ROADMAP.md) is the **live status** of the workspace — current phase, in-progress work, blockers, open questions, todo, done. It is not a spec: specs state what the system should be, the roadmap states where the work stands right now. One roadmap covers all modules; modules do not keep their own.
+
+- **Read it first** when picking up work in any module — current phase, blockers, next step — before planning or coding.
+- **Update it whenever project state changes**: a feature shipped, a bug fixed, a spec or contract landed, a significant investigation concluded. Read-only work (queries, analysis, reviews, throwaway commands) changes no state and needs no update.
+- **Done means verified** — an item moves to Done only after it is implemented *and* verified, with the verification recorded in the entry. Implemented but unverified stays In Progress.
+- **Never guess** — anything unconfirmed goes to Open Questions, not into Todo or Done as if settled.
+- **Scope** — a README describes what the project is and how to use it; ROADMAP.md carries what changes.
+
 ## Shared vs Module-Specific Specs
 
 Where a spec lives is governed by the **Rule** above and tabulated in [Spec Ownership Quick Reference](#spec-ownership-quick-reference). Two structural requirements apply once placed:
