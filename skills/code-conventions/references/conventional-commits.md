@@ -31,6 +31,13 @@ Strictly follow [Conventional Commits](https://www.conventionalcommits.org/):
 | `chore` | Maintenance tasks (no src or test changes) |
 | `revert` | Revert a previous commit |
 
+## Subject
+
+- Say what changed, why, and what it affects. Vague subjects are not acceptable.
+- ❌ `fix: fix bug` / `refactor: optimize code` / `chore: adjust` / `feat: update` — these carry no information in `git log`.
+- ✅ `fix(notifier): return a non-zero exit code when push fails, so main stops reporting success`
+- Imperative mood, ≤72 chars, no trailing period. What doesn't fit goes in the body — the subject still names the module and the behavior.
+
 ## Examples
 
 ```
