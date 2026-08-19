@@ -1,6 +1,6 @@
 ---
 name: code-conventions
-description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, naming config/env vars or handling secrets/keys, writing Dockerfiles/containerizing services, applying the security baseline, naming/code-style or design patterns, or building services in Go, Python, TypeScript/JavaScript, Rust, React, or Flutter/Dart. Routes to the matching convention document before implementing.
+description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, naming config/env vars or handling secrets/keys, writing Dockerfiles/containerizing services, writing database migrations or changing schema, applying the security baseline, naming/code-style or design patterns, or building services in Go, Python, TypeScript/JavaScript, Rust, React, or Flutter/Dart. Routes to the matching convention document before implementing.
 ---
 
 # Code Conventions
@@ -23,6 +23,7 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 | 提交信息 | [references/conventional-commits.md](references/conventional-commits.md) | 所有模块 | Git 提交信息规范：type、scope、格式 |
 | 错误码 | [references/error-codes.md](references/error-codes.md) | 所有 API | 业务错误码注册表：码段划分、`{code, message, details}` 信封 |
 | 容器 / Docker | [references/docker.md](references/docker.md) | 所有容器化模块 | Dockerfile 规范：多阶段构建、层缓存顺序、非 root 用户、`.dockerignore`、必要注释 |
+| 数据库迁移 | [references/db-migrations.md](references/db-migrations.md) | 所有带持久化的模块 | 生产只前滚、DDL/DML 分离、加列/加索引的锁影响、expand-contract 改名与删除、分批可重入回填、破坏性变更判定 |
 
 ## Go 专项规范（`references/golang/`）
 

@@ -28,6 +28,8 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 - 优先 **schema 校验**（zod / pydantic / validator 等），fail-fast 给清晰错误。
 - 校验类型、范围、长度、格式、枚举值；拒绝未知字段（按需）。
 - 对外部 URL（深链、回调、webhook、图片地址）校验 scheme / host / path，防 SSRF 与开放重定向。
+- **文件上传三重校验**：大小上限、MIME type、扩展名，三者**都**要查且一律用**白名单**——只查 MIME 可被伪造，只查扩展名同样可绕。存储时用服务端生成的文件名，不沿用客户端提供的名字。
+- **入站 webhook：签名校验必须发生在解析任何可信字段之前**。先验签再读 body，顺序反了等于没验。
 
 ## 4. Injection Prevention
 
@@ -36,6 +38,13 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 - **XSS**：输出到 HTML 前转义；框架默认转义不要绕过（避免 `dangerouslySetInnerHTML`、`v-html`、`innerHTML` 直传用户内容）。
 - **路径穿越**：拼接文件路径前规范化并校验，限制在允许目录内。
 - **反序列化**：不反序列化不可信数据为任意类型；用安全格式与白名单。
+
+## 4.1 CSRF
+
+- **判据**：凡以 **cookie 承载会话**的写操作（POST/PUT/PATCH/DELETE）都需要 CSRF 防护；纯 `Authorization` 头承载令牌的 API 不需要——因为浏览器不会自动附带它。
+- 二选一或叠加：**同步器令牌**（服务端下发、随表单/请求头回传、服务端比对）或 **`SameSite=Lax|Strict` cookie**。跨站场景必须用 `SameSite=None` 时，同步器令牌就是必选项而非可选。
+- 会话 cookie 一律 `HttpOnly` + `Secure`。
+- **不要**把「校验 `Origin` / `Referer`」当作唯一防线——代理与隐私设置会剥掉这些头。
 
 ## 5. Authentication & Authorization
 
@@ -66,7 +75,8 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 提交前确认：
 
 - [ ] 无硬编码密钥 / 令牌 / 密码（含前端 bundle 与测试夹具）。
-- [ ] 所有边界输入已校验，外部 URL 已校验 scheme/host。
+- [ ] 所有边界输入已校验，外部 URL 已校验 scheme/host；文件上传三重白名单校验；入站 webhook 先验签后解析。
+- [ ] cookie 会话的写操作有 CSRF 防护（同步器令牌或 `SameSite`），会话 cookie 带 `HttpOnly` + `Secure`。
 - [ ] SQL 全参数化，无字符串拼接；无命令 / 路径注入面。
 - [ ] HTML 输出已转义，未绕过框架默认转义。
 - [ ] 受保护端点均有授权检查，公网端点有限流。
