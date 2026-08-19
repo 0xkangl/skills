@@ -10,8 +10,7 @@
       "Edit(.env.*.local)",
       "Read(node_modules/**)",
       "Read(vendor/**)",
-      "Read(.worktrees/**)",
-      "Read(.superpowers/**)"
+      "Read(.worktrees/**)"
     ]
   }
 }
