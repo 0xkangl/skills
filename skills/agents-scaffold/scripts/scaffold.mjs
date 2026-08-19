@@ -102,7 +102,7 @@ function escapeRegExp(str) {
 // 文本文件判定:扩展名白名单 + 点开头配置文件名(basename 精确匹配) + Makefile/Dockerfile
 // 点文件(如 .env.example)的 path.extname 不可靠(.env.example → .example),故用 basename 精确匹配
 const TEXT_FILE_EXTENSIONS = new Set([
-  '.md', '.txt', '.json', '.yaml', '.yml', '.toml',
+  '.md', '.txt', '.json', '.jsonc', '.yaml', '.yml', '.toml',
   '.js', '.ts', '.jsx', '.tsx', '.go', '.py', '.rb',
   '.sh', '.bash', '.zsh',
 ]);
@@ -113,10 +113,11 @@ const TEXT_DOTFILES = new Set([
 ]);
 
 export function isTextFile(filePath) {
-  const base = basename(filePath);
+  // 示例配置(fly.toml.example)先剥掉 .example 再判定,否则扩展名被读成 .example
+  const base = basename(filePath).replace(/\.example$/, '');
   if (base === 'Makefile' || base === 'Dockerfile') return true;
   if (TEXT_DOTFILES.has(base)) return true;
-  const ext = extname(filePath);
+  const ext = extname(base);
   return TEXT_FILE_EXTENSIONS.has(ext) || ext === '';
 }
 

@@ -63,6 +63,13 @@ test('isTextFile recognizes dotfiles by basename (incl. .env.example)', () => {
   assert.equal(isTextFile('Makefile'), true);
 });
 
+test('isTextFile recognizes *.example sample configs by their real extension', () => {
+  // fly.toml.example 的 extname 是 .example,须剥掉后缀再判,否则模板占位符不会被替换
+  assert.equal(isTextFile('fly.toml.example'), true);
+  assert.equal(isTextFile('wrangler.jsonc.example'), true);
+  assert.equal(isTextFile('logo.png.example'), false);
+});
+
 test('parseModuleList parses built-in and custom modules', () => {
   const { modules, skipped } = parseModuleList('server,web');
   assert.deepEqual(modules, [

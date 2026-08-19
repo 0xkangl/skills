@@ -17,6 +17,11 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
+
+# Wrangler local state
+.wrangler/
 
 # Build output
 /dist/

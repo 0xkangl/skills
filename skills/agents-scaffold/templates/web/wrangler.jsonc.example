@@ -1,0 +1,43 @@
+// ============================================================================
+// {{PROJECT}}-web - Cloudflare Workers config (sample)
+//
+// Copy to wrangler.jsonc (committed, reviewed like code).
+// Deploy only via `wrangler deploy` (local and CI run the same command) with a
+// scoped CLOUDFLARE_API_TOKEN — do NOT wire the dashboard's GitHub App / Git
+// integration: it puts build config and triggers outside the repo.
+//
+// Config placement rules, API token scopes, and the full release flow live in
+// the `code-conventions` skill (deployment convention).
+// ============================================================================
+{
+  "name": "{{PROJECT}}-web",
+  "main": "src/index.ts",
+  // 固定运行时行为，避免平台默认值随时间漂移
+  "compatibility_date": "2026-01-01",
+  "observability": { "enabled": true },
+
+  // 非敏感、启动后通常不改的配置放这里 —— 入仓、可 review，改动需重新 deploy 才生效。
+  // 敏感项一律 `wrangler secret put`，不要写进 vars(vars 明文入仓且面板可见)；
+  // 同名 secret 会覆盖 vars，同一个 key 不要两处都写。本地开发用 .dev.vars(已 gitignore)。
+  "vars": {
+    "APP_ENV": "production",
+    "LOG_LEVEL": "info",
+    "DEFAULT_LOCALE": "en"
+  },
+
+  // 顶层即 production；其它环境在这里 override，用 `wrangler deploy --env staging` 发布
+  "env": {
+    "staging": {
+      "name": "{{PROJECT}}-web-staging",
+      "vars": {
+        "APP_ENV": "staging",
+        "LOG_LEVEL": "debug"
+      }
+    }
+  }
+
+  // 按实际使用的绑定补充(并同步收窄 API token 权限)：
+  // "kv_namespaces": [{ "binding": "CACHE", "id": "<id>" }],
+  // "d1_databases":  [{ "binding": "DB", "database_name": "...", "database_id": "<id>" }],
+  // "routes":        [{ "pattern": "app.example.com", "custom_domain": true }]
+}

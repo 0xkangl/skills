@@ -1,0 +1,45 @@
+# ==============================================================================
+# {{PROJECT}}-server - Fly.io config (sample)
+#
+# Copy to fly.toml (committed, reviewed like code) and fill in app / region.
+# One app + one config file per environment: fly.toml (production),
+# fly.staging.toml (staging). Switch with `flyctl deploy --config <file>`.
+#
+# Config placement rules and the full release flow live in the
+# `code-conventions` skill (deployment convention).
+# ==============================================================================
+
+app            = "{{PROJECT}}-server"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# 非敏感、启动后通常不改的运行时配置放这里 —— 入仓、可 review，改动需重新 deploy 才生效。
+# 敏感项(DATABASE_URL / REDIS_URL / JWT_SIGNING_KEY / APP_PEPPER / 第三方 key)一律走
+# `flyctl secrets set`，绝不写在此处；同一个 key 也不要两处都写(secret 会覆盖 [env]，
+# 造成"改了配置却不生效"的假象)。变量名与必填性以 code-conventions 的配置规范为准。
+[env]
+  APP_ENV        = "production"
+  PORT           = "8080"
+  LOG_LEVEL      = "info"
+  LOG_FORMAT     = "json"
+  METRICS_PORT   = "9090"
+  DEFAULT_LOCALE = "en"
+
+[http_service]
+  internal_port        = 8080      # 必须与上面的 PORT 一致
+  force_https          = true
+  auto_stop_machines   = "suspend" # 常驻服务改 "off"
+  auto_start_machines  = true
+  min_machines_running = 1         # 生产至少 1，避免冷启动打到用户
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout  = "3s"
+    method   = "GET"
+    path     = "/health"
+
+[[vm]]
+  size   = "shared-cpu-1x"
+  memory = "512mb"
