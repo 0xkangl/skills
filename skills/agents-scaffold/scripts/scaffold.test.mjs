@@ -666,3 +666,55 @@ test('buildSingleAgents injects module section and rewrites cross-repo conventio
   assert.ok(!merged.includes('<!-- MODULE_STACK -->'));         // 锚点已被替换
   assert.ok(!merged.includes('{{PROJECT}}'));
 });
+
+test('workspace: CONTEXT.md lands in spec-center root and is listed in the repo tree', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    // 落在 spec-center 仓库根 —— 外部 grilling/domain-modeling 类工具认的正是这个路径
+    const ctx = fsReadFileSync(join(ws, 'myapp-spec-center', 'CONTEXT.md'), 'utf-8');
+    assert.ok(ctx.startsWith('# Context — myapp'));
+    assert.ok(!ctx.includes('{{PROJECT}}'));
+    // 索引规则:spec-center 下每个治理文档都要出现在 CLAUDE.md 的树或 SSOT 列表里
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    assert.ok(sc.includes('├── CONTEXT.md'));
+    assert.ok(sc.includes('[CONTEXT.md](./CONTEXT.md)'));
+    assert.ok(!sc.includes('Define project core domain concepts here'));   // 空节已换成指针
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: CONTEXT.md lands in the repo root with placeholders replaced', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    runSingle({ template: 'server', dir: proj, noGit: true });
+    const ctx = fsReadFileSync(join(proj, 'CONTEXT.md'), 'utf-8');
+    assert.ok(ctx.startsWith('# Context — demo-app'));
+    assert.ok(!ctx.includes('{{PROJECT}}'));
+    assert.ok(!existsSync(join(proj, 'docs', 'CONTEXT.md')));   // 只有仓库根一份,不分叉
+    const agents = fsReadFileSync(join(proj, 'CLAUDE.md'), 'utf-8');
+    assert.ok(agents.includes('[CONTEXT.md](./CONTEXT.md)'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single: an existing CONTEXT.md is backed up, never silently overwritten', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const proj = join(dir, 'demo-app');
+    mkdirSync(proj, { recursive: true });
+    writeFileSync(join(proj, 'CONTEXT.md'), '# my glossary\n', 'utf-8');
+    const r = runSingle({ template: 'server', dir: proj, noGit: true });
+    assert.ok(r.backedUp.some((p) => p.endsWith('CONTEXT.md.bak')));
+    assert.equal(fsReadFileSync(join(proj, 'CONTEXT.md.bak'), 'utf-8'), '# my glossary\n');
+    // dry-run 也应把它列进冲突预览
+    const dry = runSingle({ template: 'server', dir: proj, noGit: true, dryRun: true });
+    assert.ok(dry.conflicts.some((p) => p.endsWith('CONTEXT.md')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

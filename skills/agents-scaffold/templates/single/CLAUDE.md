@@ -85,11 +85,11 @@ This project follows DDD principles:
 
 - **Aggregate Roots** must be clearly identified in both specs and code. Each bounded context has explicit aggregate roots.
 - **Bounded Contexts** are delineated within this repo. Cross-context communication happens only through well-defined interfaces (as specified under `docs/`), not by reaching into another context's internals.
-- **Ubiquitous Language** is defined here and used consistently across specs and code.
+- **Ubiquitous Language** is defined in [CONTEXT.md](./CONTEXT.md) and used consistently across specs and code.
 
 ### Core Domain Concepts
 
-<!-- Define project core domain concepts here (aggregate roots, value objects, etc.) -->
+Defined in [CONTEXT.md](./CONTEXT.md) — the project glossary (aggregate roots, value objects, domain events). It is the single place a term is defined: do not restate definitions here or under `docs/`, link to it instead.
 
 ## Conventions
 

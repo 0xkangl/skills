@@ -105,7 +105,9 @@ node scripts/scaffold.mjs single \
 
 **结构生成全由脚本完成,Claude 不手工编辑。** 脚本在 workspace/module 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/CLAUDE.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `CLAUDE.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——workspace/module/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
 
-模块的语义留空块(各模块 `CLAUDE.md` 的 Key Responsibilities / Tech Stack、spec-center 的 Core Domain Concepts 等)属于后续开发,不是 scaffold 职责,按需在开发中填。
+模块的语义留空块(各模块 `CLAUDE.md` 的 Key Responsibilities / Tech Stack、词汇表 `CONTEXT.md` 的 Language 小节等)属于后续开发,不是 scaffold 职责,按需在开发中填。
+
+**词汇表落点**:项目的 ubiquitous language 落在 `CONTEXT.md`,位置固定在**仓库根**——workspace 模式是 `<project>-spec-center/CONTEXT.md`,single 模式是项目根。这与外部 grilling / domain-modeling 类工具默认读写的路径一致,避免同一个项目分叉出两份词汇表。`CLAUDE.md` 的 Core Domain Concepts 只留指针,不重复定义术语。目标位置已有 `CONTEXT.md` 时按 §10 备份,绝不无声覆盖。
 
 **失败残留处理(脚本非原子)**:脚本中途失败时会在 stderr 打印:
 

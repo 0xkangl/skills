@@ -25,7 +25,8 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 - Response envelope format
 - Retry and backoff strategies
 - Authentication and authorization contracts
-- Shared domain vocabulary and event schemas
+- Shared domain vocabulary (ubiquitous language) → [CONTEXT.md](./CONTEXT.md)
+- Inter-module event schemas → `events/`
 - Cross-module domain specs → `specs/`
 - Data format conventions (date, pagination, sorting, etc.)
 - Convention documents → see [Convention Documents](#convention-documents)
@@ -144,11 +145,11 @@ All modules follow DDD principles:
 
 - **Aggregate Roots** must be clearly identified in both specs and code. Each bounded context has explicit aggregate roots.
 - **Bounded Contexts** map to modules. Cross-context communication happens only through well-defined interfaces (as specified in `{{PROJECT}}-spec-center`).
-- **Ubiquitous Language** is defined in `{{PROJECT}}-spec-center` and must be used consistently across all modules.
+- **Ubiquitous Language** is defined in [CONTEXT.md](./CONTEXT.md) and must be used consistently across all modules.
 
 ### Core Domain Concepts
 
-<!-- Define project core domain concepts here (aggregate roots, value objects, etc.) -->
+Defined in [CONTEXT.md](./CONTEXT.md) — the project glossary (aggregate roots, value objects, domain events). It is the single place a term is defined: do not restate definitions here or in module docs, link to it instead.
 
 ## Module Isolation
 
