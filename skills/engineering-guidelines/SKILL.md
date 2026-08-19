@@ -73,6 +73,10 @@ For multi-step tasks, state a brief plan:
 
 **Evidence before assertions:** Never call work done, fixed, or passing without having run the check — claiming "verified", "searched", or "the docs say" means you can show the command, its output, or the source. If you cannot verify, say why, once; absent a claim, no disclaimer is needed either.
 
+**A clean exit code is not proof of effect.** A command that ran, returned 0, and did nothing — matched no files, generated no output, wrote to a path nobody reads — is a silent failure, not a success. Check the observable result, and check it somewhere that cannot mask the failure (a script's own self-check runs inside the process that would hide the problem). Report "ran but produced nothing" as a failure.
+
+**An unavailable search channel is not evidence of absence.** If a tool, path, or source you needed could not be reached, say which one and what you skipped — never let "I couldn't look" surface as "it doesn't exist."
+
 ## 5. Reasoning Standards
 
 Analyze from root cause, not surface symptoms.
