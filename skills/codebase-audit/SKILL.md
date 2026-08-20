@@ -26,6 +26,8 @@ A manual, multi-agent audit tuned for low token cost. The main agent only **scop
 
 `/codebase-audit [path]` — optional file or directory to scope the audit; omit to audit the whole project.
 
+> **仅手动触发**：只有用户明确输入 `/codebase-audit`（以 plugin 安装时为 `/kang-skills:codebase-audit`）才执行本 skill；未收到该命令时，即使场景相似也不得自动调用（plugin 安装会忽略 `disable-model-invocation`，此句为兜底）。
+
 **Dimensions** — 通用 9 个 always：architecture, performance, code quality, security, testing, dependencies/debt, maintainability/observability, build/deploy/infra, conventions。条件 3 个：
 
 - `fe`（frontend a11y/i18n）——Scope 检测到 web/前端栈时激活。

@@ -1,0 +1,8 @@
+{
+  "name": "kang-skills",
+  "version": "1.0.0",
+  "description": "一组可独立装载的 Agent / Claude Code Skills：行为准则 → 编码规范 → 工程脚手架 → 代码审计与修复的完整链路",
+  "author": {
+    "name": "KANG"
+  }
+}

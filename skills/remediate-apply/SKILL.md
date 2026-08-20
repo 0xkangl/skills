@@ -18,6 +18,8 @@ description: >
 
 > 始终**手动指定** remediation 文档路径。已带 `- **status**:` 标签的 finding 自动跳过——可断点续跑；人工处理后删除该行即重新入队。
 
+> **仅手动触发**：只有用户明确输入 `/remediate-apply`（以 plugin 安装时为 `/kang-skills:remediate-apply`）才执行本 skill；未收到该命令时，即使场景相似也不得自动调用（plugin 安装会忽略 `disable-model-invocation`，此句为兜底）。
+
 ## 定位
 
 **消费 remediation 文档、逐条落地修复**：与 `remediate-suggest` 对仗——后者只分析给推荐方案，本 skill 执行那些方案。主 agent 只解析与编排、一次性预探测共享上下文；每条 finding 在独立 subagent 里完成「复核 → 选方案 → 改码 → 测试验证 → 提交」，避免主会话上下文污染与膨胀。

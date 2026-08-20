@@ -1,0 +1,21 @@
+# 发版自动化：消费 Conventional Commits，维护常驻 Release PR
+# （自动改 plugin.json version + version.txt + CHANGELOG.md），合并即打 tag 出 GitHub Release。
+# 本仓 CI 仅此一个 workflow，不做 lint/build/test。
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

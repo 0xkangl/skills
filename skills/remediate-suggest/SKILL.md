@@ -21,6 +21,8 @@ description: >
 > 始终传**原 issues-report 路径**。同目录已有 `<issuesStem>-remediation.md` → 自动**追加**（补剩余 finding，原地更新）；
 > 同目录有未合并的 `<issuesStem>-remediations/` 片段 → 自动**续传**（复用有效片段，只重派缺失的组）。两者可叠加。
 
+> **仅手动触发**：只有用户明确输入 `/remediate-suggest`（以 plugin 安装时为 `/kang-skills:remediate-suggest`）才执行本 skill；未收到该命令时，即使场景相似也不得自动调用（plugin 安装会忽略 `disable-model-invocation`，此句为兜底）。
+
 ## 定位
 
 **只分析、不修复**：把一份 `issues-report` 升级成「带推荐修复方案的清单」。主 agent 只解析与编排；每个 subagent 在隔离上下文里读自己那组 findings 涉及的代码切片，复核存在性后写 `suggest`。不修改被审代码、不跑测试、不提交——这是写死的边界。

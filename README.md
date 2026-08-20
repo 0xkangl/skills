@@ -72,9 +72,24 @@ engineering-guidelines   code-conventions
 
 ## 使用
 
-### 方式一：`npx skills add`（推荐）
+按场景选安装方式：**整套装载走 plugin，单个 skill 走 `npx skills add`，本仓开发走软链。**
 
-无需克隆本仓，直接在目标项目目录下运行，即可从远程仓库装载指定 skill：
+### 整套装载：Claude Code plugin（推荐）
+
+本仓已 plugin 化（仓库根即 plugin，自带自指 marketplace），在 Claude Code 里两步装载全部 skills：
+
+```
+/plugin marketplace add 0xkangl/skills
+/plugin install kang-skills@kang-skills
+```
+
+装载后 skill 调用名带 `kang-skills:` 前缀（如手动触发审计为 `/kang-skills:codebase-audit`）。版本随本仓 GitHub Release 演进（release-please 自动发版），可在 `/plugin` 界面查看与更新。
+
+> 已知上游 bug（anthropics/claude-code#22345）：plugin 内 skill 的 `disable-model-invocation: true` 会被忽略。本仓 4 个手动型 skill（`codebase-audit`、`remediate-suggest`、`remediate-apply`、`diagnose-and-fix-batch`）已在正文加「未收到 /命令 不执行」的兜底文案。
+
+### 单个 skill：`npx skills add`
+
+plugin 装载是全量的；只想要个别 skill 时，无需克隆本仓，直接在目标项目目录下运行：
 
 ```bash
 npx skills add https://github.com/0xkangl/skills --skill <skill-name>
@@ -82,7 +97,7 @@ npx skills add https://github.com/0xkangl/skills --skill <skill-name>
 
 将 `<skill-name>` 替换为上方「Skills 一览」表中的 skill 目录名（如 `engineering-guidelines`、`code-conventions`、`agents-scaffold` 等）。可多次执行以装载多个 skill。
 
-### 方式二：本地软链
+### 本仓开发：本地软链
 
 克隆本仓后，把需要的 skill 软链入 Claude Code 的 skills 目录（全局或项目级）：
 
@@ -105,6 +120,8 @@ skills/
 ├── README.md                       # 本文件
 ├── CLAUDE.md                       # 在本仓工作的 agent 须知
 ├── AGENTS.md                       # → CLAUDE.md
+├── .claude-plugin/                 # plugin.json + marketplace.json（plugin 名 kang-skills）
+├── CHANGELOG.md                    # release-please 自动维护
 └── skills/
     ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）

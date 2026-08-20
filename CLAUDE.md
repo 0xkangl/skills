@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 仓库性质
 
 - 每个 skill 是 `skills/<name>/` 下的自包含目录，至少含一个 `SKILL.md`（带 YAML frontmatter）。skill 一览见 [README.md](README.md)。
-- 无根 manifest、无 CI、无 lint/format 工具链——所有脚本**零依赖**（仅 `node:` 内置模块）。这是刻意设计，不要引入依赖或构建工具。
+- 无 lint/format 工具链、无构建/测试 CI（唯一的 workflow 是 release-please 发版自动化）——所有脚本**零依赖**（仅 `node:` 内置模块）。这是刻意设计，不要引入依赖或构建工具。
+- 仓库根即 Claude Code plugin（`.claude-plugin/plugin.json` + 自指 `marketplace.json`，plugin 名 `kang-skills`）。skills 由 Claude Code 从根 `skills/` 自动发现——新增/删除 skill 无需改 manifest。版本由 release-please 依 Conventional Commits 自动管理（`feat:`→minor、`fix:`→patch、`!`→major；`docs:` 等类型不触发发版，随下次发版带出）——**不要手改** `plugin.json` 的 `version`、`version.txt` 和 `CHANGELOG.md`。
 - `docs/superpowers/`（计划/设计文档）与 `.superpowers/`（SDD 执行产物）是长期保留的 spec-driven 工作流目录。
 - `.claude/skills/` 默认 gitignore（外部安装 skill 的本地缓存）；本仓自研的项目级 skill（如 `skill-check`、`new-skill`）在 `.gitignore` 用 `!` 例外显式纳管。
 
