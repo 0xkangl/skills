@@ -18,13 +18,15 @@ description: >
 
 支持 `.md / .json / .yaml / .txt`，编号可为数字或字符串。
 
+> **仅手动触发**：只有用户明确输入 `/diagnose-and-fix-batch`（以 plugin 安装时为 `/kang-skills:diagnose-and-fix-batch`）才执行本 skill；未收到该命令时，即使场景相似也不得自动调用（plugin 安装会忽略 `disable-model-invocation`，此句为兜底）。
+
 ## 定位
 
 **批量循环编排器**：主 agent 把问题列表拆成队列，逐个在独立 subagent 里修复（避免污染主会话），回收结构化结果。
 单问题的「先诊断、用户选方案、再动手、修完验证、提交代码、标记列表」全流程**不在本 skill 内重复定义**——每个 subagent 调用 `diagnose-and-fix` skill 执行，本 skill 只负责排队、派发、回收、汇总。
 问题列表**只标记 resolved、不提交**（由 `diagnose-and-fix` 在子流程内完成标记）——提交时机由用户统一掌控，本 skill 全程不碰列表文件的提交。
 
-> **依赖**：本 skill 强依赖 `diagnose-and-fix` skill。主 agent 在 **Step 0** 先做存在性检查，缺失则直接提示用户、不进入任何 subagent。
+> **依赖**：本 skill 强依赖 `diagnose-and-fix` skill。主 agent 在 **Step 0** 先做存在性检查，缺失则直接提示用户、不进入任何 subagent。以 plugin 方式安装时，其在 Skill 工具里的实际调用名带 plugin 前缀（如 `kang-skills:diagnose-and-fix`）——按当前会话 skill 列表中的实际名称调用。
 
 ---
 
