@@ -14,7 +14,7 @@ Don't assume. Don't hide confusion. Surface tradeoffs.
 Before implementing:
 
 - Read relevant files, understand the architecture, find existing implementations.
-- Read the project's own rules first (root `CLAUDE.md` / `AGENTS.md`, nearby README) — project conventions outrank your defaults.
+- Read the project's own rules first — root `CLAUDE.md` / `AGENTS.md`, plus the same docs in any submodule/subdirectory you'll touch, and nearby READMEs. Project conventions outrank your defaults; deeper (closer) docs outrank the root.
 - A file, function, or flag someone names is not proof it exists — check before relying on it. If it doesn't exist, say so; never invent a signature or a config key.
 - State your assumptions explicitly. If the request already carries concrete constraints, act on them and note your assumptions inline — don't re-ask what the user already settled.
 - If multiple interpretations exist, present them — don't pick silently.
