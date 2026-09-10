@@ -189,6 +189,8 @@ flyctl ssh console --app <app>       # 进实例排查
 
 ### 6.1 为什么不用面板的 Git 集成
 
+使用 GitHub 托管的 Cloudflare 项目，通过 GitHub Actions 调用 `wrangler` CLI 部署；不采用安装 Cloudflare GitHub App、连接仓库的托管构建部署方案。GitHub Actions workflow 是本方案的执行入口。
+
 Cloudflare 面板可以安装 GitHub App、把仓库接上 Workers Builds / Pages 的自动构建。**本规范不采用该方案**，统一用 `wrangler deploy`：
 
 - **部署配置不可 review**：构建命令、输出目录、环境变量散落在第三方面板，改动不进版本历史，出问题无法 `git log` 追溯。
@@ -200,7 +202,7 @@ Cloudflare 面板可以安装 GitHub App、把仓库接上 Workers Builds / Page
 
 ### 6.2 准备
 
-- Cloudflare 账号、**Account ID**（面板可查，入仓写进 `wrangler.jsonc` 或 CI 变量）。
+- Cloudflare 账号、**Account ID**（面板可查，属于非敏感标识；GitHub Actions 中存入 Variables，其他场景可写进 `wrangler.jsonc` 或 CI 变量）。
 - 自定义域所在的 **Zone**（如果要绑域名）。
 - **API Token**：用 “Edit Cloudflare Workers” 模板，或自定义最小权限：
   - Account → **Workers Scripts: Edit**（必需）
@@ -208,7 +210,9 @@ Cloudflare 面板可以安装 GitHub App、把仓库接上 Workers Builds / Page
   - Account → Cloudflare Pages: Edit（部署 Pages 时）
   - Zone → **Workers Routes: Edit** + Zone: Read（绑自定义域时）
   - 限定到具体 Account / Zone，不要给 “All accounts”。
-- token 存放：CI secret `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`；本地放 `.env` / shell profile，**绝不入仓**。wrangler 自动读取这两个环境变量，因此 CI 里无需 `wrangler login`。
+- GitHub Actions 配置：在仓库的 **Settings → Secrets and variables → Actions** 中，将 `CLOUDFLARE_API_TOKEN` 存入 **Secrets**，将 `CLOUDFLARE_ACCOUNT_ID` 存入 **Variables**；按环境隔离时可使用对应 GitHub Environment 的 secrets / variables，并在部署 job 中指定该 environment。
+- workflow 通过 `secrets.CLOUDFLARE_API_TOKEN` 和 `vars.CLOUDFLARE_ACCOUNT_ID` 分别映射到同名 `env` 环境变量（见 §7）。wrangler 读取这两个环境变量完成非交互认证，CI 无需 `wrangler login`。这些是部署凭据与账号配置，不是 Worker 的运行时 `vars` 或 secrets。
+- 本地通过环境变量提供 token 与 Account ID；token 可存放在未纳管的本地配置中，**绝不入仓**。
 - token 轮换：泄露或成员离职即在面板 Roll/Delete，仓库无需改动。
 
 ### 6.3 首次上线顺序
@@ -308,8 +312,10 @@ Pages 同样只用 CLI + API token：项目在面板创建一次（或 `wrangler
 - run: npx wrangler deploy
   env:
     CLOUDFLARE_API_TOKEN:  ${{ secrets.CLOUDFLARE_API_TOKEN }}
-    CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 ```
+
+上例为部署步骤片段；完整 workflow 还需按项目配置检出代码、Node.js 与依赖安装，并使用项目锁定的 wrangler 版本。GitHub Actions 的非敏感配置通过 `vars` 读取，凭据通过 `secrets` 读取，再映射到部署步骤的 `env`。参考 [GitHub Variables](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables)、[GitHub Secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) 与 [Cloudflare GitHub Actions 部署说明](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)。
 
 - 生产部署只从受保护分支/tag 触发，并遵循项目配置的审批门禁；用户已授权不代表可以绕过门禁，门禁已满足也不要求额外发明一轮对话确认。
 - CI 日志绝不回显密钥值；只打印 key 名与部署结果。
