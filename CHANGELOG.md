@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/0xkangl/skills/compare/v1.1.0...v1.2.0) (2026-09-10)
+
+
+### Features
+
+* **agents-scaffold:** align generated agent workflows ([a73ce75](https://github.com/0xkangl/skills/commit/a73ce75fa4e52767e65349b2f795c09fa4fe9497))
+* **agents-scaffold:** 模板主指令文档改为 AGENTS.md，CLAUDE.md 为一行指针 ([cb0f2b6](https://github.com/0xkangl/skills/commit/cb0f2b67ec87fb63b27feadcce629b2e246e5182))
+
 ## [1.1.0](https://github.com/0xkangl/skills/compare/v1.0.0...v1.1.0) (2026-09-10)
 
 
