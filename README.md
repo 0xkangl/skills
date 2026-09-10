@@ -118,8 +118,8 @@ ln -s "$PWD/skills/<skill-name>" <project>/.claude/skills/<skill-name>
 ```
 skills/
 ├── README.md                       # 本文件
-├── CLAUDE.md                       # 在本仓工作的 agent 须知
-├── AGENTS.md                       # → CLAUDE.md
+├── AGENTS.md                       # 在本仓工作的 agent 须知
+├── CLAUDE.md                       # → AGENTS.md
 ├── .claude-plugin/                 # plugin.json + marketplace.json（plugin 名 kang-skills）
 ├── CHANGELOG.md                    # release-please 自动维护
 └── skills/
