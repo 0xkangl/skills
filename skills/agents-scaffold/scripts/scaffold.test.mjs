@@ -427,6 +427,63 @@ test('workspace generates spec-center AGENTS.md: placeholders replaced, markers 
     // 树含模块子树
     assert.ok(sc.includes('├── myapp-server/'));
     assert.ok(sc.includes('└── myapp-web/'));   // 字母序末位用 └──
+    const workflow = fsReadFileSync(join(ws, 'myapp-spec-center', 'WORKFLOW.md'), 'utf-8');
+    assert.ok(workflow.startsWith('# Development Workflow — myapp'));
+    assert.ok(!workflow.includes('{{PROJECT}}'));
+    assert.ok(sc.includes('├── WORKFLOW.md'));
+    assert.ok(sc.includes('[WORKFLOW.md](./WORKFLOW.md)'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('generated instructions use risk-calibrated workflow without universal approval or TDD gates', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    const single = join(dir, 'solo-app');
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
+    runSingle({ template: 'server', dir: single, noGit: true });
+
+    const instructions = [
+      fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8'),
+      fsReadFileSync(join(single, 'AGENTS.md'), 'utf-8'),
+    ];
+    for (const content of instructions) {
+      assert.ok(content.includes('Routine, reversible changes'));
+      assert.ok(content.includes('material behavior or contract'));
+      assert.ok(content.includes('proportionate verification'));
+      assert.ok(!content.includes('Get spec reviewed and approved'));
+      assert.ok(!content.includes('All code changes must trace back to a spec document'));
+      assert.ok(!content.includes('From the spec, write failing tests'));
+    }
+
+    const specCenterLines = instructions[0].trimEnd().split('\n').length;
+    assert.ok(specCenterLines < 200, `spec-center AGENTS.md should stay below 200 lines, got ${specCenterLines}`);
+    const singleLines = instructions[1].trimEnd().split('\n').length;
+    assert.ok(singleLines < 200, `single AGENTS.md should stay below 200 lines, got ${singleLines}`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace entrypoints and module instructions load shared governance explicitly', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const ws = join(dir, 'myapp');
+    runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web,client', noGit: true });
+
+    const rootAgents = fsReadFileSync(join(ws, 'AGENTS.md'), 'utf-8');
+    assert.ok(rootAgents.includes('Before project work, read'));
+    assert.ok(rootAgents.includes('myapp-spec-center/AGENTS.md'));
+    assert.ok(!existsSync(join(ws, '.claude', 'rules', 'engineering-guidelines.md')));
+
+    for (const moduleName of ['server', 'web', 'client']) {
+      const moduleAgents = fsReadFileSync(join(ws, `myapp-${moduleName}`, 'AGENTS.md'), 'utf-8');
+      assert.ok(moduleAgents.includes('Before project work, read'));
+      assert.ok(moduleAgents.includes('../myapp-spec-center/AGENTS.md'));
+      assert.ok(moduleAgents.includes('../myapp-spec-center/ROADMAP.md'));
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -578,10 +635,11 @@ test('single: in-place init merges governance + module section, strips suffix, s
     assert.ok(/APP_NAME\s+:= demo-app\b/.test(mk));
     assert.ok(!mk.includes('demo-app-server'));
 
-    // 单仓措辞的 Claude rule 已铺进 .claude/rules(不含多仓 spec-center 引用)
-    const rule = fsReadFileSync(join(proj, '.claude', 'rules', 'engineering-guidelines.md'), 'utf-8');
-    assert.ok(rule.includes('repo root `AGENTS.md`'));
-    assert.ok(!rule.includes('spec-center'));
+    // 工程行为由 AGENTS.md + skills 承载,不再生成重复的 Claude 专属指针。
+    assert.ok(!existsSync(join(proj, '.claude', 'rules', 'engineering-guidelines.md')));
+    const workflow = fsReadFileSync(join(proj, 'WORKFLOW.md'), 'utf-8');
+    assert.ok(workflow.startsWith('# Development Workflow — demo-app'));
+    assert.ok(!workflow.includes('{{PROJECT}}'));
 
     // git on main
     assert.ok(existsSync(join(proj, '.git')));
@@ -603,6 +661,7 @@ test('single: backs up conflicting files by default; --on-conflict overwrite ski
     const r = runSingle({ template: 'server', dir: proj, noGit: true });
     assert.ok(r.backedUp.length > 0);
     assert.ok(r.backedUp.some((p) => p.endsWith('CLAUDE.md.bak')));
+    assert.ok(r.backedUp.some((p) => p.endsWith('WORKFLOW.md.bak')));
     assert.ok(existsSync(join(proj, 'CLAUDE.md')));   // 新文件仍在
     // overwrite:直接覆盖,不留 *.bak
     const r2 = runSingle({ template: 'server', dir: proj, noGit: true, onConflict: 'overwrite' });
@@ -664,14 +723,27 @@ test('single: rejects missing/unknown template', () => {
   }
 });
 
-test('buildSingleAgents injects module section and rewrites cross-repo conventions path', () => {
+test('buildSingleAgents injects module section without multi-repo governance paths', () => {
   const merged = buildSingleAgents('server', 'demo-app');
   assert.ok(merged.includes('## Role'));
   assert.ok(merged.includes('Server application'));
   assert.ok(merged.includes('committed under docs/'));          // 跨仓路径已改本仓 docs/
   assert.ok(!merged.includes('-spec-center/conventions/'));
+  assert.ok(!merged.includes('## Project Rules'));
+  assert.ok(!merged.includes('../demo-app-spec-center/'));
   assert.ok(!merged.includes('<!-- MODULE_STACK -->'));         // 锚点已被替换
   assert.ok(!merged.includes('{{PROJECT}}'));
+});
+
+test('skill and README describe dry-run autonomy and generated governance', () => {
+  const skill = fsReadFileSync(new URL('../SKILL.md', import.meta.url), 'utf-8');
+  const readme = fsReadFileSync(new URL('../README.md', import.meta.url), 'utf-8');
+
+  assert.ok(skill.includes('用户已明确提供'));
+  assert.ok(skill.includes('不重复请求确认'));
+  assert.ok(skill.includes('只在缺少会改变结果的输入'));
+  assert.ok(readme.includes('按变更风险选择 SDD/TDD'));
+  assert.ok(readme.includes('WORKFLOW.md'));
 });
 
 test('workspace: CONTEXT.md lands in spec-center root and is listed in the repo tree', () => {

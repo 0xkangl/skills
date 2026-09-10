@@ -281,6 +281,7 @@ function renderRepoTree(projectName, moduleNames) {
     { label: 'AGENTS.md', comment: 'This file - global project rules' },
     { label: 'CONTEXT.md', comment: 'Ubiquitous language (project glossary)' },
     { label: 'ROADMAP.md', comment: 'Live project status (phase, in progress, blocked, done)' },
+    { label: 'WORKFLOW.md', comment: 'Detailed development workflow (load when applicable)' },
     { label: 'api/', comment: 'API specifications (OpenAPI / endpoint specs)' },
     { label: 'conventions/', comment: 'Cross-cutting convention docs (starts empty)' },
     { label: 'specs/', comment: 'Shared specs affecting 2+ modules' },
@@ -496,7 +497,7 @@ export function runModule(flags) {
 const SINGLE_TEMPLATE = 'single';
 const MODULE_STACK_MARKER = '<!-- MODULE_STACK -->';
 // single 模式下从 single 模板铺到仓库根的治理文档(其余 single 模板文件不整体铺开)
-const SINGLE_ROOT_DOCS = ['CONTEXT.md', 'ROADMAP.md'];
+const SINGLE_ROOT_DOCS = ['CONTEXT.md', 'ROADMAP.md', 'WORKFLOW.md'];
 
 // 合并生成单仓库 AGENTS.md:把所选 stack 模板 AGENTS.md 从 "## Role" 起的模块片段
 // 注入治理片段 templates/single/AGENTS.md 的 <!-- MODULE_STACK --> 锚点。
@@ -506,6 +507,8 @@ export function buildSingleAgents(stackTemplate, projectName) {
 
   const roleIdx = stack.indexOf('## Role');
   let moduleSection = roleIdx >= 0 ? stack.slice(roleIdx).trimEnd() : '';
+  // 单仓库已有自己的根级治理说明，不应继承模块模板里指向兄弟 spec-center 的入口。
+  moduleSection = moduleSection.replace(/\n## Project Rules\n[\s\S]*?(?=\n## Mandatory Specs)/, '');
   // 单仓库:模块片段里指向兄弟 spec-center 仓的 conventions 路径改为本仓 docs/
   moduleSection = moduleSection.replace('../{{PROJECT}}-spec-center/conventions/', 'docs/');
 
@@ -539,7 +542,6 @@ export function runSingle(flags) {
   if (flags.dryRun) {
     const conflicts = [
       ...detectTreeConflicts(template, dir),
-      ...detectTreeConflicts(`${SINGLE_TEMPLATE}/.claude`, join(dir, '.claude')),
       ...SINGLE_ROOT_DOCS.filter((f) => existsSync(join(dir, f))).map((f) => join(dir, f)),
     ];
     return { mode: 'single', dryRun: true, dir, name, template, conflicts, onConflict };
@@ -559,8 +561,8 @@ export function runSingle(flags) {
     if (dirExisted) created.push(...cp.created);   // 既有目录:逐文件记录本次可安全回滚项
     // 用合并后的治理文档覆盖 dir/AGENTS.md(契约/约定文档直接放 docs/,无需额外子目录;CLAUDE.md 保持模板里的 @AGENTS.md 指针)
     writeFileSync(join(dir, 'AGENTS.md'), buildSingleAgents(template, name), 'utf-8');
-    // 词汇表与进度表落仓库根(而非 docs/):CONTEXT.md 与外部 grilling/domain-modeling 类工具认的路径一致,
-    // ROADMAP.md 是接手项目时第一个要读的活状态文档 —— 都不该藏进子目录
+    // 治理文档落仓库根(而非 docs/):CONTEXT.md 与外部 grilling/domain-modeling 类工具认的路径一致;
+    // ROADMAP.md 承载活状态;WORKFLOW.md 按需承载详细的 SDD/TDD 与计划流程。
     for (const doc of SINGLE_ROOT_DOCS) {
       const dest = join(dir, doc);
       const existed = existsSync(dest);
@@ -568,10 +570,6 @@ export function runSingle(flags) {
       writeFileSync(dest, readFileSync(resolveTemplatesDir(SINGLE_TEMPLATE, doc), 'utf-8').replace(/\{\{PROJECT\}\}/g, name), 'utf-8');
       if (dirExisted && (!existed || onConflict === 'backup')) created.push(dest);
     }
-    // single 模板不整体铺开,仅铺其 .claude/ 子树(单仓措辞的 engineering-guidelines rule)
-    const rules = copyAndReplace(`${SINGLE_TEMPLATE}/.claude`, join(dir, '.claude'), { PROJECT: name }, { onConflict });
-    backedUp.push(...rules.backedUp);
-    if (dirExisted) created.push(...rules.created);
     // git:已有 .git 则复用,否则 git init + main;--no-git 全跳过
     if (!flags.noGit && !existsSync(join(dir, '.git'))) gitInit(dir, name);
   } catch (err) {

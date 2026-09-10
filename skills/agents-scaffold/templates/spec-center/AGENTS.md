@@ -33,25 +33,16 @@ This project follows a **multi-repo workspace** architecture. Each module is an 
 
 **Rule**: Any spec that affects two or more modules MUST live in `{{PROJECT}}-spec-center`. Any spec that only affects a single module MUST live in that module's own `docs/` directory.
 
-## Development Paradigm: SDD + TDD
+## Development Workflow
 
-Before writing or changing any code, follow the agent coding behavior rules (think-before-coding, simplicity-first, surgical-changes, goal-driven execution, root-cause reasoning) — see the `engineering-guidelines` skill.
+Follow the `engineering-guidelines` skill for scope, autonomy, implementation, and verification. User instructions and applicable project rules take precedence over skill defaults.
 
-### Specification-Driven Development (SDD)
+- **Routine, reversible changes** with clear scope may be implemented directly. Do not create a spec, plan, approval pause, or test solely for ceremony.
+- Changes to **material behavior or contracts**, cross-module interfaces, architecture, data handling, or migrations require the applicable spec to be updated before implementation.
+- Choose **proportionate verification** based on risk and observable outcomes. Add focused regression tests when they meaningfully protect changed behavior; use the `code-conventions` skill for test design after deciding tests are warranted.
+- Request review or approval only when the user, project process, or a consequential unresolved choice requires it. Do not repeat a decision already authorized in the current task.
 
-1. Write or update the relevant spec **first** (in `{{PROJECT}}-spec-center` for shared specs, or in the module's `docs/` for local specs).
-2. Get spec reviewed and approved.
-3. Implement against the spec.
-
-### Test-Driven Development (TDD)
-
-1. From the spec, write failing tests.
-2. Write the minimum implementation to pass.
-3. Refactor while keeping tests green.
-
-For implementation-phase TDD details (AAA structure, naming, mocks, coverage, integration tests), see the `code-conventions` skill.
-
-**All code changes must trace back to a spec document.**
+Read [WORKFLOW.md](./WORKFLOW.md) when the task involves specs, contracts, implementation plans, TDD, or cross-module sequencing.
 
 ## Authoritative Source: Contracts vs Design Specs
 
@@ -62,97 +53,29 @@ Not every document carries the same authority — distinguish two kinds:
 
 **Reading vs writing:**
 
-- **Writing** new/changed logic → start from a spec (SDD): update the design spec, then implement.
+- **Writing** material new/changed behavior or contracts → update the applicable spec before implementation. Routine, reversible changes may proceed without creating a spec.
 - **Reading / verifying / "what does the system do today"** → **current code is the source of truth**. A design spec states intent when written, not necessarily current behavior.
 - **Spec and code disagree** → never silently trust the spec. For a *design spec*, treat it as drift: verify against code and flag the spec for update. For a *contract*, the opposite default — the contract wins and the code is suspect.
-
-### Amending a Contract
-
-「deliberately amend the contract first」之后要做什么，由这一节规定。每个模块是**独立仓、独立发版**，所以契约变更期间必然存在「服务端已上线新版、客户端还跑在旧字段上」的窗口——单仓靠一次编译就能暴露的问题，这里只会在生产暴露。
-
-1. **先列消费者**：修订前写下哪些模块消费这个契约（记在该 spec 或 ROADMAP 的对应条目里）。不知道谁在用，就没资格改。
-2. **分类变更**：
-   - **Additive**（加可选字段、加新端点、放宽枚举）→ 可直接上，但必须确认旧消费者在**不改代码**的情况下仍然正常。
-   - **Breaking**（删字段、改字段名、改字段类型、改既有字段的语义、收紧枚举、把可选改必填）→ 走版本化（新端点/新版本号）或 expand-contract 分阶段（新旧字段并存 → 消费者切换 → 删旧字段），**绝不原地复用既有字段名承载新语义**。
-3. **在任一模块内改了字段名而不改契约，即为破坏性变更——该模块测试全绿不构成豁免**。绿灯只证明这个模块自洽，证明不了它的消费者还能用。
-4. **验真实序列化输出**，不要以编译期类型通过为准：类型断言能掩盖运行时的不兼容。
-
-数据库侧的同类问题（改列名、删列、回填）见 `code-conventions` skill 的数据库迁移规范——同一套 expand-contract 思路，落在存储层。
 
 ## Progress Tracking
 
 [ROADMAP.md](./ROADMAP.md) is the **live status** of the workspace — current phase, in-progress work, blockers, open questions, todo, done. It is not a spec: specs state what the system should be, the roadmap states where the work stands right now. One roadmap covers all modules; modules do not keep their own.
 
-- **Read it first** when picking up work in any module — current phase, blockers, next step — before planning or coding.
-- **Update it whenever project state changes**: a feature shipped, a bug fixed, a spec or contract landed, a significant investigation concluded. Read-only work (queries, analysis, reviews, throwaway commands) changes no state and needs no update.
+- **Read it when relevant**: before planning or continuing tracked work, or when current phase, blockers, and sequencing could affect the task. Routine untracked edits do not require loading it.
+- **Update it when tracked project state changes**: a tracked feature shipped, a blocker changed, a spec or contract landed, or a significant investigation produced a decision. Do not add entries for routine untracked edits or read-only work.
 - **Done means verified** — an item moves to Done only after it is implemented *and* verified, with the verification recorded in the entry. Implemented but unverified stays In Progress.
 - **Never guess** — anything unconfirmed goes to Open Questions, not into Todo or Done as if settled.
 - **Scope** — a README describes what the project is and how to use it; ROADMAP.md carries what changes.
 
-## Shared vs Module-Specific Specs
+## Spec Ownership Quick Reference
 
-Where a spec lives is governed by the **Rule** above and tabulated in [Spec Ownership Quick Reference](#spec-ownership-quick-reference). Two structural requirements apply once placed:
-
-1. **Cross-reference** — A module-specific spec MUST link the shared specs it depends on, via relative links like `[API Spec](../{{PROJECT}}-spec-center/specs/xxx.md)`.
-2. **docs/ sub-directories** — Each module's `docs/` MUST split into:
-   - `docs/specs/` — specifications (data models, business rules, interfaces, constraints — the "what")
-   - `docs/plans/` — implementation plans (designs, architecture decisions, migration strategies — the "how")
-
-### Implementation Plans (Cross-Module Features)
-
-Cross-module **specs** live in `{{PROJECT}}-spec-center/specs/`; cross-module **plans** do **not**. Each implementing module gets its own plan under `<module>/docs/plans/`.
-
-**Rule**: One plan per implementing module. Do **not** combine server + web (or other modules) into a single monolithic implementation plan.
-
-| Document | Where | Example |
-|---|---|---|
-| Cross-module domain spec (what) | `{{PROJECT}}-spec-center/specs/` | `2026-06-01-feature-design.md` |
-| Server implementation plan (how) | `{{PROJECT}}-server/docs/plans/` | `2026-06-01-feature.md` |
-| Web implementation plan (how) | `{{PROJECT}}-web/docs/plans/` | `2026-06-01-feature.md` |
-| API / error-code contract updates | `{{PROJECT}}-spec-center/` (OpenAPI, error-codes) | Updated in spec or alongside server plan — **no** separate spec-center plan unless spec-center-only work |
-
-**Plan structure:**
-
-1. **Shared spec first** — Write and approve the cross-module spec in `{{PROJECT}}-spec-center` (API schemas, acceptance criteria, error codes).
-2. **Split plans by module** — Create one plan per module that implements the feature. Use the same date + feature slug (e.g. `2026-06-01-feature.md`) for discoverability.
-3. **Declare dependencies** — Each plan MUST link to the SSOT spec and, when applicable, state `Depends on: <other-module-plan>` (e.g. web plan depends on server plan).
-4. **Execute in dependency order** — Typically `{{PROJECT}}-server` → `{{PROJECT}}-web` → `{{PROJECT}}-client`. A downstream plan MUST NOT assume upstream API changes exist until the upstream plan is merged or verified — otherwise downstream work rests on an interface that may still shift.
-5. **No canonical plans in agent temp paths** — Module plans belong in `<module>/docs/plans/`, not in `docs/superpowers/plans/` or other agent-only directories. Agent-generated drafts may start elsewhere but MUST be moved to the module path before execution.
-
-**When a single cross-module plan is acceptable (rare):** Only for small, atomic changes that must land in one PR and touch ≤2 modules with no meaningful dependency boundary (e.g. a one-field DTO addition + one UI column). Prefer split plans when in doubt.
-
-**Splitting large plans into sub-plans:** When a single module's plan is too large to review or execute in one pass (e.g. spanning multiple phases or independent work streams), split it into focused sub-plans so each is reviewable and mergeable on its own:
-
-1. **Parent plan** — `docs/plans/YYYY-MM-DD-feature.md` with an overview, scope, and links to all sub-plans.
-2. **Sub-plans** — `docs/plans/YYYY-MM-DD-feature--<slug>.md` where `<slug>` names the sub-scope (e.g. `--schema`, `--api`, `--ui-list`). Each states its own goal, scope, dependencies, steps, and acceptance criteria.
-3. **Order** — The parent plan records the recommended execution order; sub-plans declare `Depends on: <sub-plan-slug>` when sequencing matters.
-4. **Don't over-split** — Keep each sub-plan a meaningful, self-contained unit of work; if a split only produces trivial fragments, keep it as one plan.
-
-**Example:**
-
-```
-{{PROJECT}}-web/docs/plans/2026-06-01-user-management.md            ← parent overview
-{{PROJECT}}-web/docs/plans/2026-06-01-user-management--schema.md     ← data layer
-{{PROJECT}}-web/docs/plans/2026-06-01-user-management--api-client.md ← API integration
-{{PROJECT}}-web/docs/plans/2026-06-01-user-management--user-list.md  ← list page UI
-{{PROJECT}}-web/docs/plans/2026-06-01-user-management--user-detail.md ← detail page UI; Depends on user-list
-```
-
-**Example (single module, no split needed):**
-
-```
-{{PROJECT}}-spec-center/specs/2026-06-01-feature-design.md   ← SSOT spec
-{{PROJECT}}-server/docs/plans/2026-06-01-feature.md               ← schema, API, tests
-{{PROJECT}}-web/docs/plans/2026-06-01-feature.md                  ← UI; Depends on server plan
-```
-
-### Spec Ownership Quick Reference
+Module-specific specs must link the shared specs they depend on. Each module keeps feature/design specs under `docs/specs/` and consequential implementation plans under `docs/plans/`; detailed placement and sequencing rules are in [WORKFLOW.md](./WORKFLOW.md).
 
 | What | Where |
 |---|---|
 | API endpoint definition | `{{PROJECT}}-spec-center/` |
 | Cross-module domain spec | `{{PROJECT}}-spec-center/specs/` |
-| Cross-module implementation plan | **Split** — one plan per module in `<module>/docs/plans/` (see [Implementation Plans](#implementation-plans-cross-module-features)) |
+| Cross-module implementation plan | **Split** — one plan per module in `<module>/docs/plans/` (see [WORKFLOW.md](./WORKFLOW.md)) |
 | Error code and format | `{{PROJECT}}-spec-center/` |
 | Response envelope | `{{PROJECT}}-spec-center/` |
 | Convention documents (project-private) | `{{PROJECT}}-spec-center/conventions/` (universal conventions: `code-conventions` skill) |
@@ -202,7 +125,7 @@ When working in a module, **load both** this file and the module's own `AGENTS.m
 
 **How**:
 
-1. **`{{PROJECT}}-spec-center/AGENTS.md`** — every file under `{{PROJECT}}-spec-center/` must appear in either the "Spec Center as SSOT" bullet list or the Repository Structure tree, with its actual filename and relative link.
+1. **`{{PROJECT}}-spec-center/AGENTS.md`** — every governing document under `{{PROJECT}}-spec-center/` must appear in either the "Spec Center as SSOT" bullet list or the Repository Structure tree, with its actual filename and relative link.
 2. **`<module>/AGENTS.md`** — list all depended-on spec-center documents under "Mandatory Specs", with relative links.
 
 ## Repository Structure

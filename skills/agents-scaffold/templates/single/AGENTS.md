@@ -19,25 +19,16 @@ This repo documents its own **contracts** and **specs** under `docs/` (contract 
 
 **Rule**: Every spec that governs behavior (API, error codes, conventions, domain contracts) MUST be discoverable from this file (see [Spec Document Index](#spec-document-index-mandatory-maintenance)). Transient feature specs under `docs/specs/` are the exception.
 
-## Development Paradigm: SDD + TDD
+## Development Workflow
 
-Before writing or changing any code, follow the agent coding behavior rules (think-before-coding, simplicity-first, surgical-changes, goal-driven execution, root-cause reasoning) — see the `engineering-guidelines` skill.
+Follow the `engineering-guidelines` skill for scope, autonomy, implementation, and verification. User instructions and applicable project rules take precedence over skill defaults.
 
-### Specification-Driven Development (SDD)
+- **Routine, reversible changes** with clear scope may be implemented directly. Do not create a spec, plan, approval pause, or test solely for ceremony.
+- Changes to **material behavior or contracts**, architecture, data handling, or migrations require the applicable spec to be updated before implementation.
+- Choose **proportionate verification** based on risk and observable outcomes. Add focused regression tests when they meaningfully protect changed behavior; use the `code-conventions` skill for test design after deciding tests are warranted.
+- Request review or approval only when the user, project process, or a consequential unresolved choice requires it. Do not repeat a decision already authorized in the current task.
 
-1. Write or update the relevant spec **first** (contracts and conventions under `docs/`; feature/design specs in `docs/specs/`).
-2. Get the spec reviewed and approved.
-3. Implement against the spec.
-
-### Test-Driven Development (TDD)
-
-1. From the spec, write failing tests.
-2. Write the minimum implementation to pass.
-3. Refactor while keeping tests green.
-
-For implementation-phase TDD details (AAA structure, naming, mocks, coverage, integration tests), see the `code-conventions` skill.
-
-**All code changes must trace back to a spec document.**
+Read [WORKFLOW.md](./WORKFLOW.md) when the task involves specs, contracts, implementation plans, or TDD.
 
 ## Authoritative Source: Contracts vs Design Specs
 
@@ -48,7 +39,7 @@ Not every document carries the same authority — distinguish two kinds:
 
 **Reading vs writing:**
 
-- **Writing** new/changed logic → start from a spec (SDD): update the design spec, then implement.
+- **Writing** material new/changed behavior or contracts → update the applicable spec before implementation. Routine, reversible changes may proceed without creating a spec.
 - **Reading / verifying / "what does the system do today"** → **current code is the source of truth**. A design spec states intent when written, not necessarily current behavior.
 - **Spec and code disagree** → never silently trust the spec. For a *design spec*, treat it as drift: verify against code and flag the spec for update. For a *contract*, the opposite default — the contract wins and the code is suspect.
 
@@ -56,38 +47,15 @@ Not every document carries the same authority — distinguish two kinds:
 
 [ROADMAP.md](./ROADMAP.md) is the **live status** of this project — current phase, in-progress work, blockers, open questions, todo, done. It is not a spec: specs state what the system should be, the roadmap states where the work stands right now.
 
-- **Read it first** when picking up work — current phase, blockers, next step — before planning or coding.
-- **Update it whenever project state changes**: a feature shipped, a bug fixed, a spec or contract landed, a significant investigation concluded. Read-only work (queries, analysis, reviews, throwaway commands) changes no state and needs no update.
+- **Read it when relevant**: before planning or continuing tracked work, or when current phase, blockers, and sequencing could affect the task. Routine untracked edits do not require loading it.
+- **Update it when tracked project state changes**: a tracked feature shipped, a blocker changed, a spec or contract landed, or a significant investigation produced a decision. Do not add entries for routine untracked edits or read-only work.
 - **Done means verified** — an item moves to Done only after it is implemented *and* verified, with the verification recorded in the entry. Implemented but unverified stays In Progress.
 - **Never guess** — anything unconfirmed goes to Open Questions, not into Todo or Done as if settled.
 - **Scope** — a README describes what the project is and how to use it; ROADMAP.md carries what changes.
 
 ## Implementation Plans
 
-Feature plans live under `docs/plans/`. Each plan declares its goal, scope, dependencies, steps, and acceptance criteria, and links the spec(s) it implements.
-
-**Plan structure:**
-
-1. **Spec first** — Write and approve the design spec in `docs/specs/` (and update the contract docs under `docs/` when the interface changes) before planning implementation.
-2. **One plan per feature** — Use a `YYYY-MM-DD-feature.md` filename for discoverability.
-3. **Declare dependencies** — A plan MUST link to the spec it implements and state `Depends on: <other-plan>` when sequencing matters.
-
-**Splitting large plans into sub-plans:** When a single plan is too large to review or execute in one pass (multiple phases or independent work streams), split it so each piece is reviewable and mergeable on its own:
-
-1. **Parent plan** — `docs/plans/YYYY-MM-DD-feature.md` with an overview, scope, and links to all sub-plans.
-2. **Sub-plans** — `docs/plans/YYYY-MM-DD-feature--<slug>.md` where `<slug>` names the sub-scope (e.g. `--schema`, `--api`, `--ui-list`). Each states its own goal, scope, dependencies, steps, and acceptance criteria.
-3. **Order** — The parent plan records the recommended execution order; sub-plans declare `Depends on: <sub-plan-slug>` when sequencing matters.
-4. **Don't over-split** — Keep each sub-plan a meaningful, self-contained unit of work; if a split only produces trivial fragments, keep it as one plan.
-
-**Example:**
-
-```
-docs/specs/2026-06-01-user-management.md              ← design spec
-docs/plans/2026-06-01-user-management.md              ← parent overview
-docs/plans/2026-06-01-user-management--schema.md      ← data layer
-docs/plans/2026-06-01-user-management--api.md         ← API + handlers; Depends on schema
-docs/plans/2026-06-01-user-management--ui-list.md     ← list UI; Depends on api
-```
+Create a plan under `docs/plans/` only when complexity, dependencies, sequencing, or acceptance checks need a durable artifact. Each plan links the governing spec when one exists. Detailed rules are in [WORKFLOW.md](./WORKFLOW.md).
 
 ## Domain-Driven Design (DDD)
 
@@ -125,6 +93,7 @@ A static map of the repo. Contract and convention documents live directly under 
 ├── CLAUDE.md          # → @AGENTS.md
 ├── CONTEXT.md         # Ubiquitous language (project glossary)
 ├── ROADMAP.md         # Live project status (phase, in progress, blocked, done)
+├── WORKFLOW.md        # Detailed development workflow (load when applicable)
 └── docs/
     ├── specs/         # Feature / design specifications (the "what")
     ├── plans/         # Implementation plans (the "how")
