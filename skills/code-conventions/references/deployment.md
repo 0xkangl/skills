@@ -39,7 +39,7 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 | 运行时密钥（JWT 签名密钥、pepper、第三方 key） | `openssl rand -hex 32` / 第三方控制台 | 平台 secret | 否（名字入 `.env.example`） |
 | 非敏感运行时配置清单 | [configuration.md](./configuration.md) §3 | 平台配置文件的 `[env]` / `vars` | **是** |
 | 日志 / 指标去向 | 平台自带或外部服务 | 配置文件（接入密钥走 secret） | 去向入仓 |
-| 回滚预案与责任人 | 项目决定 | 模块 `CLAUDE.md` / `docs/` | **是** |
+| 回滚预案与责任人 | 项目决定 | 模块 `AGENTS.md` / `docs/` | **是** |
 
 **准备顺序**：账号与付费 → 安装并登录 CLI → 创建 app / project（**先不部署**）→ 准备外部依赖（DB / KV / 队列）→ 灌密钥 → 首次部署 → 绑定域名与 TLS → 配置日志与告警。
 

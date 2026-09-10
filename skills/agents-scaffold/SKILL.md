@@ -1,13 +1,13 @@
 ---
 name: agents-scaffold
 disable-model-invocation: true
-description: Scaffolds a multi-repo (polyrepo) workspace, adds web / server / client / custom modules to an existing one, or initializes a standalone single-repo project in place from one template. Sets up the spec-center SSOT plus per-module repos (or a single repo's in-repo specs/contracts) with shared CLAUDE.md conventions via a zero-dependency Node script.
+description: Scaffolds a multi-repo (polyrepo) workspace, adds web / server / client / custom modules to an existing one, or initializes a standalone single-repo project in place from one template. Sets up the spec-center SSOT plus per-module repos (or a single repo's in-repo specs/contracts) with shared AGENTS.md conventions via a zero-dependency Node script.
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # Agents Scaffold
 
-> 偶发的结构性操作:搭建多仓工作区、向其中新增模块,或原地初始化单个独立仓库。所有确定性产物——拷模板、`{{PROJECT}}` 替换、`git init`,以及 `spec-center/CLAUDE.md` 的 Module Map 表与 Repository Structure 树——全部由零依赖脚本 `scripts/scaffold.mjs` 完成,以工作区实际存在的模块目录为单一真相,幂等。Claude 只负责:意图判定、收集输入、确认计划、调脚本、(失败时)处理残留、转述输出——不手工编辑生成产物。
+> 偶发的结构性操作:搭建多仓工作区、向其中新增模块,或原地初始化单个独立仓库。所有确定性产物——拷模板、`{{PROJECT}}` 替换、`git init`,以及 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树——全部由零依赖脚本 `scripts/scaffold.mjs` 完成,以工作区实际存在的模块目录为单一真相,幂等。Claude 只负责:意图判定、收集输入、确认计划、调脚本、(失败时)处理残留、转述输出——不手工编辑生成产物。
 
 ## 1. 模式选择(两步推导)
 
@@ -31,15 +31,15 @@ allowed-tools: Bash, Read, AskUserQuestion
    - 模块列表 `modules`:逗号分隔。`spec-center` 始终包含,无需用户指定。
 2. **展示计划表并确认**:列出将创建的目录(`<name>-spec-center` + 各模块)、目标目录(默认 `.`)、是否建 git,等用户确认是其想要的效果。
    - **冲突处理(默认备份,见 §10)**:目录自动合并;root 模板文件撞既有同名文件**默认备份**,无需另问。dry-run 的 `conflicts (will back up): ...` 行可提前告诉用户哪些文件会被备份。
-3. **调脚本**(确认后):见 §6。脚本会自动生成 `spec-center/CLAUDE.md` 的模块表与目录树,无需 Claude 介入。
-4. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,以及 `backed up:` 列出的备份文件(见 §10);若出现 `partial:` 段(中途失败),按 §7 处理残留。完成后提示后续开发流程见 `<project>-spec-center/CLAUDE.md`(含 spec-first 工作流)。
+3. **调脚本**(确认后):见 §6。脚本会自动生成 `spec-center/AGENTS.md` 的模块表与目录树,无需 Claude 介入。
+4. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,以及 `backed up:` 列出的备份文件(见 §10);若出现 `partial:` 段(中途失败),按 §7 处理残留。完成后提示后续开发流程见 `<project>-spec-center/AGENTS.md`(含 spec-first 工作流)。
 
 ## 3. Module 工作流
 
 1. **确认上下文**:工作区目录 `dir`。项目前缀 `name` **可省略**——脚本会从 `dir` 下唯一的 `<name>-spec-center/` 自动推断;Claude 可先 `ls` 工作区,把推断出的 `name` 报给用户确认。目录下有多个 `*-spec-center` 时脚本会报错,须显式传 `--name`。**若 `dir` 下根本没有 `*-spec-center/`**,脚本自动按 workspace 初始化(此时 `name` 取传入值或目录名),汇总会显示 `workspace:`——这正是 §1 的兜底,按 workspace 汇报即可。
 2. **收集新模块** `modules`:已存在的模块、`spec-center` 会被脚本自动跳过并在汇总里标注 `skipped`。
 3. **展示计划表并确认**。
-4. **调脚本**(确认后):见 §6。脚本会按工作区实际模块自动把新模块并入 `spec-center/CLAUDE.md` 的表与树。
+4. **调脚本**(确认后):见 §6。脚本会按工作区实际模块自动把新模块并入 `spec-center/AGENTS.md` 的表与树。
 5. **汇报**:转述 `added:` / `skipped:` 行,以及 `backed up:` 备份文件(见 §10);若出现 `partial:` 段,按 §7 处理残留。
 
 ## 4. Single 工作流(单仓库原地初始化)
@@ -49,10 +49,10 @@ allowed-tools: Bash, Read, AskUserQuestion
    - 工作区目录 `dir`(默认当前目录 `.`)。
    - 项目名 `name`:**可省略**——默认取 `dir` 的目录名;非 kebab-case 时脚本报错,提示显式传 `--name`。
 2. **展示计划表并确认**:列出目标目录、模板、项目名、是否复用/新建 git,等用户确认是其想要的效果。
-3. **调脚本**(确认后):见 §6。脚本把模板铺进目录根(去掉 `-<template>` 后缀,命名统一为 `<name>`),用「综合 spec-center、去多仓库」的治理文档合并生成 `CLAUDE.md`。契约/约定文档(API、错误码、约定)直接放 `docs/` 根,功能 specs / 计划复用 stack 模板自带的 `docs/specs`、`docs/plans`——**不建额外子目录**。
-4. **汇报**:转述 `single:` / `created:` 行,以及 `backed up:` 备份文件(见 §10);若出现 `partial:` 段,按 §7 处理残留(单仓库只回收本次新建的条目,绝不动预存的 `.git`/用户文件)。完成后提示项目规则见生成的 `CLAUDE.md`。
+3. **调脚本**(确认后):见 §6。脚本把模板铺进目录根(去掉 `-<template>` 后缀,命名统一为 `<name>`),用「综合 spec-center、去多仓库」的治理文档合并生成 `AGENTS.md`。契约/约定文档(API、错误码、约定)直接放 `docs/` 根,功能 specs / 计划复用 stack 模板自带的 `docs/specs`、`docs/plans`——**不建额外子目录**。
+4. **汇报**:转述 `single:` / `created:` 行,以及 `backed up:` 备份文件(见 §10);若出现 `partial:` 段,按 §7 处理残留(单仓库只回收本次新建的条目,绝不动预存的 `.git`/用户文件)。完成后提示项目规则见生成的 `AGENTS.md`。
 
-**冲突处理(默认备份,见 §10)**:目录自动合并;目标目录里若已存在模板要写的文件(`CLAUDE.md`、`Makefile` 等),**默认备份**为 `*.bak` 再写(`.git` 不在模板内,永不冲突)。
+**冲突处理(默认备份,见 §10)**:目录自动合并;目标目录里若已存在模板要写的文件(`AGENTS.md`、`Makefile` 等),**默认备份**为 `*.bak` 再写(`.git` 不在模板内,永不冲突)。
 
 ## 5. 模块模板对照
 
@@ -101,15 +101,15 @@ node scripts/scaffold.mjs single \
 
 脚本路径相对本 skill 目录;调用时用脚本的绝对/正确相对路径。
 
-## 7. `spec-center/CLAUDE.md` 由脚本维护 + 失败残留处理
+## 7. `spec-center/AGENTS.md` 由脚本维护 + 失败残留处理
 
-**结构生成全由脚本完成,Claude 不手工编辑。** 脚本在 workspace/module 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/CLAUDE.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `CLAUDE.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——workspace/module/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
+**结构生成全由脚本完成,Claude 不手工编辑。** 脚本在 workspace/module 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/AGENTS.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `AGENTS.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——workspace/module/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
 
-模块的语义留空块(各模块 `CLAUDE.md` 的 Key Responsibilities / Tech Stack、词汇表 `CONTEXT.md` 的 Language 小节等)属于后续开发,不是 scaffold 职责,按需在开发中填。
+模块的语义留空块(各模块 `AGENTS.md` 的 Key Responsibilities / Tech Stack、词汇表 `CONTEXT.md` 的 Language 小节等)属于后续开发,不是 scaffold 职责,按需在开发中填。
 
-**词汇表落点**:项目的 ubiquitous language 落在 `CONTEXT.md`,位置固定在**仓库根**——workspace 模式是 `<project>-spec-center/CONTEXT.md`,single 模式是项目根。这与外部 grilling / domain-modeling 类工具默认读写的路径一致,避免同一个项目分叉出两份词汇表。`CLAUDE.md` 的 Core Domain Concepts 只留指针,不重复定义术语。目标位置已有 `CONTEXT.md` 时按 §10 备份,绝不无声覆盖。
+**词汇表落点**:项目的 ubiquitous language 落在 `CONTEXT.md`,位置固定在**仓库根**——workspace 模式是 `<project>-spec-center/CONTEXT.md`,single 模式是项目根。这与外部 grilling / domain-modeling 类工具默认读写的路径一致,避免同一个项目分叉出两份词汇表。`AGENTS.md` 的 Core Domain Concepts 只留指针,不重复定义术语。目标位置已有 `CONTEXT.md` 时按 §10 备份,绝不无声覆盖。
 
-**进度表落点**:项目的活状态文档 `ROADMAP.md`(当前阶段/进行中/阻塞/待确认/待办/已完成)同样固定在**仓库根**——workspace 是 `<project>-spec-center/ROADMAP.md`(一个工作区只有一份,模块仓不各自留),single 是项目根。维护规则写在生成的 `CLAUDE.md` 的 Progress Tracking 一节;scaffold 只铺空骨架,不预填内容。目标位置已有同名文件时按 §10 备份。
+**进度表落点**:项目的活状态文档 `ROADMAP.md`(当前阶段/进行中/阻塞/待确认/待办/已完成)同样固定在**仓库根**——workspace 是 `<project>-spec-center/ROADMAP.md`(一个工作区只有一份,模块仓不各自留),single 是项目根。维护规则写在生成的 `AGENTS.md` 的 Progress Tracking 一节;scaffold 只铺空骨架,不预填内容。目标位置已有同名文件时按 §10 备份。
 
 **失败残留处理(脚本非原子)**:脚本中途失败时会在 stderr 打印:
 
@@ -135,7 +135,7 @@ Claude 须读出这些路径,用 `AskUserQuestion` 问用户是否删除,确认�
 
 ## 9. 后续与相关 skill
 
-- **开发流程**:工作区建好后,spec-first 工作流(spec 划分/所有权、跨模块 plan 拆分、spec 索引维护)见生成的 `<project>-spec-center/CLAUDE.md`——该模板内含 SDD 方法论,运行时直接承载,无需独立 skill。单仓库模式下,同等方法论(单仓库化)在生成的 `CLAUDE.md` 里直接承载。
+- **开发流程**:工作区建好后,spec-first 工作流(spec 划分/所有权、跨模块 plan 拆分、spec 索引维护)见生成的 `<project>-spec-center/AGENTS.md`——该模板内含 SDD 方法论,运行时直接承载,无需独立 skill。单仓库模式下,同等方法论(单仓库化)在生成的 `AGENTS.md` 里直接承载。
 - `code-conventions`:横切规范文档体系。模板留空 `conventions/` 目录——通用规范运行时引用本 skill,不落地;`conventions/` 仅承载项目私有规范。
 - `engineering-guidelines`:LLM/agent 编码行为准则。
 

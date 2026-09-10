@@ -46,7 +46,7 @@ test('getAvailableTemplateNames lists templates without root', () => {
 });
 
 test('getModuleRole reads first line under ## Role', () => {
-  // server 模板 CLAUDE.md 的 ## Role 下首行
+  // server 模板 AGENTS.md 的 ## Role 下首行
   const role = getModuleRole('server');
   assert.equal(typeof role, 'string');
   assert.ok(role.length > 0);
@@ -99,7 +99,7 @@ test('copyAndReplace replaces {{PROJECT}} in built-in template', () => {
   try {
     const target = join(dir, 'myapp-server');
     copyAndReplace('server', target, { PROJECT: 'myapp' });
-    const agents = fsReadFileSync(join(target, 'CLAUDE.md'), 'utf-8');
+    const agents = fsReadFileSync(join(target, 'AGENTS.md'), 'utf-8');
     assert.ok(!agents.includes('{{PROJECT}}'));
     assert.ok(agents.includes('myapp'));
   } finally {
@@ -115,14 +115,14 @@ test('e2e: workspace then two modules create module dirs as git repos on main', 
     runModule({ name: 'myapp', dir: ws, modules: 'web' });
     runModule({ name: 'myapp', dir: ws, modules: 'mobile=client' });
 
-    // 三个模块目录均落盘,各含 CLAUDE.md 正文与 AGENTS.md 指针
+    // 三个模块目录均落盘,各含 AGENTS.md 正文与 CLAUDE.md 指针
     for (const m of ['server', 'web', 'mobile']) {
-      assert.ok(existsSync(join(ws, `myapp-${m}`, 'CLAUDE.md')));
-      assert.equal(fsReadFileSync(join(ws, `myapp-${m}`, 'AGENTS.md'), 'utf-8').trim(), '@CLAUDE.md');
+      assert.ok(existsSync(join(ws, `myapp-${m}`, 'AGENTS.md')));
+      assert.equal(fsReadFileSync(join(ws, `myapp-${m}`, 'CLAUDE.md'), 'utf-8').trim(), '@AGENTS.md');
     }
 
-    // 自定义模块 mobile=client:模块自身 CLAUDE.md 完成改名 / role 替换
-    const mobileAgents = fsReadFileSync(join(ws, 'myapp-mobile', 'CLAUDE.md'), 'utf-8');
+    // 自定义模块 mobile=client:模块自身 AGENTS.md 完成改名 / role 替换
+    const mobileAgents = fsReadFileSync(join(ws, 'myapp-mobile', 'AGENTS.md'), 'utf-8');
     assert.ok(mobileAgents.includes('myapp-mobile'));
     assert.ok(!mobileAgents.includes('myapp-client'));
 
@@ -147,7 +147,7 @@ test('copyAndReplace renames template ref + role for custom module', () => {
       TEMPLATE_REF: 'server',
       ORIGINAL_ROLE: originalRole,
     });
-    const agents = fsReadFileSync(join(target, 'CLAUDE.md'), 'utf-8');
+    const agents = fsReadFileSync(join(target, 'AGENTS.md'), 'utf-8');
     // 模板引用名 -server → -api-gateway
     assert.ok(!agents.includes('myapp-server'));
     assert.ok(agents.includes('myapp-api-gateway'));
@@ -412,12 +412,12 @@ test('main runs workspace via subcommand (integration)', () => {
   }
 });
 
-test('workspace generates spec-center CLAUDE.md: placeholders replaced, markers kept, module rows + tree filled', () => {
+test('workspace generates spec-center AGENTS.md: placeholders replaced, markers kept, module rows + tree filled', () => {
   const dir = mkdtempSync(join(tmpdir(), 'prs-'));
   try {
     const ws = join(dir, 'myapp');
     runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
-    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(!sc.includes('{{PROJECT}}'));                 // 占位符已替换
     assert.ok(sc.includes('<!-- MODULE_MAP_START -->'));    // 锚点保留(供 add 再生成)
     assert.ok(sc.includes('<!-- REPO_TREE_END -->'));
@@ -437,11 +437,11 @@ test('generated tree flips connectors when modules are added (spec-center no lon
   try {
     const ws = join(dir, 'myapp');
     runWorkspace({ name: 'myapp', dir: ws, modules: '', noGit: true });   // 仅 spec-center
-    let sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    let sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('└── myapp-spec-center/'));   // 唯一模块时末位
     // 加模块后,spec-center 不再是末位
     runModule({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
-    sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('├── myapp-spec-center/'));
     assert.ok(sc.includes('└── myapp-server/'));
   } finally {
@@ -454,7 +454,7 @@ test('Module Map role for custom modules uses "<Name> application"', () => {
   try {
     const ws = join(dir, 'shop');
     runWorkspace({ name: 'shop', dir: ws, modules: 'checkout=server,mobile=client', noGit: true });
-    const sc = fsReadFileSync(join(ws, 'shop-spec-center', 'CLAUDE.md'), 'utf-8');
+    const sc = fsReadFileSync(join(ws, 'shop-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('| `shop-checkout` | Checkout application |'));
     assert.ok(sc.includes('| `shop-mobile` | Mobile application |'));
   } finally {
@@ -467,7 +467,7 @@ test('updateSpecCenterAgents is idempotent (re-run yields identical file)', () =
   try {
     const ws = join(dir, 'myapp');
     runWorkspace({ name: 'myapp', dir: ws, modules: 'server,web', noGit: true });
-    const agentsPath = join(ws, 'myapp-spec-center', 'CLAUDE.md');
+    const agentsPath = join(ws, 'myapp-spec-center', 'AGENTS.md');
     const first = fsReadFileSync(agentsPath, 'utf-8');
     updateSpecCenterAgents(ws, 'myapp');
     const second = fsReadFileSync(agentsPath, 'utf-8');
@@ -485,7 +485,7 @@ test('custom-name rename guards against touching unrelated -spec-center refs', (
     copyAndReplace('server', target, {
       PROJECT: 'myapp', MODULE_NAME: 'api', TEMPLATE_REF: 'server', ORIGINAL_ROLE: getModuleRole('server'),
     });
-    const agents = fsReadFileSync(join(target, 'CLAUDE.md'), 'utf-8');
+    const agents = fsReadFileSync(join(target, 'AGENTS.md'), 'utf-8');
     assert.ok(agents.includes('myapp-api'));            // 自身名已改
     assert.ok(!agents.includes('myapp-server'));        // 不残留模板名
     assert.ok(agents.includes('myapp-spec-center'));    // 跨模块引用完好,未被 -server\b 误伤
@@ -528,8 +528,8 @@ test('runModule reports created dirs on partial failure (err.created)', () => {
   try {
     const ws = join(dir, 'myapp');
     runWorkspace({ name: 'myapp', dir: ws, modules: 'server', noGit: true });
-    // 删掉 spec-center 的 CLAUDE.md,使 updateSpecCenterAgents 在模块创建后抛错
-    rmSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'));
+    // 删掉 spec-center 的 AGENTS.md,使 updateSpecCenterAgents 在模块创建后抛错
+    rmSync(join(ws, 'myapp-spec-center', 'AGENTS.md'));
     let caught;
     try {
       runModule({ name: 'myapp', dir: ws, modules: 'web', noGit: true });
@@ -561,8 +561,8 @@ test('single: in-place init merges governance + module section, strips suffix, s
     assert.ok(!existsSync(join(proj, 'docs', 'api')));   // 不建 docs 子目录
     assert.ok(!existsSync(join(proj, 'docs', 'errors')));
 
-    // CLAUDE.md:治理 + 模块 Role,无多仓库残留,后缀已去,占位符已替换
-    const agents = fsReadFileSync(join(proj, 'CLAUDE.md'), 'utf-8');
+    // AGENTS.md:治理 + 模块 Role,无多仓库残留,后缀已去,占位符已替换
+    const agents = fsReadFileSync(join(proj, 'AGENTS.md'), 'utf-8');
     assert.ok(agents.startsWith('# demo-app'));
     assert.ok(agents.includes('## Role'));
     assert.ok(agents.includes('Server application'));
@@ -580,7 +580,7 @@ test('single: in-place init merges governance + module section, strips suffix, s
 
     // 单仓措辞的 Claude rule 已铺进 .claude/rules(不含多仓 spec-center 引用)
     const rule = fsReadFileSync(join(proj, '.claude', 'rules', 'engineering-guidelines.md'), 'utf-8');
-    assert.ok(rule.includes('repo root `CLAUDE.md`'));
+    assert.ok(rule.includes('repo root `AGENTS.md`'));
     assert.ok(!rule.includes('spec-center'));
 
     // git on main
@@ -683,8 +683,8 @@ test('workspace: CONTEXT.md lands in spec-center root and is listed in the repo 
     const ctx = fsReadFileSync(join(ws, 'myapp-spec-center', 'CONTEXT.md'), 'utf-8');
     assert.ok(ctx.startsWith('# Context — myapp'));
     assert.ok(!ctx.includes('{{PROJECT}}'));
-    // 索引规则:spec-center 下每个治理文档都要出现在 CLAUDE.md 的树或 SSOT 列表里
-    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    // 索引规则:spec-center 下每个治理文档都要出现在 AGENTS.md 的树或 SSOT 列表里
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('├── CONTEXT.md'));
     assert.ok(sc.includes('[CONTEXT.md](./CONTEXT.md)'));
     assert.ok(!sc.includes('Define project core domain concepts here'));   // 空节已换成指针
@@ -702,7 +702,7 @@ test('single: CONTEXT.md lands in the repo root with placeholders replaced', () 
     assert.ok(ctx.startsWith('# Context — demo-app'));
     assert.ok(!ctx.includes('{{PROJECT}}'));
     assert.ok(!existsSync(join(proj, 'docs', 'CONTEXT.md')));   // 只有仓库根一份,不分叉
-    const agents = fsReadFileSync(join(proj, 'CLAUDE.md'), 'utf-8');
+    const agents = fsReadFileSync(join(proj, 'AGENTS.md'), 'utf-8');
     assert.ok(agents.includes('[CONTEXT.md](./CONTEXT.md)'));
     assert.ok(agents.includes('├── CONTEXT.md'));
   } finally {
@@ -737,8 +737,8 @@ test('workspace: ROADMAP.md lands in spec-center root and is listed in the repo 
     assert.ok(roadmap.startsWith('# Roadmap — myapp'));
     assert.ok(!roadmap.includes('{{PROJECT}}'));
     assert.ok(!existsSync(join(ws, 'myapp-server', 'ROADMAP.md')));
-    // 索引规则:spec-center 下每个治理文档都要出现在 CLAUDE.md 的树或 SSOT 列表里
-    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'CLAUDE.md'), 'utf-8');
+    // 索引规则:spec-center 下每个治理文档都要出现在 AGENTS.md 的树或 SSOT 列表里
+    const sc = fsReadFileSync(join(ws, 'myapp-spec-center', 'AGENTS.md'), 'utf-8');
     assert.ok(sc.includes('├── ROADMAP.md'));
     assert.ok(sc.includes('[ROADMAP.md](./ROADMAP.md)'));
   } finally {
@@ -755,7 +755,7 @@ test('single: ROADMAP.md lands in the repo root with placeholders replaced', () 
     assert.ok(roadmap.startsWith('# Roadmap — demo-app'));
     assert.ok(!roadmap.includes('{{PROJECT}}'));
     assert.ok(!existsSync(join(proj, 'docs', 'ROADMAP.md')));   // 只有仓库根一份
-    const agents = fsReadFileSync(join(proj, 'CLAUDE.md'), 'utf-8');
+    const agents = fsReadFileSync(join(proj, 'AGENTS.md'), 'utf-8');
     assert.ok(agents.includes('[ROADMAP.md](./ROADMAP.md)'));
     assert.ok(agents.includes('├── ROADMAP.md'));
   } finally {

@@ -1,6 +1,6 @@
 # Roadmap — {{PROJECT}}
 
-The **live status** of this workspace: current phase, what is moving, what is stuck, what is done. One roadmap covers all modules — modules do not keep their own. Maintenance rules live in [CLAUDE.md](./CLAUDE.md#progress-tracking).
+The **live status** of this workspace: current phase, what is moving, what is stuck, what is done. One roadmap covers all modules — modules do not keep their own. Maintenance rules live in [AGENTS.md](./AGENTS.md#progress-tracking).
 
 **Current phase**: <!-- e.g. MVP — core API and web shell -->
 
