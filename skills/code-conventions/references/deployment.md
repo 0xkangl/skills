@@ -315,6 +315,7 @@ CI 只做三件事：拉代码 → 跑检查与构建 → 用 token 部署。凭
 
 ## 8. Release Checklist
 
+- [ ] 部署／发布文档已按[项目文档规范](./project-documentation.md#readme-与详细文档)建立或更新，README 提供入口。
 - [ ] §2 的资料齐全，密钥已在目标环境设好（**先配置、后部署**）。
 - [ ] 每个变量按 §3 归位：非敏感稳定项在 `[env]` / `vars`，敏感项在 secret，**无一项两处重复**。
 - [ ] 工作树干净，`release-check`（lint + 漏洞扫描 + 测试）全绿。

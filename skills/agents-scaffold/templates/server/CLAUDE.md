@@ -16,6 +16,9 @@ Server application
 <!-- Define build, test, lint commands here -->
 
 ## Deployment
+
+- **Documentation**: 首次部署前，按 `code-conventions` skill 维护部署文档（沿用已有位置，否则使用 `docs/deployment.md`），在本节与 README 中添加实际文档链接；流程或配置变更时同步更新。初始化时方案尚未确定，待确定后再创建文档。
+
 <!-- 只记本模块的部署事实。发版前置资料、[env] 与 secret 的归属判据、发版执行顺序、验证与回滚规则见 `code-conventions` skill 的部署规范 —— 不要在此重复。 -->
 
 - **Platform / App**: Fly.io <!-- app 名;staging 与 production 各一个 app -->
