@@ -1,101 +1,49 @@
 ---
 name: engineering-guidelines
-description: Use when writing or modifying any code, before implementation — enforces think-before-coding, simplicity-first, surgical-changes, goal-driven execution, and root-cause reasoning.
+description: Use when implementing features, fixing bugs, or refactoring code to calibrate scope, autonomy, implementation complexity, and verification.
 ---
 
 # Engineering Guidelines
 
-> LLM/agent coding behavior guidelines. Applies to all modules and development tools.
+Engineering defaults for completing the requested change with bounded scope and observable verification.
 
-## 1. Think Before Coding
+## Scope and autonomy
 
-Don't assume. Don't hide confusion. Surface tradeoffs.
+- Follow applicable project and directory rules; read relevant code and docs before editing. Explicit user requirements override this skill's defaults within the host's instruction hierarchy. This skill grants no permissions and cannot override platform restrictions.
+- Carry forward prior authorization and later corrections. Assessment-only requests end with findings; implementation requests continue through authorized work, verification, and delivery.
+- Resolve routine, reversible details from context; state assumptions affecting the result. Ask about gaps materially affecting behavior, architecture, data handling, or authorization, while continuing independent work. Reopen settled decisions only with new evidence.
+- Complete authorized preparation before requesting additional authorization. Implementation alone does not authorize committing, pushing, publishing, deploying, or unrelated external writes. When rules block progress, identify the file, relevant wording, and effect; distinguish requirements from your interpretation.
+- Before deleting, overwriting, or performing other hard-to-recover actions, verify authorization and exact targets, and assess recovery options proportionate to risk. Existing authorization does not require repeated confirmation. If a newly discovered material risk exceeds that authorization, pause affected actions and request the necessary decision while continuing independent authorized work.
+- Identify expected behavior and acceptance checks. Share a short scope and verification plan for complex or consequential changes; routine edits need no formal plan.
 
-Before implementing:
+## Evidence and context
 
-- Read relevant files, understand the architecture, find existing implementations.
-- Read the project's own rules first — root `CLAUDE.md` / `AGENTS.md`, plus the same docs in any submodule/subdirectory you'll touch, and nearby READMEs. Project conventions outrank your defaults; deeper (closer) docs outrank the root.
-- A file, function, or flag someone names is not proof it exists — check before relying on it. If it doesn't exist, say so; never invent a signature or a config key.
-- State your assumptions explicitly. If the request already carries concrete constraints, act on them and note your assumptions inline — don't re-ask what the user already settled.
-- If multiple interpretations exist, present them — don't pick silently.
-- Ask only when different readings would produce materially different work; then ask **all** clarifying questions at once, before acting — no partial starts.
-- If a simpler approach exists, say so. Push back when warranted.
+- Verify named files, APIs, flags, and configuration before relying on them. For changing external facts or uncertain interfaces, retrieve first-party documentation appropriate to the version in use. An inaccessible source does not establish absence.
+- Search narrowly, expanding as evidence requires. Batch independent reads when supported; inspect results before dependent actions. When delegation is permitted and useful, give subagents the goal, relevant context, dependencies, allowed and excluded changes, settled interfaces, and acceptance checks; review their actual work and verification evidence.
+- Prefer suitable dedicated APIs, connectors, or CLIs for supported operations; use interface interaction when the task requires it or other methods are unsuitable. Opening a preview does not verify rendering or interaction; inspect those separately when required by the acceptance checks.
+- Correct mistakes and explain disagreements using requirements and evidence. Share decision-relevant rationale, not internal deliberation.
 
-## 2. Simplicity First
+## Simple, focused changes
 
-Minimum code that solves the problem. Nothing speculative.
+- Implement the requested behavior completely with the simplest fitting design. Add abstractions, configuration, or compatibility layers only for concrete needs; weigh correctness, maintenance, operational cost, and implementation effort.
+- Reuse standard-library and existing project capabilities. Explain new dependencies when existing options are insufficient. Before adopting a dependency in production paths, security boundaries, core data handling, or a role that is costly to replace, check maintenance status, recent releases, issue responsiveness, and maintainer activity. Detailed dependency auditing and licensing guidance is available in the `code-conventions` skill.
+- Handle realistic boundary failures involving external input, networks, and persisted data. Avoid redundant defenses against conditions ruled out by verified internal contracts.
+- Inspect the working state and preserve unrelated user changes. Use focused patches and existing style, including comment language. Refactoring and cleanup must serve the request; remove code your edit makes unused, and report unrelated findings without fixing them.
+- Before deleting apparently unused code or files, check the project's relevant dynamic loading, configuration, build, and runtime entrypoints. Lack of static references alone is insufficient; retain uncertain cases and report the evidence gap.
+- Preserve external contracts unless the request changes them; synchronize affected callers, tests, and documentation for authorized contract changes.
+- Keep existing documentation consistent with changes to configuration, installation, operation, usage, or project status. Follow the project's document ownership conventions; do not manufacture updates to unaffected documents or require new tracking files.
+- Follow project conventions for temporary files and generated artifacts; use an appropriate temporary location when none is defined. Keep deliverables distinct from disposable files. Clean up only confirmed task-owned, regenerable non-deliverables within applicable authorization; do not clear shared temporary directories or remove pre-existing or unknown files.
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- Don't duplicate existing abstractions.
-- Before adding a dependency, prove that neither an existing dependency nor the standard library solves it; if you add one, say why in one line.
-- Don't introduce a second library for a capability the project already has (fetch → no axios, date-fns → no moment). Dependency auditing and licensing live in the `code-conventions` skill.
+## Root cause and verification
 
-Ask yourself: *"Would a senior engineer say this is overcomplicated?"* If yes, simplify.
+- Establish a bug through reproduction, a failing test, or a concrete trace; verify the fix addresses its cause and relevant failure paths. When attempts yield no new evidence, revisit the hypothesis or gather different diagnostics.
+- When debugging external interfaces, consult version-appropriate official docs or a working reference, then compare relevant headers, payload fields, parameter generation, and serialization or signing logic. Fix confirmed, in-scope discrepancies and retest; avoid unsupported attribution or repeated costly user-assisted trials.
+- Do not hide errors, weaken assertions, or disable checks to obtain a pass. Update tests made obsolete by intentional behavior changes while retaining meaningful coverage.
+- Match verification to risk, including relevant boundaries and project-required checks. Add focused regression tests that protect changed behavior; avoid implementation-mirroring tests or a new test framework for trivial edits.
+- Check observable outcomes, not just exit codes. Inspect artifacts or consumers when writes could silently miss their target. Expected no-ops, including already-satisfied idempotent operations, are valid results.
+- Deliver once relevant and required checks pass. Repeat or broaden checks only for new changes, failures, or concrete concerns. If blocked, finish independent work and report remaining requirements and missing evidence.
 
-## 3. Surgical Changes
+## Communication and handoff
 
-Touch only what you must. Clean up only your own mess.
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that **your** changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-**The test:** Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-**Evidence before assertions:** Never call work done, fixed, or passing without having run the check — claiming "verified", "searched", or "the docs say" means you can show the command, its output, or the source. If you cannot verify, say why, once; absent a claim, no disclaimer is needed either.
-
-**A clean exit code is not proof of effect.** A command that ran, returned 0, and did nothing — matched no files, generated no output, wrote to a path nobody reads — is a silent failure, not a success. Check the observable result, and check it somewhere that cannot mask the failure (a script's own self-check runs inside the process that would hide the problem). Report "ran but produced nothing" as a failure.
-
-**An unavailable search channel is not evidence of absence.** If a tool, path, or source you needed could not be reached, say which one and what you skipped — never let "I couldn't look" surface as "it doesn't exist."
-
-## 5. Reasoning Standards
-
-Analyze from root cause, not surface symptoms.
-
-- **First principles:** Trace to root cause; don't patch surface symptoms.
-- **No bypasses:** Never comment out an error, skip or disable a test, or add a bypass flag to make things pass — fix the cause, or report the blocker.
-- **Facts over feelings:** Correct mistakes directly, list options, recommend the best one.
-- **When challenged:** Validate from requirements first, not from pressure — if the premise is flawed, push back with a question.
-- **When evaluating solutions:** Think in industry-standard, production-grade terms. Ignore implementation time cost; weigh operational cost.
-
-## 6. Code Style
-
-- Comment language follows the project's convention, default to simplified Chinese.
-- Keep explanations concise — no preamble.
-
-## After Coding Checklist
-
-- [ ] Imports are correct and unused ones (caused by your changes) are removed.
-- [ ] Types are correct.
-- [ ] Edge cases are handled.
-- [ ] No unrelated code was touched.
-- [ ] No existing APIs were broken.
+- During sustained work, provide progress updates with findings, decisions, or blockers. Make the final answer self-contained: outcome, changed locations, verification results, and material limitations.
+- Claims of searching, verification, or official guidance require actual retrieval or checks, supported by source links or command results. Distinguish observations from inferences; do not claim unverified success. Performance improvements require comparable before-and-after measurements.
