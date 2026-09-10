@@ -21,7 +21,7 @@ description: Use when writing or modifying code, maintaining project documentati
 | 日志 / 可观测性 | [references/observability.md](references/observability.md) | 所有模块 | 结构化日志（JSON/text）、日志级别判据、逻辑位置、traceId 上下文贯穿、分级脱敏、CLI/批处理日志、命名约定 |
 | 测试 | [references/testing.md](references/testing.md) | 所有模块 | 测试分类、AAA 结构、命名、mock 哲学、覆盖率目标、集成测试 |
 | 项目文档 | [references/project-documentation.md](references/project-documentation.md) | 初始化或维护项目文档 | 指令入口与内容归属、README 真实性、进度记录和按需同步 |
-| 仓库 / Git 工作流 | [references/repository-workflow.md](references/repository-workflow.md) | 初始化仓库、维护忽略规则或执行 Git 写操作 | 分支约定、操作授权、提交范围、忽略文件与配置模板 |
+| 仓库 / Git 工作流 | [references/repository-workflow.md](references/repository-workflow.md) | 初始化仓库、配置 CI、维护忽略规则或执行 Git 写操作 | 分支约定、操作授权、提交范围、GitHub Actions 持续集成、忽略文件与配置模板 |
 | 提交信息 | [references/conventional-commits.md](references/conventional-commits.md) | 所有模块 | Git 提交信息规范：type、scope、格式 |
 | 错误码 | [references/error-codes.md](references/error-codes.md) | 所有 API | 业务错误码注册表：码段划分、`{code, message, details}` 信封 |
 | 容器 / Docker | [references/docker.md](references/docker.md) | 所有容器化模块 | Dockerfile 规范：多阶段构建、层缓存顺序、非 root 用户、`.dockerignore`、必要注释 |

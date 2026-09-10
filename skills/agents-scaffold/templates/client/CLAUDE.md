@@ -15,6 +15,8 @@ Client application (Android, iOS, desktop)
 ## Build & Test
 <!-- Define build, test, lint commands here -->
 
+- **CI / Workflows**: 使用 GitHub 托管时，按 `code-conventions` skill 在 `.github/workflows/` 配置适用的持续集成检查；需要自动部署或发布时配置对应 workflow。已有 workflow 优先维护；技术栈与检查命令确定后生成 CI workflow，发布方式确定后再生成部署／发布 workflow，相关变更时同步维护。
+
 ## Deployment
 
 - **Documentation**: 首次发布前，按 `code-conventions` skill 维护发布文档（沿用已有位置，否则使用 `docs/release.md`），在本节与 README 中添加实际文档链接；流程或配置变更时同步更新。初始化时方案尚未确定，待确定后再创建文档。

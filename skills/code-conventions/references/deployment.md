@@ -290,7 +290,9 @@ Pages 同样只用 CLI + API token：项目在面板创建一次（或 `wrangler
 
 ## 7. CI 集成
 
-CI 只做三件事：拉代码 → 跑检查与构建 → 用 token 部署。凭据来自仓库 secret，命令与本地完全一致。
+使用 GitHub 托管且需要自动部署或发布的项目，应在 `.github/workflows/` 配置对应 workflow，明确触发条件、目标环境、凭据来源、执行顺序及验证方式，并在部署／发布文档中说明。已有 workflow 优先维护；发布方式尚未确定时，待确定后再生成，不预填发布流程。
+
+部署 workflow 的基本顺序：拉代码 → 跑检查与构建 → 用 token 部署 → 部署后验证。凭据来自仓库 secret，命令与本地完全一致。仅运行检查的 CI 见[仓库工作流规范](repository-workflow.md#github-actions-持续集成)。
 
 ```yaml
 # Fly.io
