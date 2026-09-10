@@ -2,6 +2,8 @@
 
 > Git commit message convention. Applies to all modules.
 
+This document governs message content, not permission to commit or publish. For staging, authorization, branches, and ignore rules, see [repository-workflow.md](repository-workflow.md).
+
 ## Format
 
 Strictly follow [Conventional Commits](https://www.conventionalcommits.org/):
@@ -36,7 +38,8 @@ Strictly follow [Conventional Commits](https://www.conventionalcommits.org/):
 - Say what changed, why, and what it affects. Vague subjects are not acceptable.
 - ❌ `fix: fix bug` / `refactor: optimize code` / `chore: adjust` / `feat: update` — these carry no information in `git log`.
 - ✅ `fix(notifier): return a non-zero exit code when push fails, so main stops reporting success`
-- Imperative mood, ≤72 chars, no trailing period. What doesn't fit goes in the body — the subject still names the module and the behavior.
+- ≤72 chars, no trailing period. What doesn't fit goes in the body — the subject still names the module and the behavior.
+- Follow the project's language convention; use imperative mood where appropriate to that language. Do not impose Chinese-only or English-only messages. Authorship and co-author trailers follow explicit user and project requirements; neither invent authors nor impose a universal ban on attribution.
 
 ## Examples
 

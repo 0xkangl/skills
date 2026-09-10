@@ -1,15 +1,15 @@
 ---
 name: code-conventions
-description: Use when writing or modifying code - designing HTTP APIs, adding structured logging/observability, writing tests, formatting commit messages, defining error codes, designing error-handling flow, naming config/env vars or handling secrets/keys, writing Dockerfiles/containerizing services, writing database migrations or changing schema, deploying or releasing a service (Fly.io, Cloudflare Workers/Pages via wrangler, env-vs-secret placement, release order and rollback), applying the security baseline, naming/code-style or design patterns, or building services in Go, Python, TypeScript/JavaScript, Rust, React, or Flutter/Dart. Routes to the matching convention document before implementing.
+description: Use when writing or modifying code, maintaining project documentation, configuring Git workflows or ignore rules, preparing commits, or deploying services. Routes to conventions for APIs, logging, testing, errors, configuration and secrets, security, containers, database migrations, releases, code style, and Go, Python, TypeScript/JavaScript, Rust, React, or Flutter/Dart.
 ---
 
 # Code Conventions
 
-> 横切规范的统一索引。每篇规范定义所有模块 MUST 遵循的跨领域规则。动手前先按下表加载对应文档。
+横切工程规范的统一索引。按任务与文档 Scope 加载相关规范，不要求每次读取全部文档；沿用项目明确约定，不能将参考示例视为操作授权。
 
 ## 通用规范（Universal）
 
-适用于所有模块，与技术栈无关。
+与技术栈无关，按实际涉及的关注点选用。
 
 | 关注点 | 文档 | Scope | Description |
 |---|---|---|---|
@@ -20,6 +20,8 @@ description: Use when writing or modifying code - designing HTTP APIs, adding st
 | 配置 / 密钥 | [references/configuration.md](references/configuration.md) | 所有模块 | 环境变量命名、缓存/队列双前缀、模块间 internal token、密钥与 HKDF 派生、JWT TTL（web 短时效）、第三方 stub 模式、服务端口 |
 | 日志 / 可观测性 | [references/observability.md](references/observability.md) | 所有模块 | 结构化日志（JSON/text）、日志级别判据、逻辑位置、traceId 上下文贯穿、分级脱敏、CLI/批处理日志、命名约定 |
 | 测试 | [references/testing.md](references/testing.md) | 所有模块 | 测试分类、AAA 结构、命名、mock 哲学、覆盖率目标、集成测试 |
+| 项目文档 | [references/project-documentation.md](references/project-documentation.md) | 初始化或维护项目文档 | 指令入口与内容归属、README 真实性、进度记录和按需同步 |
+| 仓库 / Git 工作流 | [references/repository-workflow.md](references/repository-workflow.md) | 初始化仓库、维护忽略规则或执行 Git 写操作 | 分支约定、操作授权、提交范围、忽略文件与配置模板 |
 | 提交信息 | [references/conventional-commits.md](references/conventional-commits.md) | 所有模块 | Git 提交信息规范：type、scope、格式 |
 | 错误码 | [references/error-codes.md](references/error-codes.md) | 所有 API | 业务错误码注册表：码段划分、`{code, message, details}` 信封 |
 | 容器 / Docker | [references/docker.md](references/docker.md) | 所有容器化模块 | Dockerfile 规范：多阶段构建、层缓存顺序、非 root 用户、`.dockerignore`、必要注释 |
