@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0](https://github.com/0xkangl/skills/compare/v1.2.0...v1.3.0) (2026-11-11)
+
+
+### Features
+
+* **code-conventions:** 按业务模块组织 Go 服务代码 ([a625bee](https://github.com/0xkangl/skills/commit/a625beeb00397a47b6f15f57833c9a5e0ba85de2))
+* **code-conventions:** 规范数据库分页、请求日志与缓存层级 ([63b1ddd](https://github.com/0xkangl/skills/commit/63b1ddd4a3cd51235c4bd6d3c5a018cd3ab1b5cf))
+
+
+### Bug Fixes
+
+* **code-conventions:** 对齐指令与示例并完善服务配置 ([de9367e](https://github.com/0xkangl/skills/commit/de9367e72b0cb08bc7597e95d828f2f7933164ce))
+* **engineering-guidelines:** 对齐三方规范并恢复历史需求 ([6cd0487](https://github.com/0xkangl/skills/commit/6cd0487fe942e76de609c9ac5eb5fbdec7205afe))
+* **skills:** 优化诊断修复编排与报告合并可靠性 ([dec6835](https://github.com/0xkangl/skills/commit/dec68358f2279d23bcd45ca0198115d8d019470a))
+
 ## [1.2.0](https://github.com/0xkangl/skills/compare/v1.1.0...v1.2.0) (2026-09-10)
 
 
