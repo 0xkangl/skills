@@ -170,8 +170,9 @@ export function copyAndReplace(templateName, targetDir, vars, opts = {}) {
     throw new Error(`Template not found: "${templateName}" (looked in ${srcDir})`);
   }
 
-  const backedUp = [];
-  const created = [];
+  // 调用方可共享记录数组，复制中途失败也保留已完成的操作。
+  const backedUp = opts.backedUp || [];
+  const created = opts.created || [];
   for (const srcFile of walkFiles(srcDir)) {
     const destFile = join(targetDir, relative(srcDir, srcFile));
     const existed = existsSync(destFile);
@@ -213,8 +214,18 @@ export function createModule(templateRef, modDir, projectName, mod, opts = {}) {
       vars.ORIGINAL_ROLE = null;
     }
   }
-  copyAndReplace(templateRef, modDir, vars);
-  if (!opts.noGit) gitInit(modDir, mod.name);
+  const dirExisted = existsSync(modDir);
+  if (!dirExisted) {
+    mkdirSync(modDir, { recursive: true });
+    opts.created?.push(modDir);   // 复制或 git 失败时也能汇报新建目录
+  }
+  const copied = copyAndReplace(templateRef, modDir, vars, {
+    onConflict: opts.onConflict,
+    created: dirExisted ? opts.created : undefined,
+    backedUp: opts.backedUp,
+  });
+  if (!opts.noGit && !existsSync(join(modDir, '.git'))) gitInit(modDir, mod.name);
+  return copied;
 }
 
 const SPEC_CENTER_SUFFIX = '-spec-center';
@@ -381,7 +392,10 @@ export function runWorkspace(flags) {
     return {
       mode: 'workspace', dryRun: true, dir, name,
       modules: modules.map((m) => m.name), skipped: parsed.skipped,
-      conflicts: detectTreeConflicts('root', dir), onConflict,
+      conflicts: [
+        ...detectTreeConflicts('root', dir),
+        ...modules.flatMap((m) => detectTreeConflicts(m.templateRef, join(dir, `${name}-${m.name}`))),
+      ], onConflict,
     };
   }
 
@@ -393,14 +407,13 @@ export function runWorkspace(flags) {
     if (!dirExisted) created.push(dir);   // 目录本次新建,失败可整体清理
 
     // 目录合并;root 顶层文件撞既有同名文件按 onConflict 处理(默认备份)
-    const rootCopy = copyAndReplace('root', dir, { PROJECT: name }, { onConflict });
-    backedUp.push(...rootCopy.backedUp);
-    if (dirExisted) created.push(...rootCopy.created);   // 既有目录:逐文件记录本次可安全回滚项
+    copyAndReplace('root', dir, { PROJECT: name }, {
+      onConflict, created: dirExisted ? created : undefined, backedUp,
+    });
 
     for (const mod of modules) {
       const modDir = join(dir, `${name}-${mod.name}`);
-      createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
-      created.push(modDir);
+      createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit, onConflict, created, backedUp });
     }
     updateSpecCenterAgents(dir, name);
   } catch (err) {
@@ -478,19 +491,20 @@ export function runModule(flags) {
   }
 
   const created = [];
+  const backedUp = [];
   try {
     for (const mod of toCreate) {
       const modDir = join(dir, `${name}-${mod.name}`);
-      createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit });
-      created.push(modDir);
+      createModule(mod.templateRef, modDir, name, mod, { noGit: flags.noGit, onConflict: flags.onConflict, created, backedUp });
     }
     updateSpecCenterAgents(dir, name);
   } catch (err) {
     err.created = created;   // module 只回收本次新建的模块目录,不碰既有模块
+    err.backedUp = backedUp;
     throw err;
   }
 
-  return { mode: 'module', dir, name, modules: toCreate.map((m) => m.name), skipped };
+  return { mode: 'module', dir, name, modules: toCreate.map((m) => m.name), skipped, backedUp };
 }
 
 // 单仓库治理片段模板名(与 root 一样不进 workspace/module 的可选模块列表)
@@ -556,9 +570,9 @@ export function runSingle(flags) {
       created.push(dir);   // 目录由本次创建,失败可整体清理
     }
     // 铺 stack 模板到 dir 根 + 去 -<template> 后缀;目录合并,文件冲突按 onConflict(默认备份)
-    const cp = copyAndReplace(template, dir, { PROJECT: name, STRIP_SUFFIX: template }, { onConflict });
-    backedUp.push(...cp.backedUp);
-    if (dirExisted) created.push(...cp.created);   // 既有目录:逐文件记录本次可安全回滚项
+    copyAndReplace(template, dir, { PROJECT: name, STRIP_SUFFIX: template }, {
+      onConflict, created: dirExisted ? created : undefined, backedUp,
+    });
     // 用合并后的治理文档覆盖 dir/AGENTS.md(契约/约定文档直接放 docs/,无需额外子目录;CLAUDE.md 保持模板里的 @AGENTS.md 指针)
     writeFileSync(join(dir, 'AGENTS.md'), buildSingleAgents(template, name), 'utf-8');
     // 治理文档落仓库根(而非 docs/):CONTEXT.md 与外部 grilling/domain-modeling 类工具认的路径一致;
@@ -613,14 +627,22 @@ export function parseArgs(argv) {
   const flags = {};
   for (let i = 1; i < argv.length; i++) {
     const a = argv[i];
+    const readValue = () => {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith('--') || value === '-h') {
+        throw new Error(`${a} requires a value`);
+      }
+      i++;
+      return value;
+    };
     if (a === '--no-git') flags.noGit = true;
     else if (a === '--dry-run') flags.dryRun = true;
-    else if (a === '--name') flags.name = argv[++i];
-    else if (a === '--dir') flags.dir = argv[++i];
-    else if (a === '--modules') flags.modules = argv[++i];
-    else if (a === '--on-conflict') flags.onConflict = argv[++i];
-    else if (a === '--template') flags.template = argv[++i];
-    else if (a === '--templates-dir') flags.templatesDir = argv[++i];
+    else if (a === '--name') flags.name = readValue();
+    else if (a === '--dir') flags.dir = readValue();
+    else if (a === '--modules') flags.modules = readValue();
+    else if (a === '--on-conflict') flags.onConflict = readValue();
+    else if (a === '--template') flags.template = readValue();
+    else if (a === '--templates-dir') flags.templatesDir = readValue();
     else if (a === '--help' || a === '-h') flags.help = true;
     else throw new Error(`Unknown argument: ${a}`);
   }

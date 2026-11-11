@@ -1,13 +1,15 @@
 ---
 name: agents-scaffold
 disable-model-invocation: true
-description: Scaffolds a multi-repo (polyrepo) workspace, adds web / server / client / custom modules to an existing one, or initializes a standalone single-repo project in place from one template. Sets up the spec-center SSOT plus per-module repos (or a single repo's in-repo specs/contracts) with shared AGENTS.md conventions via a zero-dependency Node script.
+description: 使用零依赖 Node 脚本初始化带 spec-center 的多仓工作区、添加模块，或原地初始化独立单仓库；生成模板与 AGENTS.md 治理文档，预览冲突并按授权备份或覆盖。
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # Agents Scaffold
 
-> 偶发的结构性操作:搭建多仓工作区、向其中新增模块,或原地初始化单个独立仓库。所有确定性产物——拷模板、`{{PROJECT}}` 替换、`git init`,以及 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树——全部由零依赖脚本 `scripts/scaffold.mjs` 完成,以工作区实际存在的模块目录为单一真相,幂等。Claude 只负责:意图判定、收集输入、dry-run 预览、调脚本、(失败时)处理残留、转述输出——不手工编辑生成产物。
+> 偶发的结构性操作:搭建多仓工作区、向其中新增模块,或原地初始化单个独立仓库。所有确定性产物——拷模板、`{{PROJECT}}` 替换、`git init`,以及 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树——全部由零依赖脚本 `scripts/scaffold.mjs` 完成,以工作区实际存在的模块目录为单一真相,幂等。agent 只负责:意图判定、收集输入、dry-run 预览、调脚本、(失败时)处理残留、转述输出——不手工编辑生成产物。
+
+仅在用户明确调用本 skill 时执行,接受宿主支持的语法与命名空间。仅提及或审阅不算调用。工具名以宿主实际能力为准,frontmatter 的 `allowed-tools` 不授予额外权限。
 
 ## 1. 模式选择(两步推导)
 
@@ -19,7 +21,7 @@ allowed-tools: Bash, Read, AskUserQuestion
 2. **没有 `*-spec-center/`** → 再从用户需求判**单仓还是多仓**:
    - 多仓信号:「多仓工作区 / 微服务 / 拆成多个仓 / 要 spec-center」→ **workspace**。
    - 单仓信号:「单仓库 / 单个仓库 / monorepo / 不要 spec-center / 就地建一个项目」→ **single**。
-   - **推导不出来再问**:`AskUserQuestion` 二选一,并简述两种最终目录结构差异(多仓:`<name>-spec-center/` + 各 `<name>-<module>/`;单仓:当前目录原地、无 spec-center)。「初始化 server 项目」里 `server` 只表明所选模板,不表明仓库形态——这类纯模板措辞**不要擅自默认**成某一种。
+   - **推导不出来再问**:使用宿主实际的用户输入能力二选一,并简述两种最终目录结构差异(多仓:`<name>-spec-center/` + 各 `<name>-<module>/`;单仓:当前目录原地、无 spec-center)。「初始化 server 项目」里 `server` 只表明所选模板,不表明仓库形态——这类纯模板措辞**不要擅自默认**成某一种。
 
 > 脚本侧有兜底,模式判断只需大方向对、边界由脚本纠正:`module` 子命令若发现目录里没有任何 `*-spec-center/`,会自动按 `workspace` 处理;`workspace` 子命令若发现已存在 `*-spec-center/` 则报错(已是工作区)。
 
@@ -32,12 +34,12 @@ allowed-tools: Bash, Read, AskUserQuestion
 2. **dry-run 预览**:列出将创建的目录(`<name>-spec-center` + 各模块)、目标目录(默认 `.`)、是否建 git 与文件冲突。
    - 用户已明确提供 `name` / `dir` / `modules` 与冲突策略,或当前语境已能唯一推导且 dry-run 无冲突时,不重复请求确认。
    - 只在缺少会改变结果的输入、dry-run 发现未授权的文件冲突,或用户要求先看计划时再问。冲突的选择见 §10。
-3. **调脚本**:见 §6。脚本会自动生成 `spec-center/AGENTS.md` 的模块表与目录树,无需 Claude 介入。
+3. **调脚本**:见 §6。脚本会自动生成 `spec-center/AGENTS.md` 的模块表与目录树,无需 agent 介入。
 4. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,以及 `backed up:` 列出的备份文件(见 §10);若出现 `partial:` 段(中途失败),按 §7 处理残留。完成后提示后续开发规则见 `<project>-spec-center/AGENTS.md`,详细流程按需见其链接的 `WORKFLOW.md`。
 
 ## 3. Module 工作流
 
-1. **确认上下文**:工作区目录 `dir`。项目前缀 `name` **可省略**——脚本会从 `dir` 下唯一的 `<name>-spec-center/` 自动推断;Claude 可先 `ls` 工作区,并在 dry-run 中展示推断结果,无需单独请求确认。目录下有多个 `*-spec-center` 时脚本会报错,须显式传 `--name`。**若 `dir` 下根本没有 `*-spec-center/`**,脚本自动按 workspace 初始化(此时 `name` 取传入值或目录名),汇总会显示 `workspace:`——这正是 §1 的兜底,按 workspace 汇报即可。
+1. **确认上下文**:工作区目录 `dir`。项目前缀 `name` **可省略**——脚本会从 `dir` 下唯一的 `<name>-spec-center/` 自动推断;agent 可先 `ls` 工作区,并在 dry-run 中展示推断结果,无需单独请求确认。目录下有多个 `*-spec-center` 时脚本会报错,须显式传 `--name`。**若 `dir` 下根本没有 `*-spec-center/`**,脚本自动按 workspace 初始化(此时 `name` 取传入值或目录名),汇总会显示 `workspace:`——这正是 §1 的兜底,按 workspace 汇报即可。
 2. **收集新模块** `modules`:已存在的模块、`spec-center` 会被脚本自动跳过并在汇总里标注 `skipped`。
 3. **dry-run 预览**:按 Workspace 工作流的授权判据决定是否需要追问,不重复请求确认。
 4. **调脚本**:见 §6。脚本会按工作区实际模块自动把新模块并入 `spec-center/AGENTS.md` 的表与树。
@@ -68,43 +70,52 @@ allowed-tools: Bash, Read, AskUserQuestion
 
 ## 6. 脚本调用参考
 
-脚本非交互,全部参数经 flag 传入:
+脚本非交互,全部参数经 flag 传入。以下命令在**本 skill 目录**执行;从其它目录调用时,把 `"scripts/scaffold.mjs"` 换成脚本的绝对路径或正确相对路径。`--dir` 相对执行命令时的当前目录解析,路径始终加引号。示例项目名与目录可按需求替换,三种模式按需选一种。
+
+每组先预览,输入与授权已明确后再执行下一条;正式执行仅移除 `--dry-run`,其余参数保持一致:
 
 ```bash
 # 初始化多仓工作区
-node scripts/scaffold.mjs workspace \
-  --name <project> \
-  --dir <path> \           # 可选,默认当前目录 .;原地初始化,仅当已含 *-spec-center 时报错
-  --modules <list> \       # 如 server,web 或 api-gateway=server,user-service=server
-  [--on-conflict overwrite] \  # 可选;默认备份(*.bak),仅用户明确要覆盖时传 overwrite
-  [--no-git] [--dry-run]
+node "scripts/scaffold.mjs" workspace \
+  --name myapp \
+  --dir "./my workspace" \
+  --modules "server,web" \
+  --dry-run
+node "scripts/scaffold.mjs" workspace \
+  --name myapp \
+  --dir "./my workspace" \
+  --modules "server,web"
 
-# 向已有工作区添加
-node scripts/scaffold.mjs module \
-  [--name <project>] \     # 可选;省略时从 dir 下唯一的 <name>-spec-center 推断
-  --dir <path> \           # 含 <project>-spec-center 的工作区目录;没有则自动转 workspace
-  --modules <list> \       # 已存在 / spec-center 会被自动跳过
-  [--on-conflict overwrite] \  # 同上;默认备份
-  [--no-git] [--dry-run]
+# 向已有工作区添加模块;省略 --name 时自动推断前缀
+node "scripts/scaffold.mjs" module \
+  --dir "./my workspace" \
+  --modules "api-gateway=server" \
+  --dry-run
+node "scripts/scaffold.mjs" module \
+  --dir "./my workspace" \
+  --modules "api-gateway=server"
 
-# 单仓库原地初始化
-node scripts/scaffold.mjs single \
-  --template <server|web|client> \  # 必填,单个 stack 模板
-  --dir <path> \                    # 可选,默认当前目录 .
-  [--name <project>] \              # 可选;省略时取 dir 目录名
-  [--on-conflict overwrite] \       # 同上;默认备份
-  [--no-git] [--dry-run]
+# 单仓库原地初始化;目录名含空格时显式指定 kebab-case 项目名
+node "scripts/scaffold.mjs" single \
+  --template server \
+  --name my-service \
+  --dir "./my service" \
+  --dry-run
+node "scripts/scaffold.mjs" single \
+  --template server \
+  --name my-service \
+  --dir "./my service"
 ```
 
+- `--dir` 可省略,默认当前目录 `.`;不会额外套一层项目名目录。模式推导与兜底规则见 §1。
+- 文件冲突默认备份。用户已授权备份时无需加参数;仅明确授权覆盖时,在**预览与正式命令中同时**追加 `--on-conflict overwrite`。策略已有授权时不重复确认;未授权冲突按 §10 处理。
 - `--dry-run`:只打印计划,不落盘。先检查其输出;已有授权且无未决输入/冲突时可在同一任务中继续正式执行。
-- `--no-git`:跳过 git 初始化。
-- `node scripts/scaffold.mjs --help`:查看用法。
-
-脚本路径相对本 skill 目录;调用时用脚本的绝对/正确相对路径。
+- `--no-git`:跳过 git 初始化;需要时在预览与正式命令中同时追加。
+- `node "scripts/scaffold.mjs" --help`:查看用法。取值型参数后必须给值,不得省略或接另一个 flag。
 
 ## 7. `spec-center/AGENTS.md` 由脚本维护 + 失败残留处理
 
-**结构生成全由脚本完成,Claude 不手工编辑。** 脚本在 workspace/module 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/AGENTS.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `AGENTS.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——workspace/module/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
+**结构生成全由脚本完成,agent 不手工编辑。** 脚本在 workspace/module 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/AGENTS.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `AGENTS.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——workspace/module/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
 
 模块的语义留空块(各模块 `AGENTS.md` 的 Key Responsibilities / Tech Stack、词汇表 `CONTEXT.md` 的 Language 小节等)属于后续开发,不是 scaffold 职责,按需在开发中填。
 
@@ -122,9 +133,9 @@ partial: created before failure (not rolled back):
   <path2>
 ```
 
-Claude 须读出这些路径,用 `AskUserQuestion` 问用户是否删除,确认后再删:
+agent 须读出这些路径,只在尚无具体清理授权时请用户决定是否删除;已有授权则核对精确路径与恢复方式后执行:
 
-- **workspace 失败**:原地初始化,只列出**本次新建**的条目(目录由本次创建则含该目录;否则仅列铺进去的 root 顶层文件 + 各模块目录)——**只删这些,绝不动用户既有文件/目录**。若同时打印了 `backed up (originals preserved)`,那是被备份的用户原文件(`*.bak`),**绝不删除**,提示用户自行核对/恢复。
+- **workspace 失败**:原地初始化,只列出**本次新建或备份后重写**的条目(目录由本次创建则含该目录;既有目录只列本次写入的文件,绝不把整个既有模块目录列入删除清单)——**只删这些,绝不动用户既有文件/目录**。若同时打印了 `backed up (originals preserved)`,那是被备份的用户原文件(`*.bak`),**绝不删除**,提示用户自行核对/恢复。
 - **module 失败**:只列出本次新建的模块目录——**只删这些,绝不动既有模块**。
 - **single 失败**:只列出本次新建的条目(若目标目录由本次创建,则含该目录;否则只列铺进去的文件/目录)——**绝不动预存的 `.git` 或用户文件**。
 
@@ -132,7 +143,7 @@ Claude 须读出这些路径,用 `AskUserQuestion` 问用户是否删除,确认�
 
 ## 8. Git 行为
 
-- **workspace / module**:每个新建模块只执行 `git init` + `git branch -M main`,**不** `git add`、**不** commit——交给用户自行首次提交。
+- **workspace / module**:每个新建模块只执行 `git init` + `git branch -M main`,**不** `git add`、**不** commit——交给用户自行首次提交。workspace 合并既有模块目录时,已有 `.git` 则复用,不改分支。
 - **single**:目标目录已有 `.git` 则**复用**(不重复 init、不改分支);否则 `git init` + `git branch -M main`。同样不 add、不 commit。
 - `--no-git` 时整段跳过。
 

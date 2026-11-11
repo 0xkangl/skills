@@ -851,3 +851,147 @@ test('single: an existing ROADMAP.md is backed up, never silently overwritten', 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+// ============================== 回归：参数、冲突与恢复 ==============================
+
+test('parseArgs rejects missing flag values instead of consuming --dry-run', () => {
+  for (const flag of ['--name', '--dir', '--modules', '--on-conflict', '--template', '--templates-dir']) {
+    assert.throws(() => parseArgs(['workspace', flag]), /requires a value/, flag);
+    assert.throws(() => parseArgs(['workspace', flag, '--dry-run']), /requires a value/, flag);
+  }
+});
+
+test('workspace dry-run includes conflicts inside an existing module directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const modDir = join(dir, 'demo-server');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'AGENTS.md'), 'MINE');
+
+    const r = runWorkspace({ name: 'demo', dir, modules: 'server', dryRun: true });
+
+    assert.ok(r.conflicts.includes(join(modDir, 'AGENTS.md')));
+    assert.equal(fsReadFileSync(join(modDir, 'AGENTS.md'), 'utf-8'), 'MINE');
+    assert.ok(!existsSync(join(dir, 'demo-spec-center')));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace reports module backups and honors the authorized overwrite policy', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    for (const onConflict of ['backup', 'overwrite']) {
+      const ws = join(dir, onConflict);
+      const modDir = join(ws, 'demo-server');
+      mkdirSync(modDir, { recursive: true });
+      writeFileSync(join(modDir, 'AGENTS.md'), 'MINE');
+      writeFileSync(join(modDir, 'user.txt'), 'KEEP');
+
+      const r = runWorkspace({ name: 'demo', dir: ws, modules: 'server', noGit: true, onConflict });
+
+      assert.equal(fsReadFileSync(join(modDir, 'user.txt'), 'utf-8'), 'KEEP');
+      assert.equal(existsSync(join(modDir, 'AGENTS.md.bak')), onConflict === 'backup');
+      assert.deepEqual(r.backedUp, onConflict === 'backup' ? [join(modDir, 'AGENTS.md.bak')] : []);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('workspace recovery never marks a pre-existing module directory for deletion', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const modDir = join(dir, 'demo-server');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'user.txt'), 'KEEP');
+    // 目标模块名被文件占用，令后一个模块创建失败。
+    writeFileSync(join(dir, 'demo-web'), 'BLOCKER');
+
+    assert.throws(() => runWorkspace({ name: 'demo', dir, modules: 'server,web', noGit: true }), (err) => {
+      assert.ok(!err.created.includes(modDir));
+      assert.ok(err.created.includes(join(modDir, 'AGENTS.md')));
+      assert.equal(fsReadFileSync(join(modDir, 'user.txt'), 'utf-8'), 'KEEP');
+      return true;
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('single copy failure preserves the list of created files and original backups', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    writeFileSync(join(dir, 'AGENTS.md'), 'MINE');
+    // server 模板在根文件写入后复制 docs/，这里制造真实的文件/目录冲突。
+    writeFileSync(join(dir, 'docs'), 'BLOCKER');
+
+    assert.throws(() => runSingle({ name: 'demo', template: 'server', dir, noGit: true }), (err) => {
+      assert.ok(err.created.includes(join(dir, 'AGENTS.md')));
+      assert.ok(err.backedUp.includes(join(dir, 'AGENTS.md.bak')));
+      assert.equal(fsReadFileSync(join(dir, 'AGENTS.md.bak'), 'utf-8'), 'MINE');
+      assert.equal(fsReadFileSync(join(dir, 'docs'), 'utf-8'), 'BLOCKER');
+      return true;
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('skill command examples run in bash and pair dry-run with identical execution arguments', () => {
+  const skill = fsReadFileSync(new URL('../SKILL.md', import.meta.url), 'utf-8');
+  const section = skill.split('## 6. ')[1].split('## 7. ')[0];
+  const commands = [...section.matchAll(/```bash\n([\s\S]*?)```/g)].map((m) => m[1]).join('\n');
+  // 只捕获 shell 传给 node 的 argv，不执行脚手架。
+  const stub = 'node() { printf \'%s\\0\' "$@"; printf \'\\1\'; }\n';
+  const output = execFileSync('bash', ['-eu', '-c', stub + commands], { encoding: 'utf-8', stdio: 'pipe' });
+  const calls = output.split('\x01').filter(Boolean).map((call) => call.split('\0').slice(0, -1));
+
+  assert.equal(calls.length, 6);
+  for (let i = 0; i < calls.length; i += 2) {
+    assert.equal(calls[i][0], 'scripts/scaffold.mjs');
+    assert.ok(calls[i].includes('--dry-run'));
+    assert.deepEqual(calls[i].filter((arg) => arg !== '--dry-run'), calls[i + 1]);
+    const { flags } = parseArgs(calls[i].slice(1));
+    assert.ok(flags.dir.includes(' '), '带空格的路径必须作为单个参数传递');
+  }
+});
+
+
+test('workspace merging an existing module reuses its git repository and branch', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    const modDir = join(dir, 'demo-server');
+    mkdirSync(modDir);
+    execFileSync('git', ['init'], { cwd: modDir, stdio: 'pipe' });
+    execFileSync('git', ['branch', '-m', 'trunk'], { cwd: modDir, stdio: 'pipe' });
+
+    runWorkspace({ name: 'demo', dir, modules: 'server' });
+
+    assert.equal(execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], { cwd: modDir, encoding: 'utf-8' }).trim(), 'trunk');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('module reports the new directory when git initialization fails midway', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prs-'));
+  try {
+    mkdirSync(join(dir, 'demo-spec-center'));
+    const script = new URL('./scaffold.mjs', import.meta.url).pathname;
+
+    assert.throws(() => execFileSync(process.execPath, [script, 'module', '--dir', dir, '--modules', 'server'], {
+      // 无效的临时 Git 配置让 git init 确定性失败，不修改任何全局 Git 配置。
+      env: { ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'invalid', GIT_CONFIG_VALUE_0: 'x' },
+      stdio: 'pipe',
+    }), (err) => {
+      assert.ok(existsSync(join(dir, 'demo-server', 'AGENTS.md')));
+      assert.ok(err.stderr.toString().includes('partial:'));
+      assert.ok(err.stderr.toString().includes(join(dir, 'demo-server')));
+      return true;
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
