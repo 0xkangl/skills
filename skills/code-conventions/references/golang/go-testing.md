@@ -24,26 +24,26 @@ This document is a companion to [testing.md](../testing.md) (the generic testing
 
 ```
 internal/
-├── handler/
-│   ├── user.go
-│   └── user_test.go          # Unit tests for handler logic
-├── service/
-│   ├── user.go
-│   └── user_test.go          # Unit tests for business logic
-├── repository/
-│   ├── user.go
-│   └── user_test.go          # Unit tests only (mocked DB)
+├── user/                    # Business package; no layer subpackages
+│   ├── model.go
+│   ├── handler.go
+│   ├── handler_test.go       # HTTP adapter tests
+│   ├── service.go
+│   ├── service_test.go       # Business rules with fake storage
+│   ├── repository.go
+│   └── repository_test.go    # Unit tests only; real DB tests go below
+├── order/
+│   └── ...
 ├── middleware/
 │   ├── auth.go
 │   └── auth_test.go
-pkg/
-├── validator/
-│   ├── validator.go
-│   └── validator_test.go
+└── validator/
+    ├── validator.go
+    └── validator_test.go
 tests/
 ├── integration/              # Integration tests that need real DB / HTTP server
 │   ├── user_test.go
-│   └── testutil.go
+│   └── testutil_test.go
 └── e2e/                      # End-to-end tests
     └── user_flow_test.go
 ```
@@ -53,7 +53,8 @@ tests/
 - Test files are co-located with source files using `_test.go` suffix (standard Go convention).
 - Integration and E2E tests go in `tests/integration/` and `tests/e2e/` respectively — never co-located with unit tests.
 - Files under `tests/integration/` and `tests/e2e/` MUST declare the corresponding build tag (see §7.1).
-- Shared test helpers go in `testutil.go` within the same package or in `tests/integration/testutil.go` for cross-package helpers.
+- Tests may use `package user` for module-internal behavior or `package user_test` for the public API. Prefer observable behavior; do not export production symbols solely for tests.
+- Module-local mocks and shared helpers go in `_test.go` files (e.g. `testutil_test.go`) so they do not enter production builds. Cross-module integration helpers belong with the integration suite and carry its build tag.
 - Coverage thresholds and CI expectations are defined in [testing.md](../testing.md) §9–§11.
 
 ## 2. Naming Conventions
@@ -122,10 +123,10 @@ func TestValidateEmail(t *testing.T) {
 
 ### 4.1 Interface-Based Mocking
 
-Define interfaces for all external dependencies. Accept interfaces, return structs:
+Use the small dependency interfaces defined by the consumer. Do not add an exported interface to every layer solely to generate mocks. For example, `internal/user/service.go` consumes storage through:
 
 ```go
-type UserRepository interface {
+type store interface {
     Create(ctx context.Context, user *User) (*User, error)
     FindByEmail(ctx context.Context, email string) (*User, error)
 }
@@ -136,17 +137,17 @@ type UserRepository interface {
 Use function-field mocks for simple cases:
 
 ```go
-type MockUserRepo struct {
-    CreateFunc    func(ctx context.Context, user *User) (*User, error)
-    FindByEmailFunc func(ctx context.Context, email string) (*User, error)
+type storeStub struct {
+    create      func(ctx context.Context, user *User) (*User, error)
+    findByEmail func(ctx context.Context, email string) (*User, error)
 }
 
-func (m *MockUserRepo) Create(ctx context.Context, user *User) (*User, error) {
-    return m.CreateFunc(ctx, user)
+func (s *storeStub) Create(ctx context.Context, user *User) (*User, error) {
+    return s.create(ctx, user)
 }
 
-func (m *MockUserRepo) FindByEmail(ctx context.Context, email string) (*User, error) {
-    return m.FindByEmailFunc(ctx, email)
+func (s *storeStub) FindByEmail(ctx context.Context, email string) (*User, error) {
+    return s.findByEmail(ctx, email)
 }
 ```
 
@@ -155,8 +156,9 @@ For complex interfaces with many methods, use generated mocks (e.g., `mockgen`, 
 ### 4.3 Rules
 
 - Never mock the module under test — mock its dependencies only.
-- Mock structs live in the same `_test.go` file or in `testutil.go` if shared across test files.
+- Mock structs live in the same `_test.go` file or in `testutil_test.go` if shared across test files.
 - Do not export mock types — they are test-only.
+- A handler may use the real `*Service` with fake storage. If its HTTP behavior needs independent isolation, use a small interface defined near the handler; sharing a package does not require mocking every internal call.
 
 ## 5. HTTP Handler Testing
 
@@ -172,7 +174,7 @@ func TestCreateUserHandler_ValidRequest_Returns201(t *testing.T) {
     req.Header.Set("Content-Type", "application/json")
     rec := httptest.NewRecorder()
 
-    handler := NewUserHandler(&MockUserService{})
+    handler := NewHandler(&serviceStub{}) // implements the handler's consumer interface
 
     // Act
     handler.CreateUser(rec, req)
@@ -202,21 +204,21 @@ When testing error paths:
 
 ```go
 func TestCreateUser_DuplicateEmail_ReturnsConflictError(t *testing.T) {
-    repo := &MockUserRepo{
-        CreateFunc: func(ctx context.Context, u *User) (*User, error) {
-            return nil, errs.ErrDuplicateEntry
+    repo := &storeStub{
+        create: func(ctx context.Context, u *User) (*User, error) {
+            return nil, apperror.ErrUniqueConflict
         },
     }
-    svc := NewUserService(repo)
+    svc := NewService(repo)
 
-    _, err := svc.CreateUser(context.Background(), &CreateUserReq{
+    _, err := svc.CreateUser(context.Background(), &CreateInput{
         Email: "dup@example.com",
     })
 
     require.Error(t, err)
     var appErr *apperror.AppError
     require.ErrorAs(t, err, &appErr)
-    assert.Equal(t, errs.ErrDuplicateEntry.Code, appErr.Code)
+    assert.Equal(t, apperror.ErrUniqueConflict.Code, appErr.Code)
 }
 ```
 
@@ -343,7 +345,7 @@ go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out -o coverage.html
 
 # Coverage for a specific package
-go test -coverprofile=coverage.out ./internal/service/...
+go test -coverprofile=coverage.out ./internal/user
 
 # Coverage with race detection
 go test -race -coverprofile=coverage.out ./...

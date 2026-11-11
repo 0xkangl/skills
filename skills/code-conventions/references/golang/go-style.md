@@ -2,7 +2,7 @@
 
 > Applies to: All Go backend services | Goal: Standardize idiomatic Go code style, naming, and patterns
 
-This document distills mandatory and recommended practices from [Effective Go](https://go.dev/doc/effective_go) and aligns them with this project's layered architecture. It complements [go-project.md](go-project.md) (layout), [go-tools.md](go-tools.md) (formatting/lint), [go-testing.md](go-testing.md) (tests), and [go-validation.md](go-validation.md) (request validation).
+This document distills mandatory and recommended practices from [Effective Go](https://go.dev/doc/effective_go) and aligns them with this project's business packages and in-package responsibilities. It complements [go-project.md](go-project.md) (layout), [go-tools.md](go-tools.md) (formatting/lint), [go-testing.md](go-testing.md) (tests), and [go-validation.md](go-validation.md) (request validation).
 
 **Note:** Effective Go predates generics and Go modules. Where this document or project conventions conflict with Effective Go, follow this document and the linked project conventions.
 
@@ -62,13 +62,13 @@ if err != nil
 ### 2.2 Packages
 
 - Package names MUST be **lowercase, single-word** — no underscores or `mixedCaps`.
-- The package name SHOULD match the base name of its directory (e.g. directory `repository` → `package repository`).
+- The package name SHOULD match the base name of its directory (e.g. directory `internal/user` → `package user`). Business code is grouped by capability; `handler.go`, `service.go`, and `repository.go` in that directory share the same package.
 - Do **not** use `import .` except in tests when strictly necessary.
 
 ### 2.3 Types and Functions
 
 - Exported types in a package SHOULD avoid repeating the package name in the type name (e.g. `bufio.Reader`, not `bufio.BufReader`).
-- Constructors SHOULD be named `New` or `New<Type>` when the package has multiple constructible types (e.g. `NewServer`, `NewUserRepository`).
+- Constructors SHOULD be named `New` or `New<Type>` when the package has multiple constructible types (e.g. `user.NewService`, `user.NewHandler`, `user.NewPostgresStore`). Do not repeat the business package name in these type names.
 - **Getters:** Do not use `Get` in getter names. For field `owner`, the getter is `Owner()`, not `GetOwner()`. Setters, when needed, use `SetOwner()`.
 
 ### 2.4 Interfaces
@@ -88,7 +88,7 @@ if err != nil
 | Domain types | Singular noun | `User`, `Order` |
 | Errors (sentinel) | `Err` prefix | `ErrNotFound`, `ErrDuplicateEntry` |
 
-See [go-project.md](go-project.md) for directory and layer placement.
+See [go-project.md](go-project.md) for business package boundaries and placement of these roles within a package.
 
 ## 3. Control Flow
 
@@ -230,7 +230,7 @@ This section covers Go-language error idioms: value semantics, wrapping, and pan
 
 - Package-level sentinel errors use `Err` prefix: `var ErrNotFound = errors.New("not found")`.
 - Typed errors (e.g. with extra fields) implement `Error() string` and are inspected with `errors.As`.
-- End-to-end error flow (repository → service → handler → `response.Error()`) and the `pkg/apperror` `AppError` / `HTTPError` design are specified in [go-error-handling.md](go-error-handling.md). Handlers MUST NOT map errors (no `mapXxxErr()`); errors carry their own HTTP semantics.
+- End-to-end error flow (repository → service → handler → `response.Error()`) and the `internal/apperror` `AppError` / `HTTPError` design are specified in [go-error-handling.md](go-error-handling.md). These are responsibilities within a business package. Handlers MUST NOT map errors (no `mapXxxErr()`); errors carry their own HTTP semantics.
 
 ### 6.3 Prohibited Patterns
 
@@ -249,8 +249,9 @@ This section covers Go-language error idioms: value semantics, wrapping, and pan
 
 ### 7.1 Interface Design
 
-- Define interfaces where they are **consumed** (handler/service), not where they are implemented (repository).
+- Define interfaces near their **consumer** (e.g. in `user/service.go` for storage dependencies), not in a global `interfaces` or `repository` package. In a single business package, the consumer and implementation may share the same package.
 - Keep interfaces small (1–3 methods). Large interfaces are harder to mock and violate ISP.
+- Do not create an interface for every type or layer. Use actual dependency substitution needs to decide; a handler may depend directly on `*Service`. Consumer-only interfaces can remain unexported.
 - Constructors that exist only to satisfy an interface MAY return the interface type (e.g. `func NewHasher() hash.Hash`).
 
 ### 7.2 Compile-Time Interface Checks
@@ -258,7 +259,7 @@ This section covers Go-language error idioms: value semantics, wrapping, and pan
 When a type must satisfy an interface and no static conversion exists elsewhere, add a compile-time assertion:
 
 ```go
-var _ http.Handler = (*UserHandler)(nil)
+var _ http.Handler = (*Handler)(nil)
 ```
 
 Use sparingly — only when breakage must be caught at compile time (e.g. code generation, external interfaces).

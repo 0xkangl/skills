@@ -21,6 +21,8 @@ repository             ← 数据访问（DB / 缓存 / 外部 API）
 - 业务逻辑集中在 service 层，handler 只做请求/响应转换，repository 只做存取。
 - 依赖方向只能由外向内；repository 不调 service，service 不感知 HTTP。
 
+这里的“层”指逻辑职责，不要求分别建立同名包或目录。Go 默认按业务模块建包、包内按文件区分职责，见 [Go 项目结构](golang/go-project.md)。
+
 ## 2. Repository Pattern
 
 把数据访问封装在一致的接口之后，业务逻辑只依赖接口、不依赖具体存储：

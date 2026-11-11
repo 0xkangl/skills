@@ -194,7 +194,7 @@ internal/
 - One `.sql` file per aggregate or table group (e.g. `users.sql`, `orders.sql`).
 - Name queries with `-- name: <PascalCase> :one|:many|:exec|:copyfrom` annotations.
 - Use `$1`, `$2`, … for parameters; sqlc maps them to typed Go arguments.
-- Keep queries in `db/queries/` only; never put ad-hoc SQL in `internal/repository/` when sqlc is in use.
+- Keep queries in `db/queries/` only; when sqlc is in use, business packages' `repository.go` files call generated queries rather than embedding ad-hoc SQL.
 
 Example (`db/queries/users.sql`):
 
@@ -215,7 +215,8 @@ LIMIT $1 OFFSET $2;
 
 - **Never edit** files under `internal/db/`; regenerate with `make sqlc-gen`.
 - After a schema change: `make migrate-create` → edit migration pair → `make migrate-up` → update or add queries → `make sqlc-gen`.
-- Repository layer maps sqlc row types to `internal/model/` domain types; handlers and services MUST NOT import `internal/db/` directly except through repositories.
+- Each business package's storage adapter (`repository.go`) maps sqlc row types to that package's business types (e.g. `user.User`); do not introduce a global `internal/model/` package. HTTP adapters and business logic MUST NOT use `internal/db/` types or queries directly. Because files share a package, this is a responsibility boundary enforced by design and review, not by Go's import rules.
+- A shared generated `internal/db/` package is the default; it does not authorize modules to bypass another module's write API. Split sqlc outputs only for concrete dependency-isolation needs, and keep schema migrations ordered consistently. See [go-project.md](go-project.md) for module and transaction boundaries.
 - Commit generated code (`internal/db/`) so CI and reviewers see query/type changes without running sqlc.
 - Regenerate in CI only if you prefer not to commit generated code; this project **commits** generated output — do not add a CI-only generate step unless the team explicitly opts out.
 
@@ -228,13 +229,13 @@ LIMIT $1 OFFSET $2;
 | `gen.go.package` | `db` | Go package name for generated code |
 | `gen.go.out` | `internal/db` | Output directory (excluded from lint; see §2.2) |
 | `gen.go.sql_package` | `pgx/v5` | Database driver package for generated interfaces |
-| `emit_json_tags` | `true` | camelCase JSON tags on row structs — aligns with [HTTP Constitution](../http-constitution.md) §3.2 when mapping to `internal/model/` |
+| `emit_json_tags` | `true` | camelCase tags on generated rows; module-owned response types still follow [HTTP Constitution](../http-constitution.md) §3.2 — do not expose rows directly |
 | `json_tags_case_style` | `camel` | Transform DB snake_case columns (`created_at`) to API-style tags (`createdAt`); required when `emit_json_tags` is true |
 | `emit_prepared_queries` | `false` | Use pgx extended protocol without per-query `Prepare()` cache; avoids PgBouncer transaction-pooling issues |
-| `emit_interface` | `true` | Generate `Querier` interface for repository injection and interface-based mocks ([go-testing.md](go-testing.md)) |
+| `emit_interface` | `true` | Generate `Querier` for storage-adapter use when needed; business logic consumes its own small interface, not the full generated query API ([go-testing.md](go-testing.md)) |
 | `emit_exact_table_names` | `false` | Singular struct names (`User` from `users` table) — standard Go domain naming |
 | `emit_empty_slices` | `true` | `:many` queries return `[]T{}` instead of `nil` — matches empty `list` arrays in API responses |
-| `emit_pointers_for_null_types` | `true` | Nullable columns as `*string` / `*int64` instead of `sql.NullString` — cleaner repository → model mapping |
+| `emit_pointers_for_null_types` | `true` | Nullable columns as `*string` / `*int64` instead of `sql.NullString` — cleaner storage-adapter → module-owned type mapping |
 
 ## 3. Makefile Targets
 

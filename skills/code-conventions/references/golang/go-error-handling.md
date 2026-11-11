@@ -2,6 +2,8 @@
 
 > Applies to: All Go backend services | Goal: Unified error flow from service to HTTP response, no per-handler error mapping
 
+Handler、Service、Repository 在本文中表示业务包内的职责，分别见 `internal/<业务名>/handler.go`、`service.go`、`repository.go`，不要求三个独立包。目录边界见 [go-project.md](go-project.md)。
+
 ## 目录
 
 - [1. Design Philosophy](#1-design-philosophy)
@@ -30,7 +32,7 @@ This avoids:
 
 ### 2.1 `HTTPError` Interface
 
-`pkg/apperror` defines the `HTTPError` interface — the **only** error contract the HTTP layer needs to know:
+`internal/apperror` defines the `HTTPError` interface — the **only** error contract the HTTP layer needs to know:
 
 ```go
 type HTTPError interface {
@@ -73,7 +75,7 @@ type AppError struct {
 
 ```go
 type StackFrame struct {
-    File     string `json:"file"`     // e.g. "internal/service/auth/otp.go"
+    File     string `json:"file"`     // e.g. "internal/auth/otp.go"
     Line     int    `json:"line"`     // e.g. 167
     Function string `json:"function"` // e.g. "auth.(*Service).OTPLogin"
 }
@@ -83,7 +85,7 @@ Stack traces are captured at the **error origin site** (where `.Wrap()` is calle
 
 ## 3. Predefined Sentinels
 
-All business error codes are predefined as exported sentinel `*AppError` variables in `pkg/apperror`:
+All business error codes are predefined as exported sentinel `*AppError` variables in `internal/apperror`:
 
 ```go
 // 1xxx — Validation
@@ -106,7 +108,7 @@ var ErrInternal = newAppError(500, 5001, "system error", slog.LevelError)
 ```
 
 **Rules for adding new codes:**
-- Each code MUST have exactly one sentinel in `pkg/apperror`
+- Each code MUST have exactly one sentinel in `internal/apperror`
 - The sentinel's `Status` and `Code` are immutable
 - The sentinel's `Level` determines whether it logs at Error (5xx) or Warn/Info (4xx)
 - Service/handler code MUST NOT define additional sentinel errors — use `.WithMsg()` to customize the user message
@@ -146,26 +148,26 @@ Return `apperror.Err*` sentinels directly for known conditions. For unexpected D
 
 ```go
 // Good
-func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
-    user, err := r.db.Find(ctx, id)
+func (r *PostgresStore) FindByID(ctx context.Context, id int64) (*User, error) {
+    row, err := r.queries.GetUserByID(ctx, id)
     if errors.Is(err, pgx.ErrNoRows) {
         return nil, apperror.ErrNotFound  // sentinel, no stack needed
     }
     if err != nil {
         return nil, err  // raw error, service will wrap
     }
-    return user, nil
+    return &User{ID: row.ID, Email: row.Email}, nil  // sqlc row → 本模块业务类型
 }
 ```
 
-**Repository sentinel aliases:** To avoid breaking existing `errors.Is(err, repository.ErrNotFound)` checks, the repository package MAY define aliases:
+**Legacy sentinel aliases:** While migrating old layer packages, aliases MAY temporarily preserve existing `errors.Is(err, repository.ErrNotFound)` checks:
 
 ```go
 var ErrNotFound = apperror.ErrNotFound
 var ErrDuplicateSMSTemplate = apperror.ErrUniqueConflict
 ```
 
-These are convenience aliases, not independent sentinels. New code SHOULD use `apperror.Err*` directly.
+These are compatibility aliases, not independent sentinels. New business-package code uses `apperror.Err*` directly; do not recreate a global repository package for aliases.
 
 ### 4.2 Service Layer
 
@@ -209,10 +211,10 @@ The handler is **thin** — it parses the request, calls the service, and passes
 
 ```go
 // Good — single error pattern
-func (h *AuthHandler) OTPLogin(c *gin.Context) {
+func (h *Handler) OTPLogin(c *gin.Context) {
     var req otpLoginReq
-    if !bindJSON(c, &req) {
-        return  // bindJSON 已调用 response.Error
+    if !httpx.BindJSON(c, &req) {
+        return  // httpx.BindJSON 已调用 response.Error
     }
     res, err := h.svc.OTPLogin(c.Request.Context(), req.Target, req.Code)
     if err != nil {
@@ -262,7 +264,7 @@ func JWT(...) gin.HandlerFunc {
 
 ## 5. Response Layer — Single Write Point
 
-`pkg/response.Error(c, err)` is the **only** function that writes error responses. It accepts `error` and extracts `HTTPError`:
+`response.Error(c, err)` (in `internal/response`) is the **only** function that writes error responses. It accepts `error` and extracts `HTTPError`:
 
 `HTTPError.Details()` is developer-facing and goes only to sanitized server logs. Client-visible field validation `details`, if needed, must be constructed from explicitly public validation data; never populate it from `HTTPError.Details()`. Sanitize error details and causes before logging, following [security.md](../security.md) and [observability.md](../observability.md).
 
@@ -307,7 +309,7 @@ In practice: sentinels with `Level >= slog.LevelError` (5xx) SHOULD use `.Wrap(c
 
 ## 7. Logging Integration
 
-`pkg/logger` works with `AppError` automatically:
+The project's logger (e.g. `internal/logger`) works with `AppError` automatically:
 
 - `logger.ErrorCtx(ctx, ...)` accepts `err error` — the error is logged as `"error"` key
 - If the error implements `HTTPError`, `response.Error()` logs stack trace as structured `"stackTrace"` array
@@ -355,26 +357,26 @@ func TestHandler_ErrorResponse(t *testing.T) {
 
 When migrating an existing Go service to this convention:
 
-1. **Rewrite `pkg/apperror`** — Add `HTTPError` interface, `AppError` struct with `Wrap`/`WithMsg`/`WithDetail`/`Is`/`Unwrap`
-2. **Add `pkg/apperror/stack.go`** — `captureStack()` using `runtime.Callers`
-3. **Update `pkg/response.Error()`** — Accept `error`, extract `HTTPError` via `errors.As`
-4. **Remove service sentinels** — Delete all `var ErrXxx = errors.New(...)` in `internal/service/*/`
+1. **Update the shared error package** — New services use `internal/apperror`; preserve existing public `pkg/apperror` contracts when applicable. Add `HTTPError`, `AppError` and `Wrap`/`WithMsg`/`WithDetail`/`Is`/`Unwrap`
+2. **Add `apperror/stack.go` in that package** — `captureStack()` using `runtime.Callers`
+3. **Update `response.Error()`** — Accept `error`, extract `HTTPError` via `errors.As`; new services use `internal/response`
+4. **Remove duplicate business sentinels** — Replace `var ErrXxx = errors.New(...)` in module business logic with the shared error definitions
 5. **Update service returns** — Replace `return nil, ErrOTPCode` with `return nil, apperror.ErrOTPCode`
 6. **Delete handler `mapXxxErr()`** — Replace `response.Error(c, mapAuthErr(err), err)` with `response.Error(c, err)`
 7. **Update middleware** — Replace `response.Error(c, apperror.ErrInternal, cause)` with `response.Error(c, apperror.ErrInternal.Wrap(cause))`
-8. **Add aliases** — `repository.ErrNotFound = apperror.ErrNotFound` to keep existing `errors.Is` calls working
+8. **Preserve old callers if needed** — Add temporary aliases in existing layer packages; remove them after callers migrate, without adding aliases to new business packages
 9. **Update tests** — Replace sentinel references with `apperror.Err*`
 
 ## 10. Checklist
 
 Before merging any Go code, verify:
 
-- [ ] No `var ErrXxx = errors.New(...)` sentinels in `internal/service/` packages
-- [ ] No `mapXxxErr()` functions in `internal/handler/` packages
+- [ ] No duplicate business sentinels in module business logic; use shared `apperror.Err*`
+- [ ] No `mapXxxErr()` functions in module HTTP adapters
 - [ ] All `response.Error()` calls use the **single-argument** pattern: `response.Error(c, err)`
 - [ ] `.Wrap(cause)` is used at the error **origin** site (service/ middleware), not at the log site
 - [ ] `debug.Stack()` is **never** called directly — use `apperror.ErrXxx.Wrap(cause)` instead
 - [ ] `errors.Is(err, sentinel)` checks work via `AppError.Is()` code-based matching
-- [ ] New error codes have a single sentinel in `pkg/apperror`
+- [ ] New error codes have a single sentinel in the shared error package (`internal/apperror` for new services)
 - [ ] 5xx errors use `.Wrap(cause)` to capture stack; 4xx errors return sentinel directly
 - [ ] Developer-facing `Details()` and stack frames stay in sanitized server logs; client responses contain only public messages and explicitly public validation data

@@ -2,7 +2,7 @@
 
 > Applies to: All Go backend services | Goal: Standardize request parameter validation rules, error formats, and implementation patterns
 
-This document extends [HTTP Constitution](../http-constitution.md) §4.2–§4.3 and [error-codes.md](../error-codes.md) with Go-specific validation rules. The `ValidateStruct` utility lives in `pkg/validator/` (see [go-project.md](go-project.md)). General error-handling idioms are in [go-style.md](go-style.md) §6.
+This document extends [HTTP Constitution](../http-constitution.md) §4.2–§4.3 and [error-codes.md](../error-codes.md) with Go-specific validation rules. The `ValidateStruct` utility lives in `internal/validator/` (see [go-project.md](go-project.md)). Request DTOs belong to each business package's HTTP adapter. General error-handling idioms are in [go-style.md](go-style.md) §6.
 
 ## 目录
 
@@ -20,8 +20,8 @@ This document extends [HTTP Constitution](../http-constitution.md) §4.2–§4.3
 ## 2. Usage
 
 > **Framework applicability**
-> - **chi projects** — use the `validate` tag + manual decode + `ValidateStruct()` from `pkg/validator/`, as shown in §2.1–§2.3. `pkg/validator` applies to chi only.
-> - **gin projects** — use the `binding` tag + `c.ShouldBindJSON()`. Gin delegates to `go-playground/validator` internally and performs decode + validation in one step; do **not** call `pkg/validator` here.
+> - **chi projects** — use the `validate` tag + manual decode + `ValidateStruct()` from `internal/validator/`, as shown in §2.1–§2.3. This utility applies to chi only.
+> - **gin projects** — use the `binding` tag + `c.ShouldBindJSON()` inside the shared helper. Gin delegates to `go-playground/validator` internally and performs decode + validation in one step; do **not** call `internal/validator` here.
 
 Gin example (struct tags use `binding` instead of `validate`):
 
@@ -33,18 +33,18 @@ type loginRequest struct {
 
 func login(c *gin.Context) {
     var req loginRequest
-    if !bindJSON(c, &req) {
+    if !httpx.BindJSON(c, &req) {
         return
     }
     // ...
 }
 ```
 
-Handlers bind via the shared `bindJSON` helper rather than calling `c.ShouldBindJSON()` directly — it returns a generic error to the client and logs the validator detail server-side:
+Business-package handlers bind via `httpx.BindJSON` in `internal/httpx` rather than calling `c.ShouldBindJSON()` directly. The exported helper is shared across module packages; it returns a generic error to the client and logs the validator detail server-side:
 
 ```go
-// bindJSON 绑定 JSON；校验失败时返回通用文案，详细错误仅写日志。
-func bindJSON(c *gin.Context, req any) bool {
+// BindJSON 绑定 JSON；校验失败时返回通用文案，详细错误仅写日志。
+func BindJSON(c *gin.Context, req any) bool {
     if err := c.ShouldBindJSON(req); err != nil {
         logger.DebugCtx(c.Request.Context(), "handler", "bind_json", "request validation failed",
             "path", c.Request.URL.Path,
@@ -185,5 +185,5 @@ Request header validation (e.g., `X-Client-Platform`) is handled in middleware, 
 - ❌ Using Go struct field names in error messages (use JSON tag camelCase names instead)
 - ❌ Returning a business code other than `1001` for validation errors
 - ❌ Adding `validate` tags directly to custom types like `OptionalString`
-- ❌ In gin handlers, calling `c.ShouldBindJSON()` directly instead of the shared `bindJSON` helper — the helper centralizes the generic client-facing error and server-side logging (SEC-17)
+- ❌ In gin handlers, calling `c.ShouldBindJSON()` directly instead of the shared `httpx.BindJSON` helper — the helper centralizes the generic client-facing error and server-side logging (SEC-17)
 - ❌ Leaking the raw `validator` error string in the response — gin projects return the generic `apperror.ErrValidation` and log detail server-side only
