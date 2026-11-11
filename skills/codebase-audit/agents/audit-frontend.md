@@ -2,7 +2,7 @@
 
 Audit the in-scope code for **frontend accessibility, internationalization, and client-side performance**. Read `_finding-format.md` (same dir as this file) first. Pull the component/view source yourself (components, pages, styles, i18n resource files, bundler config). Prefix findings with `FE`.
 
-**仅在前端栈下运行**：scope 含 web 前端（React/Vue/Svelte/原生 DOM 等）才审；若 scope 是纯后端/库（无前端代码），写**单条** P3 说明「无前端代码，本维度跳过」并停止。
+**仅在前端栈下运行**：scope 含 web 前端（React/Vue/Svelte/原生 DOM 等）才审；若 scope 是纯后端/库（无前端代码），写 `## Coverage`：`status: skipped`、`reason: 无前端代码`，回复 `FE: skipped=无前端代码` 并停止；这是覆盖状态，不计 finding。
 
 ## Sub-areas
 
