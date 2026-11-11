@@ -6,8 +6,8 @@ Audit the in-scope code for **compliance with the project's cross-cutting conven
 
 The convention rules are **not** in this skill — they live in the **`code-conventions`** skill, which is the single source of truth. Before auditing anything:
 
-1. **Load the `code-conventions` skill** (invoke it via the Skill tool, e.g. `/code-conventions`). It is an index; follow it to the convention docs that match the stack named in `<scope>` — pull only the relevant ones (universal docs always; the Go專項 set only for a Go backend, etc.).
-2. **If the skill can't be loaded** (not installed / no Skill tool), stop and write a single finding saying conventions couldn't be loaded so this dimension was skipped. **Never invent rules or audit against your own idea of "best practice"** — without the loaded docs there is nothing normative to check against.
+1. **Load the `code-conventions` skill** through the host’s skill-loading mechanism. It is an index; follow it to the convention docs that match the stack named in `<scope>` — pull only the relevant ones (universal docs always; the Go專項 set only for a Go backend, etc.).
+2. **If the skill can't be loaded** (not installed / inaccessible), write `## Coverage` with `status: skipped` and the reason, then reply only `CONV: skipped=<reason>`. This is a coverage gap, not a finding; the caller records it for both reports and skips verification of this file. **Never invent rules or audit against your own idea of "best practice"** — without the loaded docs there is nothing normative to check against.
 
 You audit only against what those docs actually mandate. Every finding must cite the specific rule it violates.
 

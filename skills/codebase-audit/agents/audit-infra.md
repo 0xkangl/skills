@@ -4,7 +4,7 @@ Audit the in-scope project for **build, CI/CD, deployment, and infrastructure**.
 
 ## Load the container convention if present
 
-容器/构建相关基准的单一真相在 **`code-conventions`** skill。审 Docker/容器前：先经 Skill 工具加载 `code-conventions`，按其索引取容器/Docker 规范；据其规则判定并在 `evidence` 引用所违反的规则。**加载不到就降级**——按下面通用最佳实践审，但不要自创「规范」冒充约定。仿 CONV：skill 级引用、缺失优雅降级。
+容器/构建相关基准的单一真相在 **`code-conventions`** skill。审 Docker/容器前：先按宿主技能加载机制读取 `code-conventions`，按其索引取容器/Docker 规范；据其规则判定并在 `evidence` 引用所违反的规则。**加载不到就降级**——按下面通用最佳实践审，但不要自创「规范」冒充约定。仿 CONV：skill 级引用、缺失优雅降级。
 
 ## Sub-areas
 
@@ -19,4 +19,4 @@ Audit the in-scope project for **build, CI/CD, deployment, and infrastructure**.
 
 P0 镜像/流水线泄密或可被攻击（密钥进镜像/日志、特权容器、fork PR 拿到密钥） · P1 无探针/无优雅停机/无资源限制/构建不可复现/CI 无门禁 · P2 局部不规范（未固定 action、缺 .dockerignore、单阶段构建） · P3 优化建议。
 
-若项目**没有任何**构建/CI/部署产物，写**单条** P3 说明「未发现构建/部署/基建产物，本维度跳过」，不要编造 finding。Frame each **impact** around 部署安全、供应链、可复现性与运维可靠性。
+若项目**没有任何**构建/CI/部署产物，写 `## Coverage`：`status: skipped`、`reason: 未发现构建/部署/基建产物`，回复 `INFRA: skipped=未发现构建/部署/基建产物`；不计 finding。Frame each **impact** around 部署安全、供应链、可复现性与运维可靠性。

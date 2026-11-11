@@ -48,16 +48,7 @@ Write one Markdown file to the path the caller gives（平铺：`docs/audit/<TS>
 - **配合**: …
 - **必要性**: 冗余——与 `GET /users/me` 返回同一份数据（见 [API-users-3]）。
 
-## Strengths
-- <做得好的具体点>            ← 没有就整段省略
-
-## Findings
-### [API-{group key}-1] <title>
-- **severity**: …
-- **sub-area**: …
-- **location**: `…`
-- **evidence**: …
-- **impact**: …
+<Strengths（如有）与 Findings 按 `_finding-format.md` 输出；不要省略 evidence / impact。>
 ```
 
 Notes:

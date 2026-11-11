@@ -40,16 +40,7 @@ Write one Markdown file to the path the caller gives（平铺：`docs/audit/<TS>
   3. <step> → ⚠️ 无承载（见 [FLOW-checkout-1]）
 - **状态流转**: created → paid → ???（无 shipped 承载，见 [FLOW-checkout-2]）
 
-## Strengths
-- <流程里设计得好的具体点>     ← 没有就整段省略
-
-## Findings
-### [FLOW-{flow key}-1] <title>
-- **severity**: …
-- **sub-area**: …
-- **location**: `…`            ← 缺失类指向有此需求却无承载的那一步/调用方
-- **evidence**: …
-- **impact**: …
+<Strengths（如有）与 Findings 按 `_finding-format.md` 输出；不要省略 evidence / impact。>
 ```
 
 Notes:
