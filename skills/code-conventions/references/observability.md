@@ -139,12 +139,15 @@ Log at **decision points** and **boundaries**, not on every statement.
 
 | Position | Level | What to log |
 |----------|-------|-------------|
-| HTTP handler / API route entry | `info` | Method, path (or operation name), key input IDs — not full request body |
-| HTTP handler exit | `info` | Status/outcome, `elapsedMs` |
+| HTTP handler / API route entry | `info` | Method, path (or operation name), key input IDs, sanitized path/query parameters and bounded JSON `requestBody` (§6.3); auth-header presence when token auth is used |
+| HTTP handler exit | `info` | Method, path (or operation name), HTTP `statusCode`, outcome, `elapsedMs` |
+| HTTP response result | `debug` | Sanitized, bounded JSON `responseBody` (§6.3), including error results |
 | Background job / cron start & end | `info` | Job name, batch size, `elapsedMs`, outcome |
 | Message consumer receive & ack/nack | `info` | Topic/queue, message ID, outcome |
 
-**Health probes are exempt.** Successful (2xx) responses on `/health/*` (liveness, readiness) MUST NOT produce access logs — probes fire at second-level frequency and their success lines are pure noise. Non-2xx probe responses are logged as usual; probe availability is tracked by metrics (`http_requests_total`, see §9), not by logs.
+**Backend request logging is required.** Use shared middleware / hooks to record entry and completion on success and failure, including authentication rejection and unhandled errors. All entry, exit, and response-result logs MUST carry the same context-derived `traceId` (= `X-Request-Id`, §5). For token-authenticated endpoints, record whether each applicable auth header was supplied, e.g. `authorizationPresent` / `internalTokenPresent` as booleans; include `false` when absent. Presence does not imply successful authentication. Never log header values or token contents.
+
+**Health checks log only errors.** Apply this to `/health`, `/health/*`, and any configured liveness/readiness probe routes. Suppress routine entry, exit, payload, and dependency-success logs at every level, including `debug`. If a health check fails (non-2xx, timeout, or exception), log the error with `traceId`, probe name/path, status when available, `elapsedMs`, and sanitized diagnostic context. Probe availability is tracked by metrics (`http_requests_total`, see §9).
 
 ### 4.2 Business Logic (Service / Use-Case Layer)
 
@@ -159,9 +162,12 @@ Log at **decision points** and **boundaries**, not on every statement.
 
 | Position | Level | What to log |
 |----------|-------|-------------|
-| Before outbound call | `debug` | Target service, operation, timeout |
-| After outbound call (success) | `info` | Target, operation, `elapsedMs`, `outcome: success` |
-| After outbound call (failure) | `error` or `warn` | Target, operation, `elapsedMs`, sanitized error, retry count |
+| Before outbound call | `info` | Target service, HTTP method, host/path, operation, timeout, sanitized request parameters and bounded JSON `requestBody` (§6.3) |
+| After outbound call (success) | `info` | Target, operation, HTTP `statusCode`, `elapsedMs`, `outcome: success` |
+| After outbound call (failure) | `error` or `warn` | Target, operation, HTTP `statusCode` when received, `elapsedMs`, sanitized error, retry count |
+| Outbound response result (success or failure) | `debug` | Target, operation, sanitized and bounded JSON `responseBody` (§6.3) |
+
+Every third-party service call MUST log its request and completion, including non-2xx responses, timeouts, and transport failures. All related logs reuse the initiating request/job's context-derived `traceId`; forward it as `X-Request-Id` (§5). Record status codes only when a response exists; otherwise identify the timeout/transport error. Measure elapsed time for each attempt, with attempt/retry context when retrying. Response bodies and parsed business results belong at `debug`, including on failure; keep status, timing, and sanitized error summaries at the levels above. Health-check calls follow §4.1's error-only rule.
 
 ### 4.4 Data Access
 
@@ -250,10 +256,10 @@ When service A publishes an event and service B consumes it asynchronously, the 
 
 - Passwords, API keys, tokens, session secrets, encryption keys, raw authentication headers
 - Full credit card numbers, government IDs
-- Complete request/response bodies — no full payload dump, at any level
+- Unsanitized or unbounded request/response payloads (§6.3 defines bounded, sanitized JSON logging)
 - Health or financial data beyond opaque IDs
 
-**Upstream URLs can carry credentials.** When an outbound provider takes its API key in the query string, log `host` and `path` only and drop the query string wholesale. Never log an assembled URL that may embed a key.
+**Upstream URLs can carry credentials.** When an outbound provider takes its API key in the query string, log `host` and `path` only and drop the query string wholesale. Never log an assembled URL that may embed a key. Log only allowlisted, sanitized query parameters separately as structured JSON fields (§6.3).
 
 ### 6.2 Graded by level
 
@@ -267,6 +273,13 @@ Quasi-identifiers are not banned outright — they are gated by level:
 | Stack traces | Server only; never in production-facing client builds | Server only |
 
 `debug` is off in production by default (§3), so these allowances only take effect inside a deliberate troubleshooting window. Even at `debug`, redact known sensitive fields when inspecting payloads.
+
+### 6.3 Request and response payloads
+
+- Log path/query parameters as structured JSON objects. For JSON requests and responses, capture a sanitized JSON value under `requestBody` / `responseBody`; response bodies and parsed results are logged only at `debug`. Apply §6.1's bans and §6.2's level-specific rules before logging any parameters or payloads.
+- Bound each logged body to **8 KiB of serialized UTF-8 by default**, or the project's explicit limit. Redact first, then enforce the limit; for oversized bodies emit a bounded preview with `bodyTruncated: true` and the original byte count (`bodyBytes`) when known. Keep the log entry valid JSON; never emit a raw truncated JSON fragment.
+- Use bounded capture / serialization; do not read or buffer an unbounded body solely for logging. For non-JSON payloads (files, multipart, binary, streams), log content type and known size only. Capturing logs must preserve the request/response stream and must not break request handling if capture or serialization fails.
+- Check the log level before capturing or serializing response payloads so disabled `debug` logging does not incur payload-copying work. Never dump raw headers, credentials, or unfiltered objects as a shortcut.
 
 ## 7. CLI and Batch Tool Logging
 
@@ -330,13 +343,14 @@ Module-specific logger setup (SDK choice, sink config) lives in each module's `d
 
 When adding or modifying business logic:
 
-- [ ] Entry and exit of the operation have `info` logs with `operation`, key IDs, and `elapsedMs`
+- [ ] Backend HTTP requests log entry and completion, including rejection/error paths, with method/path, sanitized parameters and bounded JSON request body, status/outcome, and `elapsedMs`; response bodies/results appear only at `debug`
 - [ ] Every branch that affects outcome has a log (or a single summary log with `outcome`)
-- [ ] External calls log success/failure with `elapsedMs`
+- [ ] Third-party calls log request parameters/JSON body, completion status (when available), and `elapsedMs`; response bodies/results appear only at `debug`, with retry context per attempt
 - [ ] Failures follow §3: `warn` for absorbed infrastructure failures or expected business rejections, `error` for propagated system failures
 - [ ] `traceId` is present on all logs in the request path, taken from the context rather than passed by hand
-- [ ] Successful health-probe requests produce no access log
-- [ ] No sensitive data in any field; quasi-identifiers (IP, precise coordinates, user text) are coarsened or omitted above `debug`
+- [ ] Token-authenticated endpoints log applicable auth-header presence as booleans, never header values
+- [ ] Health checks produce only error logs; routine entry/exit/payload and dependency-success logs are suppressed at all levels
+- [ ] No sensitive data in any field; quasi-identifiers (IP, precise coordinates, user text) are coarsened or omitted above `debug`; JSON payloads are sanitized and size-bounded per §6.3
 - [ ] Field names follow camelCase and match this convention
 - [ ] `module` preserves the actual module/repo name; `component` and `operation` use lowercase with underscores; `message` uses a stable `domain: event` prefix
 - [ ] CLI commands log start/end with `elapsedMs`, write logs to stderr, and keep command output on stdout

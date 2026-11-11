@@ -11,14 +11,14 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 请求自外向内单向依赖，内层不感知外层：
 
 ```
-handler / controller   ← 解析请求、调用 service、装配响应
+handler / controller   ← 解析请求、调用 service、装配响应、响应缓存
       ↓
-service / use-case     ← 业务逻辑编排、事务边界
+service / use-case     ← 业务逻辑编排、事务边界、业务缓存
       ↓
-repository             ← 数据访问（DB / 缓存 / 外部 API）
+repository             ← 数据访问（DB / 外部 API，不使用缓存）
 ```
 
-- 业务逻辑集中在 service 层，handler 只做请求/响应转换，repository 只做存取。
+- 业务逻辑集中在 service 层，handler 负责请求/响应转换及响应缓存，repository 只做数据源存取。
 - 依赖方向只能由外向内；repository 不调 service，service 不感知 HTTP。
 
 这里的“层”指逻辑职责，不要求分别建立同名包或目录。Go 默认按业务模块建包、包内按文件区分职责，见 [Go 项目结构](golang/go-project.md)。
@@ -28,7 +28,7 @@ repository             ← 数据访问（DB / 缓存 / 外部 API）
 把数据访问封装在一致的接口之后，业务逻辑只依赖接口、不依赖具体存储：
 
 - 定义标准操作：`findById` / `findAll` / `create` / `update` / `delete`。
-- 具体实现处理存储细节（Postgres / Redis / HTTP / 内存）。
+- 具体实现处理数据源细节（Postgres / HTTP / 内存）；Redis 用作主存储时属于数据源，用作缓存时遵循下述层级约束。
 - 业务层依赖**抽象接口**，便于替换数据源、用内存实现做测试。
 
 ```ts
@@ -39,6 +39,12 @@ interface UserRepository {
 }
 // 业务层只见 UserRepository；PostgresUserRepository / InMemoryUserRepository 各自实现
 ```
+
+### 缓存边界
+
+- 缓存使用放在 **handler / service 层**：handler 负责响应缓存，service 负责业务数据缓存；缓存命中、回源、写入与失效策略由对应层编排。
+- **禁止在 repository 中使用缓存**，包括缓存读写、失效以及带缓存的 repository 包装器；repository 的查询结果直接来自其数据源，避免隐藏缓存一致性和事务语义。
+- 缓存客户端或抽象通过依赖注入提供给 handler / service；可复用的缓存适配器只封装技术细节，不承载业务缓存策略。
 
 ## 3. Dependency Injection
 
@@ -82,7 +88,7 @@ class UserService {
 ## 6. Checklist
 
 - [ ] 分层清晰，依赖单向由外向内；业务逻辑在 service 层。
-- [ ] 数据访问经 repository 接口，业务层不依赖具体存储。
+- [ ] 数据源访问经 repository 接口；缓存仅在 handler / service 层使用，repository 不读写或失效缓存。
 - [ ] 依赖经构造函数 / 入参注入，无内部硬构造或隐式全局。
 - [ ] 对外响应用统一封套，字段 / 错误码遵循 http-constitution.md 与 error-codes.md。
 - [ ] 有限状态用类型建模并穷尽处理。

@@ -121,6 +121,8 @@ See [error-codes.md](./error-codes.md) for the full registry.
 
 ### 5.3 Rules
 
+- **Database-side pagination required:** For database-backed paginated displays and list endpoints, filtering, sorting, and page boundaries MUST be applied in the database query (`LIMIT` / `OFFSET` or a cursor predicate with `LIMIT`). Pass pagination inputs to the repository; return only the requested page, with at most one extra row to determine `hasMore`.
+- **No application-side full-result pagination:** Never fetch all matching records and then slice, skip/take, or paginate them in a handler, service, or repository implementation. If `total` is required, use a database-side count or equivalent aggregate rather than loading all rows.
 - **Stable sort required:** `ORDER BY created_at DESC, id DESC`
 - **Prohibited:** No pagination structure, paginated results without sorting, unbounded pageSize
 
@@ -299,7 +301,7 @@ Enforce HTTPS | Input validation | Never return sensitive data | Prevent SQL inj
 - [ ] Routes namespaced by surface prefix (`/api/v1` | `/admin/v1` | `/internal/v1`)
 - [ ] Unified response structure
 - [ ] camelCase field names
-- [ ] Pagination convention
+- [ ] Pagination convention; database-backed pages are bounded in the database query, never sliced from all records in application memory
 - [ ] snake_case database naming
 - [ ] Time format compliance (ISO 8601 + UTC)
 - [ ] `X-Request-Id` propagation

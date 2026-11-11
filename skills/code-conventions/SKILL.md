@@ -21,11 +21,11 @@ description: Use when writing or modifying code, maintaining project documentati
 | 关注点 | 文档 | Scope | Description |
 |---|---|---|---|
 | 编码风格 | [references/coding-style.md](references/coding-style.md) | 所有模块 | 语言无关的命名、文件组织、注释哲学、代码味道；行为准则见 `engineering-guidelines` skill |
-| 设计模式 | [references/patterns.md](references/patterns.md) | 所有模块 | 分层架构、Repository、依赖注入、统一响应封套、用类型表达不变量 |
+| 设计模式 | [references/patterns.md](references/patterns.md) | 所有模块 | 分层架构、Repository、handler/service 层缓存、依赖注入、统一响应封套、用类型表达不变量 |
 | 安全基线 | [references/security.md](references/security.md) | 所有模块 | 密钥、边界校验、注入/XSS/CSRF、认证授权、依赖审计；各语言 `*-security` 在此扩展 |
-| HTTP API 设计 | [references/http-constitution.md](references/http-constitution.md) | 所有 HTTP 服务 / API | 方法选择、状态码、响应结构、分页、排序、时间格式、版本化、`Accept-Language` 内容协商与 locale 归一化 |
+| HTTP API 设计 | [references/http-constitution.md](references/http-constitution.md) | 所有 HTTP 服务 / API | 方法选择、状态码、响应结构、数据库分页（禁止业务层全量分页）、排序、时间格式、版本化、`Accept-Language` 内容协商与 locale 归一化 |
 | 配置 / 密钥 | [references/configuration.md](references/configuration.md) | 所有模块 | 环境变量命名、缓存/队列独立 Redis URL 与双前缀、本服务 `INTERNAL_TOKEN` 与跨服务 token、密钥与 HKDF 派生、JWT TTL（Web 刷新令牌 `7d`，移动端 `30d`）、第三方 stub 模式、服务端口 |
-| 日志 / 可观测性 | [references/observability.md](references/observability.md) | 所有模块 | 结构化日志（JSON/text）、日志级别判据、逻辑位置、traceId 上下文贯穿、分级脱敏、CLI/批处理日志、命名约定 |
+| 日志 / 可观测性 | [references/observability.md](references/observability.md) | 所有模块 | 结构化日志（JSON/text）、日志级别判据、出入站请求/响应日志、健康检查仅错误日志、traceId / X-Request-Id 关联、JSON 载荷限长与分级脱敏、CLI/批处理日志、命名约定 |
 | 测试 | [references/testing.md](references/testing.md) | 所有模块 | 测试分类、AAA 结构、命名、mock 哲学、覆盖率目标、集成测试 |
 | 项目文档 | [references/project-documentation.md](references/project-documentation.md) | 初始化或维护项目文档 | 指令入口与内容归属、README 真实性、进度记录和按需同步 |
 | 仓库 / Git 工作流 | [references/repository-workflow.md](references/repository-workflow.md) | 初始化仓库、配置 CI、维护忽略规则或执行 Git 写操作 | 分支约定、操作授权、提交范围、GitHub Actions 持续集成、忽略文件与配置模板 |
