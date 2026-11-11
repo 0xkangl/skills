@@ -6,6 +6,19 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在通用 [coding-style.md](../coding-style.md) 与 [patterns.md](../patterns.md) 之上扩展 Dart/Flutter 专项。工具见 [flutter-tools.md](flutter-tools.md)，测试见 [flutter-testing.md](flutter-testing.md)，安全见 [flutter-security.md](flutter-security.md)。
 
+## 目录
+
+- [1. Formatting](#1-formatting)
+- [2. Naming](#2-naming)
+- [3. Immutability](#3-immutability)
+- [4. Null Safety](#4-null-safety)
+- [5. Sealed Types & Pattern Matching (Dart 3+)](#5-sealed-types--pattern-matching-dart-3)
+- [6. Error Handling](#6-error-handling)
+- [7. Async / Futures](#7-async--futures)
+- [8. Imports & Codegen](#8-imports--codegen)
+- [9. Architecture & Widgets](#9-architecture--widgets)
+- [10. Checklist](#10-checklist)
+
 ## 1. Formatting
 
 - `dart format` 格式化所有 `.dart`，CI 中 `dart format --set-exit-if-changed .`。

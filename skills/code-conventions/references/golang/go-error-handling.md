@@ -2,6 +2,19 @@
 
 > Applies to: All Go backend services | Goal: Unified error flow from service to HTTP response, no per-handler error mapping
 
+## 目录
+
+- [1. Design Philosophy](#1-design-philosophy)
+- [2. Core Types](#2-core-types)
+- [3. Predefined Sentinels](#3-predefined-sentinels)
+- [4. Layered Error Flow](#4-layered-error-flow)
+- [5. Response Layer — Single Write Point](#5-response-layer--single-write-point)
+- [6. Stack Trace Rules](#6-stack-trace-rules)
+- [7. Logging Integration](#7-logging-integration)
+- [8. Testing Error Handling](#8-testing-error-handling)
+- [9. Migration Guide (from old pattern)](#9-migration-guide-from-old-pattern)
+- [10. Checklist](#10-checklist)
+
 ## 1. Design Philosophy
 
 Go does not have exceptions. The community consensus is **not** to simulate Spring Boot's `@ControllerAdvice` pattern, but to embrace Go's value semantics:
@@ -251,27 +264,28 @@ func JWT(...) gin.HandlerFunc {
 
 `pkg/response.Error(c, err)` is the **only** function that writes error responses. It accepts `error` and extracts `HTTPError`:
 
+`HTTPError.Details()` is developer-facing and goes only to sanitized server logs. Client-visible field validation `details`, if needed, must be constructed from explicitly public validation data; never populate it from `HTTPError.Details()`. Sanitize error details and causes before logging, following [security.md](../security.md) and [observability.md](../observability.md).
+
 ```go
 func Error(c *gin.Context, err error) {
+    ctx := c.Request.Context()
     var httpErr apperror.HTTPError
     if !errors.As(err, &httpErr) {
         // Non-HTTPError → fallback to 500 with stack
         httpErr = apperror.ErrInternal.Wrap(err)
     }
 
-    // Log at the error's declared level (Error for 5xx, Warn/Info for 4xx)
-    if httpErr.LogLevel() >= slog.LevelError {
-        slog.ErrorContext(ctx, "request error",
-            "code", httpErr.BusinessCode(),
-            "error", err,
-            "stackTrace", httpErr.StackFrames(),  // structured, not raw string
-        )
-    }
+    // Details and wrapped causes must already be sanitized before reaching this point.
+    slog.Log(ctx, httpErr.LogLevel(), "request: failed",
+        "errorCode", httpErr.BusinessCode(),
+        "error", err,
+        "detail", httpErr.Details(),
+        "stackTrace", httpErr.StackFrames(), // structured, not raw string
+    )
 
     c.AbortWithStatusJSON(httpErr.HTTPStatus(), ErrorResponse{
         Code:    httpErr.BusinessCode(),
         Message: httpErr.UserMessage(),
-        Details: httpErr.Details(),
     })
 }
 ```
@@ -363,3 +377,4 @@ Before merging any Go code, verify:
 - [ ] `errors.Is(err, sentinel)` checks work via `AppError.Is()` code-based matching
 - [ ] New error codes have a single sentinel in `pkg/apperror`
 - [ ] 5xx errors use `.Wrap(cause)` to capture stack; 4xx errors return sentinel directly
+- [ ] Developer-facing `Details()` and stack frames stay in sanitized server logs; client responses contain only public messages and explicitly public validation data

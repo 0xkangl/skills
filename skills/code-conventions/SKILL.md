@@ -7,6 +7,13 @@ description: Use when writing or modifying code, maintaining project documentati
 
 横切工程规范的统一索引。按任务与文档 Scope 加载相关规范，不要求每次读取全部文档；沿用项目明确约定，不能将参考示例视为操作授权。
 
+## 使用规则
+
+1. 从当前任务、项目指令和已有配置确定涉及的关注点、语言、框架及目标平台；只读取匹配的通用规范和专项章节。四件套是分类索引，不是每次必读清单；已有足够上下文时不重复加载。
+2. 遵循宿主的指令层级与权限控制。用户明确要求和项目明确约定优先于本 skill 的默认规范；语言专项细化通用规范，不自动扩大任务范围。无法从上下文消解的实质冲突，只询问受影响的决策，继续处理独立事项。
+3. 规范中的必需项、工具和发布步骤仅适用于具备对应能力的模块。参考代码和配置按项目采用的工具与版本调整；示例中的版本号、项目名和路径不构成统一基线，也不授予安装、覆盖、提交或部署权限。
+4. 完成前核对本次涉及的规则、示例及检查清单是否一致，并运行项目已有且与改动相关的检查；说明未能验证的部分。无需为满足参考示例新增无关工具或流程。
+
 ## 通用规范（Universal）
 
 与技术栈无关，按实际涉及的关注点选用。
@@ -17,7 +24,7 @@ description: Use when writing or modifying code, maintaining project documentati
 | 设计模式 | [references/patterns.md](references/patterns.md) | 所有模块 | 分层架构、Repository、依赖注入、统一响应封套、用类型表达不变量 |
 | 安全基线 | [references/security.md](references/security.md) | 所有模块 | 密钥、边界校验、注入/XSS/CSRF、认证授权、依赖审计；各语言 `*-security` 在此扩展 |
 | HTTP API 设计 | [references/http-constitution.md](references/http-constitution.md) | 所有 HTTP 服务 / API | 方法选择、状态码、响应结构、分页、排序、时间格式、版本化、`Accept-Language` 内容协商与 locale 归一化 |
-| 配置 / 密钥 | [references/configuration.md](references/configuration.md) | 所有模块 | 环境变量命名、缓存/队列双前缀、模块间 internal token、密钥与 HKDF 派生、JWT TTL（web 短时效）、第三方 stub 模式、服务端口 |
+| 配置 / 密钥 | [references/configuration.md](references/configuration.md) | 所有模块 | 环境变量命名、缓存/队列独立 Redis URL 与双前缀、本服务 `INTERNAL_TOKEN` 与跨服务 token、密钥与 HKDF 派生、JWT TTL（Web 刷新令牌 `7d`，移动端 `30d`）、第三方 stub 模式、服务端口 |
 | 日志 / 可观测性 | [references/observability.md](references/observability.md) | 所有模块 | 结构化日志（JSON/text）、日志级别判据、逻辑位置、traceId 上下文贯穿、分级脱敏、CLI/批处理日志、命名约定 |
 | 测试 | [references/testing.md](references/testing.md) | 所有模块 | 测试分类、AAA 结构、命名、mock 哲学、覆盖率目标、集成测试 |
 | 项目文档 | [references/project-documentation.md](references/project-documentation.md) | 初始化或维护项目文档 | 指令入口与内容归属、README 真实性、进度记录和按需同步 |
@@ -42,7 +49,7 @@ description: Use when writing or modifying code, maintaining project documentati
 | [references/golang/go-validation.md](references/golang/go-validation.md) | 所有 Go 后端服务 | 输入校验：库选型、字段规则、错误格式、自定义校验器 |
 | [references/golang/go-security.md](references/golang/go-security.md) | 所有 Go 后端服务 | 安全：密钥、SQL 参数化、context 超时、SSRF/路径穿越、gosec/govulncheck、错误暴露 |
 
-**参考配置**（normative 示例，非规范文档）：`references/golang/examples/` 存放 Go 后端的标准配置样例（`.air.toml`、`.golangci.yml`、`sqlc.yaml`）。采用 Go 技术栈时复制到服务仓库根目录；见 [go-tools.md](references/golang/go-tools.md) §2。
+**参考配置**：`references/golang/examples/` 存放 Go 后端的标准配置样例（`.air.toml`、`.golangci.yml`、`sqlc.yaml`）。实际采用对应工具时，将适用配置合并到服务仓库根目录的配置中；已有配置先核对，不直接覆盖。样例中的版本与路径按项目声明调整；见 [go-tools.md](references/golang/go-tools.md) §2。
 
 ## 语言 / 框架专项规范
 

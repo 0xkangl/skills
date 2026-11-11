@@ -4,21 +4,39 @@
 
 For the full convention index, see [../SKILL.md](../SKILL.md).
 
+## 目录
+
+- [0. TDD Workflow](#0-tdd-workflow)
+- [1. Design Principles](#1-design-principles)
+- [2. Test Categories](#2-test-categories)
+- [3. Test File Organization](#3-test-file-organization)
+- [4. Naming Conventions](#4-naming-conventions)
+- [5. Test Structure (Arrange-Act-Assert)](#5-test-structure-arrange-act-assert)
+- [6. Mocking and Test Doubles](#6-mocking-and-test-doubles)
+- [7. Error Testing](#7-error-testing)
+- [8. Test Data](#8-test-data)
+- [9. Coverage](#9-coverage)
+- [10. Integration Tests](#10-integration-tests)
+- [11. Test Execution](#11-test-execution)
+- [12. Prohibited Patterns](#12-prohibited-patterns)
+- [13. Pre-Review Checklist](#13-pre-review-checklist)
+- [14. Summary](#14-summary)
+
 ## 0. TDD Workflow
 
-The implementation phase of spec-first development (SDD — see each project's `spec-center/AGENTS.md`) is driven by tests:
+Use the project's declared development workflow. In spec-first development, the spec and the project's instruction entrypoint (such as `spec-center/AGENTS.md`) define the behavior to test. Without SDD, use the explicit requirement, existing contract, or bug reproduction as the behavior source; do not create a spec-center merely to use this convention. The implementation cycle is driven by tests:
 
-1. From the spec, write failing tests.
+1. From that behavior source, write failing tests.
 2. Write the minimum implementation to pass.
 3. Refactor while keeping tests green.
 
 ## 1. Design Principles
 
-- **Spec-traceable**: Every test must trace back to a spec document (spec-first/SDD — see each project's `spec-center/AGENTS.md`). No orphan tests.
+- **Requirement-traceable**: Every test must trace back to an explicit requirement, contract, or reproduced bug. In spec-first/SDD projects, link it to the owning spec. No orphan tests.
 - **Deterministic**: Tests must produce the same result on every run. No reliance on time of day, random values, or external service state.
 - **Isolated**: Each test is independent. No shared mutable state between tests. No test ordering dependencies.
 - **Fast feedback**: Unit tests run in seconds. Integration tests may be slower but must be clearly separated and opt-in.
-- **Meaningful assertions**: Assert behavior and outcomes, not implementation details. Every assertion must verify a requirement from a spec.
+- **Meaningful assertions**: Assert behavior and outcomes, not implementation details. Every assertion must verify the behavior source above.
 
 ## 2. Test Categories
 
@@ -28,7 +46,7 @@ The implementation phase of spec-first development (SDD — see each project's `
 | Integration | Multiple components; real database / HTTP server / file I/O | Seconds | Pre-merge (`make test-integration`), CI |
 | End-to-End | Full user flow across module boundaries | Minutes | Nightly / pre-release, CI on `main` |
 
-**Rule**: `make test` runs only unit tests. Integration and E2E tests are separate Makefile targets.
+**Rule**: The default test command runs only unit tests; integration and E2E tests have separate explicit commands. Commands below use Makefile names; an existing task runner may provide equivalent behavior without adding a Makefile.
 
 ## 3. Test File Organization
 
@@ -178,7 +196,7 @@ Integration tests verify that multiple layers work together correctly:
 
 ### 11.1 Makefile Targets
 
-Every module's Makefile MUST provide:
+New modules without an established task runner use the Makefile targets below. Existing modules MUST provide equivalent behavior through their declared runner; retain their command names and document the mapping rather than introducing a parallel toolchain. Only add integration/E2E targets when those test categories apply; a missing suite is not a successful check.
 
 ```makefile
 test:              # Run unit tests only
@@ -228,6 +246,6 @@ Before submitting code for review:
 
 ## 14. Summary
 
-**Spec-traceable tests + deterministic execution + clear naming + isolated state = trustworthy test suite.**
+**Requirement-traceable tests + deterministic execution + clear naming + isolated state = trustworthy test suite.**
 
 This convention is an organization-wide mandatory standard. All new code must comply; existing systems migrate incrementally when touching related logic.

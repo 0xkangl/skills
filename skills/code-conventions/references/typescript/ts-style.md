@@ -6,6 +6,17 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在通用 [coding-style.md](../coding-style.md) 与 [patterns.md](../patterns.md) 之上扩展。本目录覆盖 **TypeScript 与 JavaScript**（JS ⊂ TS，§7 列 JS 专属约定）。工具见 [ts-tools.md](ts-tools.md)，测试见 [ts-testing.md](ts-testing.md)，安全见 [ts-security.md](ts-security.md)。
 
+## 目录
+
+- [1. Types on Public APIs](#1-types-on-public-apis)
+- [2. interface vs type](#2-interface-vs-type)
+- [3. Avoid any](#3-avoid-any)
+- [4. Immutability](#4-immutability)
+- [5. Error Handling](#5-error-handling)
+- [6. Modules & Misc](#6-modules--misc)
+- [7. JavaScript 文件（JSDoc / 纯运行时）](#7-javascript-文件jsdoc--纯运行时)
+- [8. Checklist](#8-checklist)
+
 ## 1. Types on Public APIs
 
 - 导出函数、共享工具、公共类方法 MUST 标注参数与返回类型。

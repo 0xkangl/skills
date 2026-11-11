@@ -6,6 +6,17 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在 [ts-security.md](../typescript/ts-security.md) 与通用 [security.md](../security.md) 之上扩展 React 专项。
 
+## 目录
+
+- [1. XSS via dangerouslySetInnerHTML](#1-xss-via-dangerouslysetinnerhtml)
+- [2. Unsafe URL Schemes](#2-unsafe-url-schemes)
+- [3. Secret Exposure via Env Vars](#3-secret-exposure-via-env-vars)
+- [4. Server Action Hardening](#4-server-action-hardening)
+- [5. Auth State](#5-auth-state)
+- [6. CSP & Prototype Pollution](#6-csp--prototype-pollution)
+- [7. Third-Party & Build](#7-third-party--build)
+- [8. Checklist](#8-checklist)
+
 ## 1. XSS via `dangerouslySetInnerHTML`
 
 **CRITICAL**——这个 prop 名字故意吓人，每次出现都当 review 拦截点：

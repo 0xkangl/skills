@@ -4,6 +4,17 @@
 
 For the full convention index, see [../SKILL.md](../SKILL.md).
 
+## 目录
+
+- [1. Design Principles](#1-design-principles)
+- [2. Prerequisites — 发版前要备齐的资料](#2-prerequisites--发版前要备齐的资料)
+- [3. 配置归属：配置文件 [env] vs 平台 secret](#3-配置归属配置文件-env-vs-平台-secret)
+- [4. Release Flow — 平台无关的执行顺序](#4-release-flow--平台无关的执行顺序)
+- [5. 方案 A：Fly.io（容器化长驻服务）](#5-方案-aflyio容器化长驻服务)
+- [6. 方案 B：Cloudflare Workers / Pages（wrangler + API Token）](#6-方案-bcloudflare-workers--pageswrangler--api-token)
+- [7. CI 集成](#7-ci-集成)
+- [8. Release Checklist](#8-release-checklist)
+
 ## 1. Design Principles
 
 - **构建物不可变**：一次构建出的镜像 / bundle 原样晋级 staging → production，不为不同环境重新构建。环境差异只来自配置。
@@ -54,7 +65,7 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 | 分类 | 判据 | Fly.io | Cloudflare | 典型 key |
 |---|---|---|---|---|
 | 非敏感 · 稳定 | 不敏感 + 启动后通常不改 | `fly.toml` 的 `[env]` | `wrangler.jsonc` 的 `vars` | `APP_ENV`、`PORT`、`LOG_LEVEL`、`LOG_FORMAT`、`METRICS_PORT`、`DEFAULT_LOCALE`、`CACHE_KEY_PREFIX`、feature flag |
-| 敏感 · 或随环境变 | 泄露即事故 / 每个环境不同 | `flyctl secrets set` | `wrangler secret put` | `DATABASE_URL`、`REDIS_URL`、`JWT_SIGNING_KEY`、`APP_PEPPER`、`<MODULE>_INTERNAL_TOKEN`、第三方 API key |
+| 敏感 · 或随环境变 | 泄露即事故 / 每个环境不同 | `flyctl secrets set` | `wrangler secret put` | `DATABASE_URL`、`CACHE_REDIS_URL`、`QUEUE_REDIS_URL`、`JWT_SIGNING_KEY`、`APP_PEPPER`、`INTERNAL_TOKEN`、`<MODULE>_INTERNAL_TOKEN`、第三方 API key |
 | 本地开发 | 只在本机生效 | `.env`（已 gitignore） | `.dev.vars`（已 gitignore） | 上述两类的本地值 |
 
 **规则：**
@@ -97,15 +108,17 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 - Fly 账号与组织，`flyctl auth login`。
 - app 名（建议与仓库名一致，如 `acme-server`；staging 用 `acme-server-staging`）、`primary_region`。
 - CI 部署 token：`flyctl tokens create deploy --app <app>` → 存为 CI secret `FLY_API_TOKEN`。**不要用账号级个人 token 做 CI 部署**，deploy token 只能部署这一个 app，泄露面最小。
-- 外部依赖（Postgres / Redis）先建好，拿到连接串。
+- 按模块实际用途先备齐外部依赖及连接串：数据库用 `DATABASE_URL`，缓存 Redis 用 `CACHE_REDIS_URL`，队列采用 Redis 时用 `QUEUE_REDIS_URL`；缓存与队列连接独立配置。
 
 ### 5.2 首次上线顺序
+
+同样遵循 §4 的构建与验证顺序；部署前由构建步骤提供 `RELEASE_IMAGE`（已推送、含版本信息的镜像 digest 引用）。下面只展示单个 app 的配置与部署步骤。
 
 ```bash
 flyctl launch --no-deploy            # 只生成 fly.toml 与 app，不部署
 #  → 编辑 fly.toml：[env]、[http_service]、健康检查、[[vm]]（见 5.3）
 flyctl secrets set DATABASE_URL=... JWT_SIGNING_KEY=... --app <app>
-flyctl deploy --app <app> --config fly.toml
+flyctl deploy --app <app> --config fly.toml --image "${RELEASE_IMAGE:?先完成构建并记录镜像digest}"
 flyctl status --app <app>            # 确认机器起来、版本号正确
 flyctl certs add app.example.com --app <app>   # 绑域名（DNS 按提示配）
 ```
@@ -151,13 +164,19 @@ primary_region = "sjc"
 
 ### 5.4 例行发版
 
+§4 第 3 步只构建并推送一次，记录不可变镜像引用 `RELEASE_IMAGE`（如 `registry.fly.io/<app>@sha256:<digest>`）；版本号与构建时间在此时写入镜像。staging 与 production 均部署这个引用，不在晋级时重新构建。目标 app 的部署凭据须能拉取该镜像。
+
 ```bash
 make release-check                                   # lint + 漏洞扫描 + 测试
-flyctl deploy --app <app> --config fly.toml \
-  --build-arg VERSION=$(git describe --tags --always)
-flyctl status --app <app>                            # 验证版本与实例状态
-flyctl logs --app <app>                              # 观察窗内盯错误
+flyctl deploy --app <staging-app> --config fly.staging.toml \
+  --image "${RELEASE_IMAGE:?先完成构建并记录镜像digest}"
+# 完成 §4 的 staging 验证与适用门禁后，部署同一镜像到 production
+flyctl deploy --app <production-app> --config fly.toml --image "$RELEASE_IMAGE"
+flyctl status --app <production-app>                  # 验证版本与实例状态
+flyctl logs --app <production-app>                    # 观察窗内盯错误
 ```
+
+`--image` 使用预构建镜像，见 [fly deploy 官方参数](https://fly.io/docs/flyctl/deploy/)。§5.6 的两份配置分别持有环境差异，镜像引用保持一致。两环境的步骤分别使用对应 app 的部署 token；CI 按环境注入 `FLY_API_TOKEN`，不复用单 app token 跨 app 部署。
 
 ### 5.5 密钥
 
@@ -223,7 +242,7 @@ npm i -D wrangler
 wrangler kv namespace create CACHE          # 按需创建绑定资源，把返回的 id 写进配置
 wrangler secret put JWT_SIGNING_KEY         # 交互输入，值不进 shell 历史
 wrangler deploy --dry-run --outdir dist     # 预检：只构建不发布
-wrangler deploy
+wrangler deploy ./dist/index.js --no-bundle # 使用此次预检的产物；入口按实际输出调整
 wrangler tail                               # 观察窗内盯日志
 ```
 
@@ -258,12 +277,18 @@ wrangler tail                               # 观察窗内盯日志
 
 ### 6.5 例行发版
 
+下面适用于 §6.4 的普通 Worker（入口 `src/index.ts`），不含自定义 build 命令或框架适配器。只生成一次 bundle，并保存整个输出目录及其校验摘要；晋级时复用该目录，不改源码、不重新 bundle。环境差异通过运行时 `vars` / bindings / secrets 提供。
+
 ```bash
 make check                                   # lint + 测试
-wrangler deploy --env staging                # 先 staging
-wrangler deploy                              # 验证通过后 production
+wrangler deploy --dry-run --outdir dist/worker # 只构建一次，不上传
+wrangler deploy ./dist/worker/index.js --no-bundle --env staging
+# 完成 §4 的 staging 验证、产物摘要核对及适用门禁后再晋级
+wrangler deploy ./dist/worker/index.js --no-bundle
 wrangler deployments list                    # 确认当前活跃版本
 ```
+
+入口名以实际输出为准，`--dry-run` / `--outdir` / `--no-bundle` 见 [Wrangler 官方参数](https://developers.cloudflare.com/workers/wrangler/commands/workers/#deploy)。使用自定义 build、Vite 或其他框架时，沿用项目的产物部署入口并核对实际构建行为；不要直接套用本例的路径，也不要在 production 重新执行构建。
 
 ### 6.6 密钥
 
@@ -299,23 +324,24 @@ Pages 同样只用 CLI + API token：项目在面板创建一次（或 `wrangler
 部署 workflow 的基本顺序：拉代码 → 跑检查与构建 → 用 token 部署 → 部署后验证。凭据来自仓库 secret，命令与本地完全一致。仅运行检查的 CI 见[仓库工作流规范](repository-workflow.md#github-actions-持续集成)。
 
 ```yaml
-# Fly.io
+# Fly.io：构建与 staging 验证已在前置任务完成
 - run: make release-check
-- run: flyctl deploy --app acme-server --config fly.toml
+- run: flyctl deploy --app acme-server --config fly.toml --image "${RELEASE_IMAGE:?缺少构建产物}"
   env:
     FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    RELEASE_IMAGE: ${{ needs.build.outputs.image }}
 ```
 
 ```yaml
-# Cloudflare
+# Cloudflare：已下载经 staging 验证的同一产物目录
 - run: make check
-- run: npx wrangler deploy
+- run: npx wrangler deploy ./dist/worker/index.js --no-bundle
   env:
     CLOUDFLARE_API_TOKEN:  ${{ secrets.CLOUDFLARE_API_TOKEN }}
     CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 ```
 
-上例为部署步骤片段；完整 workflow 还需按项目配置检出代码、Node.js 与依赖安装，并使用项目锁定的 wrangler 版本。GitHub Actions 的非敏感配置通过 `vars` 读取，凭据通过 `secrets` 读取，再映射到部署步骤的 `env`。参考 [GitHub Variables](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables)、[GitHub Secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) 与 [Cloudflare GitHub Actions 部署说明](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)。
+上例为部署步骤片段；完整 workflow 还需按项目配置检出代码、工具链与依赖安装、一次构建及产物保存/传递、staging 验证和 production 门禁。`needs.build.outputs.image` 表示构建任务输出的镜像 digest 引用，任务名与依赖关系按项目配置；Worker 输出目录在部署前恢复并核对摘要。使用项目锁定的 wrangler 版本。GitHub Actions 的非敏感配置通过 `vars` 读取，凭据通过 `secrets` 读取，再映射到部署步骤的 `env`。参考 [GitHub Variables](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables)、[GitHub Secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) 与 [Cloudflare GitHub Actions 部署说明](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)。
 
 - 生产部署只从受保护分支/tag 触发，并遵循项目配置的审批门禁；用户已授权不代表可以绕过门禁，门禁已满足也不要求额外发明一轮对话确认。
 - CI 日志绝不回显密钥值；只打印 key 名与部署结果。
@@ -329,7 +355,7 @@ Pages 同样只用 CLI + API token：项目在面板创建一次（或 `wrangler
 - [ ] 工作树干净，`release-check`（lint + 漏洞扫描 + 测试）全绿。
 - [ ] 构建物带版本号，运行实例可回显版本。
 - [ ] 数据库迁移向后兼容，且**先于**新代码部署完成；破坏性变更已拆成多次发布。
-- [ ] staging 已部署并验证，再动 production。
+- [ ] staging 已部署并验证，再动 production；两个环境使用相同的镜像 digest 或 bundle 目录摘要，晋级未重新构建。
 - [ ] 多模块按依赖顺序发（提供契约的一端先上）。
 - [ ] 部署后验证：健康端点 + 版本回显 + 关键路径 smoke + 观察窗内错误率正常（**退出码 0 不算证据**）。
 - [ ] 回滚命令与目标版本已确认可用。

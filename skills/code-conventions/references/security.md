@@ -29,7 +29,7 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 - 校验类型、范围、长度、格式、枚举值；拒绝未知字段（按需）。
 - 对外部 URL（深链、回调、webhook、图片地址）校验 scheme / host / path，防 SSRF 与开放重定向。
 - **文件上传三重校验**：大小上限、MIME type、扩展名，三者**都**要查且一律用**白名单**——只查 MIME 可被伪造，只查扩展名同样可绕。存储时用服务端生成的文件名，不沿用客户端提供的名字。
-- **入站 webhook：签名校验必须发生在解析任何可信字段之前**。先验签再读 body，顺序反了等于没验。
+- **入站 webhook：验签通过后才信任并使用业务字段**。限制请求大小后读取原始 body，按提供方协议验证签名；需要对原始载荷验签时，保留原始字节，验签前不解析或重新序列化 body。
 
 ## 4. Injection Prevention
 
@@ -49,7 +49,7 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 ## 5. Authentication & Authorization
 
 - 认证（你是谁）与授权（你能做什么）分离，**每个**受保护端点都做授权检查，不依赖前端隐藏入口。
-- 令牌短时效 + 可轮换；敏感操作二次校验。JWT TTL 见 [configuration.md](configuration.md)。
+- 访问令牌短时效，刷新令牌可轮换；敏感操作二次校验。JWT TTL 见 [configuration.md](configuration.md)。
 - 所有面向公网的端点加**限流**，防爆破与滥用。
 - 密码用强哈希（bcrypt / argon2 / scrypt）加盐存储，绝不明文或可逆加密。
 

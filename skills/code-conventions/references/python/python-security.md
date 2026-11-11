@@ -38,7 +38,8 @@ cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
 ## 3. Input Validation
 
 - 边界用 **pydantic** 模型校验，优先字段约束（`Field(..., max_length=...)`）而非手写校验。
-- FastAPI 端点用 `response_model` 控制输出，**绝不**把密码哈希、access/refresh token、内部认证态放进响应模型。
+- FastAPI 端点用 `response_model` 控制输出；普通业务响应不包含 access/refresh token 等凭据或内部认证态。
+- 认证 / 刷新端点可按既定契约，用专用响应模型返回必要的 access/refresh token；所有响应均禁止包含密码哈希、签名密钥及其他不应公开的服务端认证材料。
 
 ```python
 from pydantic import BaseModel, EmailStr, Field
@@ -47,7 +48,7 @@ class CreateUser(BaseModel):
     email: EmailStr
     password: str = Field(min_length=12)
 
-class UserOut(BaseModel):       # 响应模型不含敏感字段
+class UserOut(BaseModel):       # 普通业务响应不含凭据或内部认证态
     id: str
     email: EmailStr
 ```
@@ -74,6 +75,6 @@ pip-audit             # 依赖已知漏洞
 - [ ] 密钥从环境读取、缺失 fail-fast，`.env` 已 gitignore。
 - [ ] SQL 全参数化 / ORM 绑定，无字符串拼接。
 - [ ] 无 `shell=True` 拼接、无不可信 `pickle` / `yaml.load`、SSRF 已防。
-- [ ] 边界用 pydantic 校验，响应模型不含敏感字段。
+- [ ] 边界用 pydantic 校验；普通业务响应不含凭据，认证 / 刷新响应仅按契约返回必要 token；所有响应均不含密码哈希、签名密钥。
 - [ ] CORS 不通配 + 凭据；JWT 校验完整；敏感端点限流。
 - [ ] bandit + pip-audit 通过，CI 阻断高危。

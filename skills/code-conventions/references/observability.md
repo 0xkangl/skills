@@ -4,6 +4,20 @@
 
 For the full convention index, see [../SKILL.md](../SKILL.md).
 
+## 目录
+
+- [1. Design Principles](#1-design-principles)
+- [2. Log Format](#2-log-format)
+- [3. Log Levels](#3-log-levels)
+- [4. Logic Positions](#4-logic-positions)
+- [5. Correlation (traceId)](#5-correlation-traceid)
+- [6. Data Protection](#6-data-protection)
+- [7. CLI and Batch Tool Logging](#7-cli-and-batch-tool-logging)
+- [8. Client-Specific Notes](#8-client-specific-notes)
+- [9. Metrics and Distributed Tracing](#9-metrics-and-distributed-tracing)
+- [10. Implementation Checklist](#10-implementation-checklist)
+- [11. Summary](#11-summary)
+
 ## 1. Design Principles
 
 - **Structured over free text**: Logs must be machine-parseable (JSON or key-value text), not ad-hoc `printf` strings.
@@ -33,10 +47,10 @@ Every log entry MUST include these fields:
 |-------|----------|-------------|---------|
 | `timestamp` | Yes | ISO 8601 UTC with milliseconds | `2026-06-06T08:30:00.123Z` |
 | `level` | Yes | Log severity (see §3) | `info` |
-| `message` | Yes | Short human-readable summary of the event | `payment authorized` |
+| `message` | Yes | Short human-readable summary of the event | `payment: authorized` |
 | `traceId` | Yes* | Request/workflow correlation ID | `a1b2c3d4-...` |
 | `module` | Yes | Originating workspace module name | `user-service`, `api-gateway` |
-| `component` | Yes | Package, layer, or file area (lowercase) | `payment_service`, `api/client` |
+| `component` | Yes | Package, layer, or file area (lowercase with underscores) | `payment_service`, `api_client` |
 | `operation` | Recommended | Function or business action name (lowercase) | `authorize_payment`, `create_order` |
 
 *Client offline logs may defer `traceId` until sync; must attach one before upload.
@@ -44,8 +58,8 @@ Every log entry MUST include these fields:
 **Naming rules:**
 
 - All **field names** use camelCase (`traceId`, `elapsedMs`, `orderId`).
-- All **field values** for `module`, `component`, and `operation` use lowercase with underscores (e.g., `payment_service`, `authorize_payment`).
-- `module` MUST use the workspace module/repo name (e.g., `user-service`, `api-gateway`), NOT the template name (e.g., not `server`).
+- `component` and `operation` values use lowercase with underscores (e.g., `payment_service`, `authorize_payment`); normalize a package path such as `api/client` to `api_client`.
+- `module` MUST preserve the actual module/repo name, including its existing hyphens (e.g., `user-service`, `api-gateway`), NOT the template name (e.g., not `server`). Do not rename a module merely to fit a log-field style.
 - `message` uses a lowercase `domain: event` prefix — `location: geocode ok`, `cache: get`, `prayer: official missing, fallback to calculated`. Keep it a stable literal; variables belong in fields, not interpolated into the message.
 
 ### 2.3 Context Fields
@@ -69,7 +83,7 @@ Additional context fields (add as needed):
 {
   "timestamp": "2026-06-06T08:30:00.123Z",
   "level": "info",
-  "message": "payment authorized",
+  "message": "payment: authorized",
   "traceId": "7f3e2a1b-9c8d-4e5f-a6b7-c8d9e0f1a2b3",
   "module": "user-service",
   "component": "payment_service",
@@ -83,7 +97,7 @@ Additional context fields (add as needed):
 **Text format** (`LOG_FORMAT=text`):
 
 ```text
-2026-06-06T08:30:00.123Z info payment authorized traceId=7f3e2a1b-9c8d-4e5f-a6b7-c8d9e0f1a2b3 module=user-service component=payment_service operation=authorize_payment orderId=ord_123 elapsedMs=142 outcome=success
+2026-06-06T08:30:00.123Z info payment: authorized traceId=7f3e2a1b-9c8d-4e5f-a6b7-c8d9e0f1a2b3 module=user-service component=payment_service operation=authorize_payment orderId=ord_123 elapsedMs=142 outcome=success
 ```
 
 ### 2.5 Output
@@ -106,7 +120,7 @@ Module configs MAY override the destination for specific environments, but the t
 
 **Choosing between `info` and `debug` — one line:**
 
-> A call that crosses the network boundary to a third party, or an event that changes response semantics (fallback, degradation, mode switch, a learned/derived value that alters the answer) → `info`. In-process flow detail → `debug`.
+> Classify failures as `warn` or `error` using the table first. For remaining events, a successful third-party network call or a change in response semantics (mode switch, fallback without an upstream failure, a learned/derived value that alters the answer) → `info`. In-process flow detail → `debug`.
 
 **Infrastructure boundary:** self-owned infrastructure (your own database, cache, queue) is *not* a third-party upstream. Routine access logs at `debug`; failures log at `warn` when absorbed, `error` when propagated.
 
@@ -194,14 +208,14 @@ Headers on every hop:
   X-Request-Id: 7f3e2a1b-9c8d-4e5f-a6b7-c8d9e0f1a2b3
 ```
 
-All logs across both services share the same `traceId`:
+All logs across both services share the same `traceId` (excerpts below show correlation fields; actual entries also include all required fields from §2.2):
 
 ```json
 // Service A log
-{ "traceId": "7f3e2a1b-...", "module": "user-service", "component": "api/client", "operation": "call_payment", "message": "outbound call completed", "target": "payment-service", "elapsedMs": 142, "outcome": "success" }
+{ "traceId": "7f3e2a1b-...", "module": "user-service", "component": "api_client", "operation": "call_payment", "message": "payment: call completed", "target": "payment-service", "elapsedMs": 142, "outcome": "success" }
 
 // Service B log
-{ "traceId": "7f3e2a1b-...", "module": "payment-service", "component": "payment_service", "operation": "authorize_payment", "message": "payment authorized", "orderId": "ord_123", "elapsedMs": 98, "outcome": "success" }
+{ "traceId": "7f3e2a1b-...", "module": "payment-service", "component": "payment_service", "operation": "authorize_payment", "message": "payment: authorized", "orderId": "ord_123", "elapsedMs": 98, "outcome": "success" }
 ```
 
 Searching any log aggregator for `traceId=7f3e2a1b-...` returns the complete chain from both services.
@@ -319,12 +333,12 @@ When adding or modifying business logic:
 - [ ] Entry and exit of the operation have `info` logs with `operation`, key IDs, and `elapsedMs`
 - [ ] Every branch that affects outcome has a log (or a single summary log with `outcome`)
 - [ ] External calls log success/failure with `elapsedMs`
-- [ ] Errors use the correct level (`warn` for expected, `error` for unexpected)
+- [ ] Failures follow §3: `warn` for absorbed infrastructure failures or expected business rejections, `error` for propagated system failures
 - [ ] `traceId` is present on all logs in the request path, taken from the context rather than passed by hand
 - [ ] Successful health-probe requests produce no access log
 - [ ] No sensitive data in any field; quasi-identifiers (IP, precise coordinates, user text) are coarsened or omitted above `debug`
 - [ ] Field names follow camelCase and match this convention
-- [ ] `module`, `component`, `operation` values use lowercase with underscores
+- [ ] `module` preserves the actual module/repo name; `component` and `operation` use lowercase with underscores; `message` uses a stable `domain: event` prefix
 - [ ] CLI commands log start/end with `elapsedMs`, write logs to stderr, and keep command output on stdout
 
 ## 11. Summary

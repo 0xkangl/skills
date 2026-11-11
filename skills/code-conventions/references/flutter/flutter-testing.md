@@ -4,7 +4,21 @@
 
 For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
+纯 Dart 模块使用 `package:test` 与 `dart test`；widget、golden 及 `flutter test` 示例仅适用于 Flutter。状态管理章节按是否采用 BLoC / Riverpod 选用，同样适用于使用这些库的纯 Dart 模块。只加载与当前测试类型匹配的章节，覆盖率目标保持一致。
+
 在通用 [testing.md](../testing.md) 之上扩展 Dart/Flutter 专项。
+
+## 目录
+
+- [1. Framework](#1-framework)
+- [2. Test Types](#2-test-types)
+- [3. State Manager Tests](#3-state-manager-tests)
+- [4. Widget Tests](#4-widget-tests)
+- [5. Fakes Over Mocks](#5-fakes-over-mocks)
+- [6. Async & Golden](#6-async--golden)
+- [7. Naming & Organization](#7-naming--organization)
+- [8. Coverage](#8-coverage)
+- [9. Checklist](#9-checklist)
 
 ## 1. Framework
 
@@ -104,8 +118,8 @@ flutter test --coverage    # 产出 lcov.info
 
 ## 9. Checklist
 
-- [ ] 状态管理用 bloc_test / ProviderContainer，覆盖全部状态迁移。
-- [ ] widget 行为有 widget 测，设计关键 UI 有 golden。
+- [ ] 使用 BLoC / Riverpod 时，用 bloc_test / ProviderContainer 覆盖全部状态迁移。
+- [ ] Flutter widget 行为有 widget 测，设计关键 UI 有 golden。
 - [ ] 复杂依赖优先手写 fake；时间用 fake_async。
 - [ ] 测试名描述行为，按 unit/widget/golden/integration 组织。
 - [ ] 覆盖率达标并在 CI 阻断。

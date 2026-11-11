@@ -2,6 +2,23 @@
 
 > Applies to: All HTTP services / microservices / external APIs | Goal: Standardize API design for consistency, maintainability, performance, and observability
 
+## 目录
+
+- [1. Design Principles](#1-design-principles)
+- [2. HTTP Fundamentals](#2-http-fundamentals)
+- [3. Request Convention](#3-request-convention)
+- [4. Response Structure](#4-response-structure)
+- [5. Pagination](#5-pagination)
+- [6. Database Convention](#6-database-convention)
+- [7. Headers](#7-headers)
+- [8. Idempotency](#8-idempotency)
+- [9. Observability](#9-observability)
+- [10. Route Prefixes & API Versioning](#10-route-prefixes--api-versioning)
+- [11. Security](#11-security)
+- [12. Prohibited Patterns](#12-prohibited-patterns)
+- [13. Pre-Launch Checklist](#13-pre-launch-checklist)
+- [14. Summary](#14-summary)
+
 ## 1. Design Principles
 
 - **Consistency**: Follow unified structure and naming conventions
@@ -257,7 +274,7 @@ Every route is namespaced by **surface** then **version** — `{surface}/{versio
 |--------|---------|-----------|------|
 | `/api/v1` | Public API | End-user client apps (mobile / web) | End-user Bearer JWT (§7.2) |
 | `/admin/v1` | Admin API | Operators / admin console | End-user Bearer JWT (§7.2), privileged accounts |
-| `/internal/v1` | Internal service API | Other services (module-to-module) | `X-Internal-Token` (see [configuration.md](./configuration.md) §5) |
+| `/internal/v1` | Internal service API | Other services (module-to-module) | `X-Internal-Token`, validated against this service's `INTERNAL_TOKEN` (see [configuration.md](./configuration.md) §5) |
 
 - `v1` is the API version. Breaking changes bump the version (`/api/v2`, …) and keep the old version live during migration (§4.4).
 - Infra / operational paths (`/health`, `/metrics`, `/webhooks`) sit outside all versioned prefixes and follow their own rules.

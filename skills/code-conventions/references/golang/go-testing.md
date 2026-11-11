@@ -4,6 +4,22 @@
 
 This document is a companion to [testing.md](../testing.md) (the generic testing convention) and [go-style.md](go-style.md) (idioms and error handling). It defines Go-specific rules and patterns that all Go services MUST follow.
 
+## 目录
+
+- [1. Test File Organization](#1-test-file-organization)
+- [2. Naming Conventions](#2-naming-conventions)
+- [3. Table-Driven Tests](#3-table-driven-tests)
+- [4. Mocking](#4-mocking)
+- [5. HTTP Handler Testing](#5-http-handler-testing)
+- [6. Error Testing](#6-error-testing)
+- [7. Integration Tests](#7-integration-tests)
+- [8. Test Data Factories](#8-test-data-factories)
+- [9. Concurrency Testing](#9-concurrency-testing)
+- [10. Makefile Targets](#10-makefile-targets)
+- [11. Coverage Commands](#11-coverage-commands)
+- [12. Prohibited Patterns](#12-prohibited-patterns)
+- [13. Summary](#13-summary)
+
 ## 1. Test File Organization
 
 ```

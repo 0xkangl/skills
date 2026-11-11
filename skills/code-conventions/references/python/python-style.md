@@ -6,6 +6,17 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在通用 [coding-style.md](../coding-style.md) 与 [patterns.md](../patterns.md) 之上扩展 Python 专项。工具链见 [python-tools.md](python-tools.md)，测试见 [python-testing.md](python-testing.md)，安全见 [python-security.md](python-security.md)。
 
+## 目录
+
+- [1. Formatting](#1-formatting)
+- [2. Type Annotations](#2-type-annotations)
+- [3. Immutability](#3-immutability)
+- [4. Idioms](#4-idioms)
+- [5. Error Handling](#5-error-handling)
+- [6. Structure & Patterns](#6-structure--patterns)
+- [7. Async](#7-async)
+- [8. Checklist](#8-checklist)
+
 ## 1. Formatting
 
 - 遵循 **PEP 8**；格式化交给工具（black + ruff），不手动纠缠空格。见 [python-tools.md](python-tools.md)。

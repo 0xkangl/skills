@@ -4,6 +4,17 @@
 
 For the full convention index, see [../SKILL.md](../SKILL.md).
 
+## 目录
+
+- [1. Design Principles](#1-design-principles)
+- [2. Multi-Stage Build](#2-multi-stage-build)
+- [3. Layer Caching](#3-layer-caching)
+- [4. Non-Root User](#4-non-root-user)
+- [5. Comments](#5-comments)
+- [6. Healthcheck & Runtime Hardening](#6-healthcheck--runtime-hardening)
+- [7. Image Scanning & Build Secrets](#7-image-scanning--build-secrets)
+- [8. Hardening Checklist](#8-hardening-checklist)
+
 ## 1. Design Principles
 
 - **Multi-stage**: 构建依赖与运行时分离，最终镜像只含运行所需的产物。
@@ -75,7 +86,7 @@ COPY --from=builder --chown=app:app /out/app /app/app
 USER app
 ```
 
-- 监听端口 MUST 用非特权端口（>1024），非 root 无法绑定 80/443。
+- 监听端口 MUST 用非特权端口（>1024），对外 80/443 由网关或端口映射承接，不为低端口增加运行时 capability。
 - 需要写入时仅对具体目录 `--chown`，不放宽整镜像权限。
 - 不在最终镜像保留 `sudo`、setuid 二进制或构建期密钥。
 
@@ -107,7 +118,6 @@ services:
     read_only: true
     tmpfs: ["/tmp"]
     cap_drop: ["ALL"]
-    cap_add: ["NET_BIND_SERVICE"]   # 仅当需绑定 <1024 端口
 ```
 
 ## 7. Image Scanning & Build Secrets

@@ -4,6 +4,14 @@
 
 This document defines the mandatory development tools, their configuration files, and Makefile targets for every Go service. See [go-project.md](go-project.md) for directory layout.
 
+## 目录
+
+- [1. Required Tools](#1-required-tools)
+- [2. Configuration Files](#2-configuration-files)
+- [3. Makefile Targets](#3-makefile-targets)
+- [4. CI Integration](#4-ci-integration)
+- [5. Related Conventions](#5-related-conventions)
+
 ## 1. Required Tools
 
 | Tool | Purpose | Install |
@@ -29,7 +37,7 @@ Every Go service MUST keep these files at the repository root:
 └── Makefile
 ```
 
-**Reference configs** (normative examples, not convention documents) live in the `code-conventions` skill at `references/golang/examples/` (see the per-file links below). When a service adopts the Go stack, copy them from there to the service repository root and adjust paths (e.g. `cmd` entrypoint) as needed. The generic `server` scaffold does not include these files — they apply only to Go backends.
+**Reference configs** live at `references/golang/examples/` (see the per-file links below). For the corresponding tools adopted by the service, merge the applicable settings into the repository-root configuration and adjust paths (e.g. `cmd` entrypoint) and versions to the project. Create a file from the example only when no configuration exists; inspect and preserve existing project settings instead of overwriting them. The generic `server` scaffold does not include these files — they apply only to Go backends.
 
 ### 2.1 `.air.toml`
 

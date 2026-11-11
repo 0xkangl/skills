@@ -4,6 +4,15 @@
 
 This document extends [HTTP Constitution](../http-constitution.md) §4.2–§4.3 and [error-codes.md](../error-codes.md) with Go-specific validation rules. The `ValidateStruct` utility lives in `pkg/validator/` (see [go-project.md](go-project.md)). General error-handling idioms are in [go-style.md](go-style.md) §6.
 
+## 目录
+
+- [1. Validation Library](#1-validation-library)
+- [2. Usage](#2-usage)
+- [3. Standard Validate Tags](#3-standard-validate-tags)
+- [4. Error Response Format](#4-error-response-format)
+- [5. Special Type Handling](#5-special-type-handling)
+- [6. Prohibited Patterns](#6-prohibited-patterns)
+
 ## 1. Validation Library
 
 **Mandatory:** All Go services must use `github.com/go-playground/validator/v10`

@@ -6,6 +6,19 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在通用 [coding-style.md](../coding-style.md) 与 [patterns.md](../patterns.md) 之上扩展。工具见 [rust-tools.md](rust-tools.md)，测试见 [rust-testing.md](rust-testing.md)，安全见 [rust-security.md](rust-security.md)。
 
+## 目录
+
+- [1. Formatting](#1-formatting)
+- [2. Naming](#2-naming)
+- [3. Immutability](#3-immutability)
+- [4. Ownership & Borrowing](#4-ownership--borrowing)
+- [5. Error Handling](#5-error-handling)
+- [6. Iterators Over Loops](#6-iterators-over-loops)
+- [7. Type-Driven Design](#7-type-driven-design)
+- [8. Module Organization & Visibility](#8-module-organization--visibility)
+- [9. Structure & DI](#9-structure--di)
+- [10. Checklist](#10-checklist)
+
 ## 1. Formatting
 
 - 提交前 `cargo fmt`（rustfmt）；4 空格缩进，行宽 100（rustfmt 默认）。

@@ -22,6 +22,8 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 - 用 `rust-toolchain.toml` 固定工具链版本与组件，保证团队与 CI 一致：
 
+以下版本仅示意固定方式；实际值取项目声明的工具链、MSRV 与 CI 支持范围，不因复制示例而降级或升级。
+
 ```toml
 [toolchain]
 channel = "1.81.0"

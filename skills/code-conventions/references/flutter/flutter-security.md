@@ -6,6 +6,8 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在通用 [security.md](../security.md) 之上扩展 Dart/Flutter 与移动端专项。
 
+按模块能力与发布平台选用：纯 Dart 遵循适用的通用安全规则；平台安全存储、WebView、Android/iOS 加固只作用于实际采用这些能力的客户端，不能为纯 Dart 或 Web 模块引入移动端依赖。
+
 ## 1. Secrets Management
 
 - **绝不**硬编码密钥 / token 到 Dart 源码。
@@ -78,15 +80,15 @@ if (uri != null && uri.host == 'myapp.com' && _allowedPaths.contains(uri.path)) 
 
 ## 7. Build & Release
 
-- release 启用混淆：`flutter build apk --obfuscate --split-debug-info=./debug-info/`。
-- `--split-debug-info` 输出排除版本控制（仅用于崩溃符号化）。
-- 发布前 `flutter analyze` 零告警。
+- 支持混淆的 Flutter 原生 release 构建启用混淆；以下仅为 Android APK 示例：`flutter build apk --obfuscate --split-debug-info=./debug-info/`。其他原生目标使用对应平台的构建命令与适用选项，不能套用 APK 命令。
+- 使用 `--split-debug-info` 时，输出排除版本控制并安全留存用于崩溃符号化；Flutter Web 不支持此混淆流程，纯 Dart 按自身发布工具处理。
+- 发布前运行模块对应的 `dart analyze` / `flutter analyze`，零告警。
 
 ## 8. Checklist
 
-- [ ] 无硬编码密钥；运行时密钥存 flutter_secure_storage。
+- [ ] 无硬编码密钥；移动端运行时密钥存平台安全存储，其他模块使用平台适用的安全方案。
 - [ ] 强制 HTTPS + 超时；高安全端点 pinning。
 - [ ] 本地 SQL 参数化；深链校验 scheme/host。
 - [ ] 敏感数据不进 SharedPreferences / 日志，登出清理。
-- [ ] Android/iOS 只声明必需权限，非必要组件 `exported=false`。
-- [ ] WebView 默认禁 JS + 校验导航；release 启用混淆。
+- [ ] 发布到 Android/iOS 时只声明必需权限；Android 非必要组件 `exported=false`。
+- [ ] 使用 WebView 时默认禁 JS + 校验导航；支持混淆的 Flutter 原生 release 构建启用混淆并保管符号文件。

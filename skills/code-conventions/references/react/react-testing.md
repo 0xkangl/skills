@@ -6,6 +6,22 @@ For the full convention index, see [../../SKILL.md](../../SKILL.md).
 
 在 [ts-testing.md](../typescript/ts-testing.md) 与通用 [testing.md](../testing.md) 之上扩展 React 专项。
 
+## 目录
+
+- [1. Library Choice](#1-library-choice)
+- [2. Core Principle](#2-core-principle)
+- [3. Query Priority](#3-query-priority)
+- [4. User Interaction](#4-user-interaction)
+- [5. Async Assertions](#5-async-assertions)
+- [6. Network Mocking — MSW](#6-network-mocking--msw)
+- [7. Custom Hook Testing](#7-custom-hook-testing)
+- [8. Accessibility Assertions](#8-accessibility-assertions)
+- [9. Setup Helpers](#9-setup-helpers)
+- [10. Avoid Component Snapshots](#10-avoid-component-snapshots)
+- [11. Coverage Targets](#11-coverage-targets)
+- [12. Anti-Patterns](#12-anti-patterns)
+- [13. Checklist](#13-checklist)
+
 ## 1. Library Choice
 
 - **React Testing Library (RTL)**：组件测试标准，经渲染后的 DOM 测行为。

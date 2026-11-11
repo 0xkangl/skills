@@ -2,6 +2,17 @@
 
 > Applies to: All Go backend services | Goal: Standardize project structure to reduce cross-project cognitive overhead
 
+## 目录
+
+- [Directory Structure](#directory-structure)
+- [internal/ vs pkg/ Guidelines](#internal-vs-pkg-guidelines)
+- [Server Lifecycle](#server-lifecycle)
+- [Router Registration](#router-registration)
+- [Layered Architecture](#layered-architecture)
+- [Middleware (internal/middleware/)](#middleware-internalmiddleware)
+- [Domain Models (internal/model/)](#domain-models-internalmodel)
+- [Related Conventions](#related-conventions)
+
 ## Directory Structure
 
 ```

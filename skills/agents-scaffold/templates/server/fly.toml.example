@@ -16,7 +16,7 @@ primary_region = "sjc"
   dockerfile = "Dockerfile"
 
 # 非敏感、启动后通常不改的运行时配置放这里 —— 入仓、可 review，改动需重新 deploy 才生效。
-# 敏感项(DATABASE_URL / REDIS_URL / JWT_SIGNING_KEY / APP_PEPPER / 第三方 key)一律走
+# 敏感项(DATABASE_URL / CACHE_REDIS_URL / QUEUE_REDIS_URL / INTERNAL_TOKEN / JWT_SIGNING_KEY / APP_PEPPER / 第三方 key)一律走
 # `flyctl secrets set`，绝不写在此处；同一个 key 也不要两处都写(secret 会覆盖 [env]，
 # 造成"改了配置却不生效"的假象)。变量名与必填性以 code-conventions 的配置规范为准。
 [env]

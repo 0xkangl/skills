@@ -6,6 +6,22 @@ This document distills mandatory and recommended practices from [Effective Go](h
 
 **Note:** Effective Go predates generics and Go modules. Where this document or project conventions conflict with Effective Go, follow this document and the linked project conventions.
 
+## 目录
+
+- [1. Formatting and Comments](#1-formatting-and-comments)
+- [2. Naming](#2-naming)
+- [3. Control Flow](#3-control-flow)
+- [4. Functions and Methods](#4-functions-and-methods)
+- [5. Data and Types](#5-data-and-types)
+- [6. Errors](#6-errors)
+- [7. Interfaces and Composition](#7-interfaces-and-composition)
+- [8. Concurrency](#8-concurrency)
+- [9. Initialization](#9-initialization)
+- [10. Blank Identifier](#10-blank-identifier)
+- [11. Logging and Printing](#11-logging-and-printing)
+- [12. Prohibited Patterns (Summary)](#12-prohibited-patterns-summary)
+- [13. Related Conventions](#13-related-conventions)
+
 ## 1. Formatting and Comments
 
 ### 1.1 Formatting
