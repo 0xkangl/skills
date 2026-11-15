@@ -95,15 +95,15 @@ function validateBlocks(document, report, label, existing = false) {
       if (field) fields.push({ name: field[1], start: line.start, valueStart: line.start + line.value.length - field[2].length });
     }
     if (!existing && firstContent && !/^-[\t ]+\*\*suggest\*\*:/u.test(firstContent)) {
-      throw new Error(`${label}: ${ids} 块末只能追加 suggest 与可选 solution 字段`);
+      throw new Error(`${label}: ${ids} 块末只能追加 suggest、可选 solution 与 supplement 字段`);
     }
     const values = new Map();
     for (let index = 0; index < fields.length; index++) {
       const field = fields[index];
-      if (!existing && !['suggest', 'solution'].includes(field.name)) {
+      if (!existing && !['suggest', 'solution', 'supplement'].includes(field.name)) {
         throw new Error(`${label}: ${ids} 片段不允许新增字段 ${field.name}`);
       }
-      if (['suggest', 'solution'].includes(field.name) && values.has(field.name)) {
+      if (['suggest', 'solution', 'supplement'].includes(field.name) && values.has(field.name)) {
         throw new Error(`${label}: ${ids} 重复字段 ${field.name}`);
       }
       const value = trimSeparator(appended.slice(field.valueStart, fields[index + 1]?.start ?? appended.length)).trim();
@@ -112,6 +112,7 @@ function validateBlocks(document, report, label, existing = false) {
     if (!values.get('suggest')) throw new Error(`${label}: ${ids} 缺失或空 suggest`);
     block.suggest = values.get('suggest');
     block.solution = values.get('solution');
+    block.supplement = values.get('supplement');
   }
 }
 
@@ -269,7 +270,9 @@ export function main(argv = process.argv.slice(2)) {
       seen.add(id);
       const previous = blocks.get(id);
       if (previous) {
-        if (previous.suggest !== block.suggest || (block.solution && block.solution !== previous.solution)) {
+        if (previous.suggest !== block.suggest
+          || (block.solution && block.solution !== previous.solution)
+          || (block.supplement && block.supplement !== previous.supplement)) {
           throw new Error(`${label}: [${id}] 与已有 remediation 方案冲突 (conflict)`);
         }
       } else {

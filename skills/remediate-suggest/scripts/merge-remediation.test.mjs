@@ -154,6 +154,7 @@ for (const [name, mutate, id, reason] of [
   ['prepended suggest', () => security.replace('- **evidence**:', '- **suggest**: 提前插入\n- **evidence**:') + '\n', 'SEC-2', /原文|source|suggest/i],
   ['extra fragment field', () => suggested(security, `${suggestion}\n- **status**: 不该新增`), 'SEC-2', /status|字段|field/i],
   ['duplicate suggest', () => suggested(security, `${suggestion}\n- **suggest**: 另一个`), 'SEC-2', /suggest|重复|duplicate/i],
+  ['duplicate supplement', () => suggested(security, `${suggestion}\n- **supplement**:\n- **supplement**: 另一个`), 'SEC-2', /重复字段 supplement/u],
 ]) {
   test(`stamp rejects ${name} before modifying the fragment`, (t) => {
     const f = fixture(t);
@@ -210,6 +211,55 @@ test('existing solution and status survive a duplicate fragment with a blank sol
   writeFileSync(f.output, readFileSync(f.output, 'utf8').replace('- **solution**:', '- **solution**: B\n- **status**: resolved'));
   const before = readFileSync(f.output);
   ok(f.merge(part));
+  assert.deepEqual(readFileSync(f.output), before);
+});
+
+test('blank supplement is accepted for single and multiple solutions', (t) => {
+  const f = fixture(t);
+  const single = stamped(f, 'single', suggested(performance, `${suggestion}\n- **supplement**:  \n\t`));
+  const multiple = stamped(f, 'multiple', suggested(security, `${suggestion}\n- **solution**:\n- **supplement**:`));
+  ok(f.merge(single, multiple));
+  const output = readFileSync(f.output, 'utf8');
+  assert.ok(output.includes(`${performance}${suggestion}\n- **supplement**:`));
+  assert.ok(output.includes(`${security}${suggestion}\n- **solution**:\n- **supplement**:`));
+});
+
+test('multiline supplement survives initial merge, continuation and append with user choices', (t) => {
+  const f = fixture(t);
+  const supplement = '\n- **supplement**:\n  - 保留公共接口签名。  \n  - 验收覆盖超时与正常路径。';
+  const content = `${security}${suggestion}\n- **solution**:${supplement}`;
+  const part = stamped(f, 'part', `${content}\n\n`);
+  ok(f.merge(part));
+  assert.ok(readFileSync(f.output, 'utf8').includes(content));
+  const reviewed = content.replace('- **solution**:', '- **solution**: B') + '\n- **status**: resolved';
+  writeFileSync(f.output, readFileSync(f.output, 'utf8').replace(content, reviewed));
+  const before = readFileSync(f.output);
+  const blank = stamped(f, 'blank', suggested(security, `${suggestion}\n- **solution**:\n- **supplement**: \n\t`));
+  ok(f.merge(blank));
+  assert.deepEqual(readFileSync(f.output), before);
+  const next = stamped(f, 'next', suggested(performance, `${suggestion}\n- **supplement**:`));
+  ok(f.merge(blank, next));
+  assert.ok(readFileSync(f.output, 'utf8').includes(reviewed));
+});
+
+test('conflicting supplement is rejected without overwriting reviewed output', (t) => {
+  const f = fixture(t);
+  const first = stamped(f, 'first', suggested(security, `${suggestion}\n- **supplement**: 保留接口`));
+  ok(f.merge(first));
+  const before = readFileSync(f.output);
+  ok(f.merge(first));
+  const conflict = stamped(f, 'conflict', suggested(security, `${suggestion}\n- **supplement**: 删除接口`));
+  rejected(f.merge(conflict), 'SEC-2', /冲突|conflict/i);
+  assert.deepEqual(readFileSync(f.output), before);
+});
+
+test('blank supplement does not rewrite legacy findings without the field', (t) => {
+  const f = fixture(t);
+  const legacy = stamped(f, 'legacy', suggested(security));
+  ok(f.merge(legacy));
+  const before = readFileSync(f.output);
+  const current = stamped(f, 'current', suggested(security, `${suggestion}\n- **supplement**:`));
+  ok(f.merge(current));
   assert.deepEqual(readFileSync(f.output), before);
 });
 

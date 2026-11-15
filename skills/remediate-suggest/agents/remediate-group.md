@@ -41,9 +41,11 @@
 - 2–3 个各有取舍、代码无法裁决 → **并列**，每个一句 trade-off，推荐项标 `[推荐]`；并在 `suggest` 字段后追加一行**留空的** `- **solution**:`（供用户填写采用的方案，如 `solution: B`；单方案 / quick-fix 不加）。
 - 无歧义纯机械（日志级别、缺失 nil/error 检查、硬编码提配置、键名拼写、死导入）→ 名称后标 `[quick-fix]`，省去多方案对比。**任何需要设计取舍的都不是 quick-fix。**
 
+每条 finding（含 quick-fix、已消解和待核实条目）均在方案字段后追加一行留空的 `- **supplement**:`，供用户审查时填写实施要求、范围约束或验收条件，不自动代填。多方案顺序为 `suggest` → `solution` → `supplement`，其余为 `suggest` → `supplement`。
+
 ## 输出：片段文件
 
-写到主 agent 给的路径——`<issuesStem>-remediations/<组key>.md`（与输入 issues 文档同目录；`issuesStem` = 文档名去 `.md`）。在片段前言记录主 agent 给定的被审仓库/HEAD，并用工具计算实际读取文件的内容摘要（含相关未跟踪文件），供主 agent 判断代码是否变化；这些元数据放在 finding 块之外。**原 finding 块逐字保留**（id/title/severity/sub-area/location/evidence/impact 不改写、不发明新问题），仅在**每个块末尾追加** `- **suggest**:` 字段（多方案条目在其后再追加一行留空的 `- **solution**:`）：
+写到主 agent 给的路径——`<issuesStem>-remediations/<组key>.md`（与输入 issues 文档同目录；`issuesStem` = 文档名去 `.md`）。在片段前言记录主 agent 给定的被审仓库/HEAD，并用工具计算实际读取文件的内容摘要（含相关未跟踪文件），供主 agent 判断代码是否变化；这些元数据放在 finding 块之外。**原 finding 块逐字保留**（id/title/severity/sub-area/location/evidence/impact 不改写、不发明新问题），仅在**每个块末尾追加** `- **suggest**:` 字段、多方案时留空的 `- **solution**:`，最后是留空的 `- **supplement**:`：
 
 ```markdown
 ### [SEC-2] 鉴权中间件未覆盖 /admin 路由
@@ -58,9 +60,10 @@
   - 实现细节与注意事项：①先确认 `RequireRole` 已在业务路由验证过 admin 角色；②注意 group 上中间件的注册顺序（auth 需在 logger 之后、业务 handler 之前）；③补一条「未授权访问 /admin 返回 401」的集成测试；④若存在公开健康检查子路径，单独 `Group` 排除。
   - 改动量：小（<20 行，主要是中间件挂载 + 1 条测试）。
   - 规范贴合：401 响应体用 `{code,message,details}` 信封（code-conventions 错误码篇）。
+- **supplement**:
 ```
 
-多方案条目示例（`suggest` 后带留空的 `solution` 行，供用户填写采用的方案）：
+多方案条目示例（`suggest` 后带留空的 `solution` 和 `supplement` 行，供用户选择方案及填写补充）：
 
 ```markdown
 ### [PERF-3] 订单列表接口 N+1 查询
@@ -70,6 +73,7 @@
   - 方案 B：拆为两段查询后内存 join，可控性更强；trade-off——多一处手写聚合逻辑，改动量升为中。
   - 改动量：A 小（<20 行）/ B 中（20–100 行）。
 - **solution**:
+- **supplement**:
 ```
 
 不存在的 finding 片段示例：
@@ -78,12 +82,14 @@
 ### [ARCH-1] X 已废弃
 - ……（原字段逐字保留）……
 - **suggest**: 已消解/不复存在: evidence 指向的 `old/queue.go` 在当前代码树不存在（git ls-files 未命中），并核实入口、替代实现与调用路径已不再产生同类问题。
+- **supplement**:
 ```
 
 ```markdown
 ### [SEC-5] 与 [SEC-2] 同根因的连带
 - ……（原字段逐字保留）……
 - **suggest**: 随 [SEC-2] 修复后消解（[SEC-2] 给 adminGroup 挂 auth 后，本条涉及的未覆盖子路由一并纳入）。
+- **supplement**:
 ```
 
 ## 硬约束
