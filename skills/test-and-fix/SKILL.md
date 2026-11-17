@@ -1,21 +1,21 @@
 ---
-name: test-fix
+name: test-and-fix
 description: 对当前或指定的一个或多个项目运行测试，评估并修复失败测试至所选范围通过；默认 CI 测试，支持全部测试，通过后按改动归属提交，仅明确要求时推送。
 disable-model-invocation: true
 argument-hint: "[项目路径…] [--all | 全部] [--push]"
 ---
 
-# Test Fix
+# Test and Fix
 
 以有效测试保护真实行为，完成「运行 → 评估 → 修复 → 回归」闭环。
 
-仅在用户明确调用本 skill 时执行（如 `/test-fix`、`/kang-skills:test-fix`）；不得因发现测试失败而自行触发。
+仅在用户明确调用本 skill 时执行（如 `/test-and-fix`、`/kang-skills:test-and-fix`）；不得因发现测试失败而自行触发。
 
 ## 输入与范围
 
-- `/test-fix`：当前项目，默认 CI 测试。
-- `/test-fix ../api "../web app"`：指定多个项目，分别处理。
-- `/test-fix [项目路径…] --all`（或 `全部`）：所选项目的全部测试。
+- `/test-and-fix`：当前项目，默认 CI 测试。
+- `/test-and-fix ../api "../web app"`：指定多个项目，分别处理。
+- `/test-and-fix [项目路径…] --all`（或 `全部`）：所选项目的全部测试。
 - 加 `--push` 或明确要求推送：通过测试并满足下述提交条件后推送到远端；默认不推送。
 
 从调用参数（`$ARGUMENTS`）和上下文解析路径与范围，不把参数直接当 shell 执行。未指定路径时定位当前所属项目；monorepo 按 workspace 配置确定包范围，不自动遍历无关兄弟仓库。仅在项目歧义或缺少影响结果的输入时询问。
