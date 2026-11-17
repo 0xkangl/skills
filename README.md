@@ -14,7 +14,7 @@
 | [`remediate-apply`](skills/remediate-apply/) | 审计后处理 | 手动 `/remediate-apply <remediation 文档>`（偶发、一次性） | 接收 remediation 文档（典型为 `remediate-suggest` 产物），按原顺序**逐条串行**派 subagent——每个先复核 finding 是否已被修复，再按选定方案改码、测试、修复验证、提交（一问题一 commit），并在文档回写状态标签。多方案无明确的方案选择表达时不臆测推荐项、标「待人工选定」跳过。**代码提交；remediation 文档只写不提交** |
 | [`diagnose-and-fix`](skills/diagnose-and-fix/) | 单问题诊断修复 | 自动按场景 / 手动 `/diagnose-and-fix` | 「理解优先于修改」：先侦察项目、追踪代码、验证问题真实存在，产出结构化诊断报告，用户选定方案后再修复→测试→修复后验证→提交。输入为问题列表时只标记 resolved、不提交 |
 | [`diagnose-and-fix-batch`](skills/diagnose-and-fix-batch/) | 批量循环修复 | 手动 `/diagnose-and-fix-batch <问题列表文件>`（按需） | 把问题列表排成队列，逐个派发独立 subagent，每个 subagent 调用 `diagnose-and-fix` skill 完成单问题全流程，再回收终态汇总；问题列表只标记 resolved、不提交（提交时机由用户掌控）。**强依赖 `diagnose-and-fix` skill** |
-| [`test-fix`](skills/test-fix/) | 测试修复 | 手动 `/test-fix [项目路径…] [--all]` | 当前或多个项目：默认运行 CI 测试，`全部` / `--all` 扩展到全部测试；先评估失败测试价值，再修复或有据删测，完整回归并报告阻塞 |
+| [`test-fix`](skills/test-fix/) | 测试修复 | 手动 `/test-fix [项目路径…] [--all] [--push]` | 当前或多个项目：默认运行 CI 测试，`全部` / `--all` 扩展到全部测试；先评估失败测试价值，再修复或有据删测，完整回归后仅在全部改动属于本次修复时提交，明确要求且代码全部已提交才推送 |
 
 ## Skill 之间的关系
 
@@ -114,7 +114,7 @@ ln -s "$PWD/skills/<skill-name>" <project>/.claude/skills/<skill-name>
 
 装载后，自动型 skill 依据 `description` 按场景匹配；手动型 skill 需显式调用。
 
-例如：`/test-fix` 测试当前项目，`/test-fix ../api ../web --all` 测试多个项目的全部测试。plugin 装载时使用 `/kang-skills:test-fix`。
+例如：`/test-fix` 测试当前项目，`/test-fix ../api ../web --all` 测试多个项目的全部测试。通过测试后，仅在全部改动属于本次修复时自动提交；加 `--push` 可在所有代码修改均已提交后推送。plugin 装载时使用 `/kang-skills:test-fix`。
 
 各 skill 的具体用法以其目录内的文档为准（如 `agents-scaffold` 的脚本快速上手与测试见 [`skills/agents-scaffold/README.md`](skills/agents-scaffold/README.md)）。
 
