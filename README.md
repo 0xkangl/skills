@@ -14,6 +14,7 @@
 | [`remediate-apply`](skills/remediate-apply/) | 审计后处理 | 手动 `/remediate-apply <remediation 文档>`（偶发、一次性） | 接收 remediation 文档（典型为 `remediate-suggest` 产物），按原顺序**逐条串行**派 subagent——每个先复核 finding 是否已被修复，再按选定方案改码、测试、修复验证、提交（一问题一 commit），并在文档回写状态标签。多方案无明确的方案选择表达时不臆测推荐项、标「待人工选定」跳过。**代码提交；remediation 文档只写不提交** |
 | [`diagnose-and-fix`](skills/diagnose-and-fix/) | 单问题诊断修复 | 自动按场景 / 手动 `/diagnose-and-fix` | 「理解优先于修改」：先侦察项目、追踪代码、验证问题真实存在，产出结构化诊断报告，用户选定方案后再修复→测试→修复后验证→提交。输入为问题列表时只标记 resolved、不提交 |
 | [`diagnose-and-fix-batch`](skills/diagnose-and-fix-batch/) | 批量循环修复 | 手动 `/diagnose-and-fix-batch <问题列表文件>`（按需） | 把问题列表排成队列，逐个派发独立 subagent，每个 subagent 调用 `diagnose-and-fix` skill 完成单问题全流程，再回收终态汇总；问题列表只标记 resolved、不提交（提交时机由用户掌控）。**强依赖 `diagnose-and-fix` skill** |
+| [`test-fix`](skills/test-fix/) | 测试修复 | 手动 `/test-fix [项目路径…] [--all]` | 当前或多个项目：默认运行 CI 测试，`全部` / `--all` 扩展到全部测试；先评估失败测试价值，再修复或有据删测，完整回归并报告阻塞 |
 
 ## Skill 之间的关系
 
@@ -85,7 +86,7 @@ engineering-guidelines   code-conventions
 
 装载后 skill 调用名带 `kang-skills:` 前缀（如手动触发审计为 `/kang-skills:codebase-audit`）。版本随本仓 GitHub Release 演进（release-please 自动发版），可在 `/plugin` 界面查看与更新。
 
-> 已知上游 bug（anthropics/claude-code#22345）：plugin 内 skill 的 `disable-model-invocation: true` 会被忽略。本仓 4 个手动型 skill（`codebase-audit`、`remediate-suggest`、`remediate-apply`、`diagnose-and-fix-batch`）已在正文加「未收到 /命令 不执行」的兜底文案。
+> 已知上游 bug（anthropics/claude-code#22345）：plugin 内 skill 的 `disable-model-invocation: true` 会被忽略。本仓 5 个手动型 skill（`codebase-audit`、`remediate-suggest`、`remediate-apply`、`diagnose-and-fix-batch`、`test-fix`）已在正文加「未收到 /命令 不执行」的兜底文案。
 
 ### 单个 skill：`npx skills add`
 
@@ -93,6 +94,8 @@ plugin 装载是全量的；只想要个别 skill 时，无需克隆本仓，直
 
 ```bash
 npx skills add https://github.com/0xkangl/skills --skill <skill-name>
+# 例如，安装手动测试修复 skill
+npx skills add https://github.com/0xkangl/skills --skill test-fix
 ```
 
 将 `<skill-name>` 替换为上方「Skills 一览」表中的 skill 目录名（如 `engineering-guidelines`、`code-conventions`、`agents-scaffold` 等）。可多次执行以装载多个 skill。
@@ -109,7 +112,9 @@ ln -s "$PWD/skills/<skill-name>" ~/.claude/skills/<skill-name>
 ln -s "$PWD/skills/<skill-name>" <project>/.claude/skills/<skill-name>
 ```
 
-装载后，agent 会依据各 skill `SKILL.md` frontmatter 里的 `description` 自动按场景匹配触发。
+装载后，自动型 skill 依据 `description` 按场景匹配；手动型 skill 需显式调用。
+
+例如：`/test-fix` 测试当前项目，`/test-fix ../api ../web --all` 测试多个项目的全部测试。plugin 装载时使用 `/kang-skills:test-fix`。
 
 各 skill 的具体用法以其目录内的文档为准（如 `agents-scaffold` 的脚本快速上手与测试见 [`skills/agents-scaffold/README.md`](skills/agents-scaffold/README.md)）。
 
@@ -130,5 +135,6 @@ skills/
     ├── remediate-suggest/          # SKILL.md + agents/（remediate-group 子指令）
     ├── remediate-apply/            # SKILL.md + agents/（remediate-one 子指令）
     ├── diagnose-and-fix/           # SKILL.md
-    └── diagnose-and-fix-batch/     # SKILL.md
+    ├── diagnose-and-fix-batch/     # SKILL.md
+    └── test-fix/                   # SKILL.md
 ```
