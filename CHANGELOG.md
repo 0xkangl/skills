@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/0xkangl/skills/compare/v1.3.0...v1.4.0) (2026-11-17)
+
+
+### Features
+
+* **docs-maintain:** 新增基于代码证据的文档维护 skill ([bccd829](https://github.com/0xkangl/skills/commit/bccd8290caf2be48ba629097d3ce17a56142be92))
+* **engineering-guidelines:** add first-principles design constraints ([2fa4d86](https://github.com/0xkangl/skills/commit/2fa4d86ff5d7f22aaeeae6f744c8bd5bdbd9bb3f))
+* **engineering-guidelines:** prefer worktrees and task delegation ([148afde](https://github.com/0xkangl/skills/commit/148afde96922273a48a4157b9f50b18ceb0c2241))
+* **remediate-suggest:** 修复方案先评估删除与简化 ([951de64](https://github.com/0xkangl/skills/commit/951de6474239e84c8e272a8cf6f8c20a61019888))
+* **remediate-suggest:** 要求多方案说明具体推荐理由 ([f9bb7a3](https://github.com/0xkangl/skills/commit/f9bb7a35bd608e1851b96209bd55645eea18cf1b))
+* **remediation:** 支持审查补充要求并纳入修复验收 ([57003d6](https://github.com/0xkangl/skills/commit/57003d6c6f142066e80d0ed2ef8efa383d431392))
+* **test-fix:** 增加修复提交与推送流程 ([8ad65aa](https://github.com/0xkangl/skills/commit/8ad65aad3d1d489d00082589180da6eea0b3e04a))
+* **test-fix:** 添加手动测试运行与修复 skill ([8bc8675](https://github.com/0xkangl/skills/commit/8bc86752fa308bc0fdb214dc12bceb1b2dae852f))
+
+
+### Bug Fixes
+
+* **engineering-guidelines:** isolate worktree task branches ([2d351ad](https://github.com/0xkangl/skills/commit/2d351ad06002d06c42925a08707a88e6e6e69852))
+
 ## [1.3.0](https://github.com/0xkangl/skills/compare/v1.2.0...v1.3.0) (2026-11-11)
 
 
