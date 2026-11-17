@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.1](https://github.com/0xkangl/skills/compare/v1.4.0...v1.4.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **engineering-guidelines:** clarify worktree defaults and exceptions ([c919730](https://github.com/0xkangl/skills/commit/c9197308b881c90deb7fea3a53745736c724daab))
+* **engineering-guidelines:** define post-merge cleanup defaults ([8ec1929](https://github.com/0xkangl/skills/commit/8ec19295a0b222225d437a34f3d308fc2451f946))
+* **engineering-guidelines:** report execution context at task boundaries ([e5dcf5c](https://github.com/0xkangl/skills/commit/e5dcf5cff13ff50f0f1b8f53a15fccb18e68e2fc))
+
 ## [1.4.0](https://github.com/0xkangl/skills/compare/v1.3.0...v1.4.0) (2026-11-17)
 
 
