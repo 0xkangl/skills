@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/0xkangl/skills/compare/v1.4.1...v1.5.0) (2026-11-18)
+
+
+### Features
+
+* **engineering-guidelines:** require test-first independent test ownership ([a03a3bf](https://github.com/0xkangl/skills/commit/a03a3bfa43a5194bbb9dd9c1795b5aba23a9c396))
+
 ## [1.4.1](https://github.com/0xkangl/skills/compare/v1.4.0...v1.4.1) (2026-11-17)
 
 
