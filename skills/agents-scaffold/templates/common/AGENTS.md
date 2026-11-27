@@ -85,7 +85,7 @@ Universal cross-cutting conventions (HTTP/API design, observability, testing, co
 
 ## Repository Structure
 
-A static map of the repo. Contract and convention documents live directly under `docs/`; `docs/specs/` and `docs/plans/` accumulate dated documents over time.
+Create each documentation directory when adding its first document.
 
 ```
 {{PROJECT}}/

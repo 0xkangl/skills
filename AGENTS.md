@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## agents-scaffold 专项
 
 - `scripts/scaffold.mjs` 负责在目标目录渲染单仓库模板、处理冲突和初始化 Git。`SKILL.md` 负责收集输入、执行 dry-run、核对冲突授权，并汇报备份和失败残留。
-- `templates/common/` 提供共用治理文档、Agent 配置和文档目录；`server/`、`web/`、`client/` 技术栈模板提供脚手架文件和并入根 `AGENTS.md` 的技术栈说明。项目名使用 `{{PROJECT}}` 占位。`CLAUDE.md` 只含一行 `@AGENTS.md`，详细开发流程放在 `WORKFLOW.md`。
+- `templates/common/` 提供共用治理文档和 Agent 配置；`server/`、`web/`、`client/` 技术栈模板提供脚手架文件和并入根 `AGENTS.md` 的技术栈说明。项目名使用 `{{PROJECT}}` 占位。`CLAUDE.md` 只含一行 `@AGENTS.md`，详细开发流程放在 `WORKFLOW.md`。
 - 改脚本或模板后必须跑测试：
 
 ```bash

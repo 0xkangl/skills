@@ -16,8 +16,9 @@ node "scripts/scaffold.mjs" --template server --dir "./my service" --name my-ser
 
 - `AGENTS.md` 汇集项目规则与所选技术栈的构建、测试、部署说明。`CLAUDE.md` 指向它。
 - `CONTEXT.md` 维护项目词汇，`ROADMAP.md` 记录进度，`WORKFLOW.md` 说明何时更新规格、编写计划以及如何按变更风险选择 SDD/TDD。
-- `docs/` 存放契约与私有约定，`docs/specs/` 和 `docs/plans/` 分别存放功能规格和实施计划。
 - 各技术栈带有对应的 Makefile；后端附 Fly.io 配置示例，Web 附 Cloudflare Workers 配置示例。
+
+添加文档时再创建相应目录。契约与私有约定放在 `docs/`，功能规格放在 `docs/specs/`，实施计划放在 `docs/plans/`。
 
 ## 测试
 

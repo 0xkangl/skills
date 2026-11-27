@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,7 +61,7 @@ for (const { template, role } of stacks) {
       assert.equal(read(dir, doc).split('\n')[0], `# ${title} — my-app`);
       assert.ok(agents.includes(`[${doc}](./${doc})`));
     }
-    assert.deepEqual(readdirSync(join(dir, 'docs')).sort(), ['plans', 'specs']);
+    assert.equal(existsSync(join(dir, 'docs')), false);
     assert.equal(existsSync(join(dir, '.git')), false);
     assert.equal(existsSync(join(dir, 'AGENTS.md.bak')), false);
     assert.equal(existsSync(join(dir, 'CLAUDE.md.bak')), false);
@@ -99,6 +99,9 @@ for (const policy of ['backup', 'overwrite']) {
   test(`previews and resolves shared and stack file conflicts with ${policy}`, (t) => {
     const dir = join(sandbox(t), 'demo');
     mkdirSync(join(dir, '.claude'), { recursive: true });
+    mkdirSync(join(dir, 'docs/specs'), { recursive: true });
+    writeFileSync(join(dir, 'docs/specs/.gitkeep'), 'original placeholder');
+    writeFileSync(join(dir, 'docs/specs/feature.md'), '# Feature');
     const names = ['AGENTS.md', 'CLAUDE.md', 'CONTEXT.md', 'ROADMAP.md', 'WORKFLOW.md', '.claude/settings.json'];
     for (const name of names) writeFileSync(join(dir, name), `original ${name}`);
     writeFileSync(join(dir, 'AGENTS.md.bak'), 'older backup');
@@ -108,6 +111,7 @@ for (const policy of ['backup', 'overwrite']) {
     const preview = success([...args, '--dry-run']);
     const conflicts = preview.split('\n').find((line) => line.includes('conflicts ('));
     assert.ok(conflicts?.includes(policy === 'overwrite' ? 'will overwrite' : 'will back up'));
+    assert.ok(!conflicts.includes(join(dir, 'docs')));
     for (const name of names) {
       assert.ok(conflicts.includes(join(dir, name)));
       assert.equal(read(dir, name), `original ${name}`);
@@ -127,15 +131,21 @@ for (const policy of ['backup', 'overwrite']) {
     }
     assert.equal(read(dir, 'AGENTS.md.bak'), 'older backup');
     assert.equal(read(dir, '.claude/local.txt'), 'unrelated');
+    assert.equal(read(dir, 'docs/specs/.gitkeep'), 'original placeholder');
+    assert.equal(read(dir, 'docs/specs/feature.md'), '# Feature');
+    assert.equal(existsSync(join(dir, 'docs/specs/.gitkeep.bak')), false);
+    assert.equal(existsSync(join(dir, 'docs/plans')), false);
   });
 }
 
-test('reports recoverable files and backups when copying into an existing tree fails', (t) => {
+const invalidGitConfig = { ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'invalid', GIT_CONFIG_VALUE_0: 'x' };
+
+test('reports recoverable files and backups when git init fails in an existing tree', (t) => {
   const dir = sandbox(t);
   mkdirSync(join(dir, '.claude'));
   writeFileSync(join(dir, '.claude/settings.json'), 'MY SETTINGS');
-  writeFileSync(join(dir, 'docs'), 'BLOCKER');
-  const result = cli(['--name', 'demo', '--template', 'server', '--dir', dir, '--no-git']);
+  writeFileSync(join(dir, 'notes.txt'), 'KEEP');
+  const result = cli(['--name', 'demo', '--template', 'server', '--dir', dir], { env: invalidGitConfig });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /partial:/);
   assert.match(result.stderr, /backed up \(originals preserved/);
@@ -143,16 +153,14 @@ test('reports recoverable files and backups when copying into an existing tree f
   assert.ok(entries.includes(join(dir, '.claude/settings.json')));
   assert.ok(entries.includes(join(dir, '.claude/settings.json.bak')));
   assert.ok(!entries.includes(dir));
-  assert.ok(!entries.includes(join(dir, 'docs')));
+  assert.ok(!entries.includes(join(dir, 'notes.txt')));
   assert.equal(read(dir, '.claude/settings.json.bak'), 'MY SETTINGS');
-  assert.equal(read(dir, 'docs'), 'BLOCKER');
+  assert.equal(read(dir, 'notes.txt'), 'KEEP');
 });
 
 test('reports a newly created directory when git init fails', (t) => {
   const dir = join(sandbox(t), 'demo');
-  const result = cli(['--template', 'web', '--dir', dir], {
-    env: { ...process.env, GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'invalid', GIT_CONFIG_VALUE_0: 'x' },
-  });
+  const result = cli(['--template', 'web', '--dir', dir], { env: invalidGitConfig });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /partial:/);
   assert.ok(result.stderr.split('\n').includes(`  ${dir}`));
