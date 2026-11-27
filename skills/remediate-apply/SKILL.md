@@ -23,7 +23,7 @@ description: >
 **与相关 skill 的关系（均为 skill 级引用）**：
 - **上游**：`remediate-suggest`——其产物 `*-remediation.md` 是典型输入，但不强依赖：任何「finding + 推荐方案」结构的文档都可喂入（字段名宽容——自然语言段落、`**suggest**:` 字段、`方案 A` 列表等都算）。
 - **规范基准**：`code-conventions`——subagent 改码前加载（若已装载），缺失则降级。
-- **单问题 / 泛型列表**：`diagnose-and-fix` / `diagnose-and-fix-batch`——处理非 remediation 文档形态的输入，与本 skill 正交。
+- 单条问题描述、issue 编号或问题列表中的指定条目，可交给 `diagnose-and-fix` 诊断。
 
 ---
 

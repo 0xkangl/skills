@@ -15,7 +15,6 @@
 | [`remediate-suggest`](skills/remediate-suggest/) | 审计后处理 | 手动 `/remediate-suggest <issues-report>`（偶发、一次性） | 接收 `codebase-audit` 的 issues-report，按问题根因/维度分组**并行**派 subagent——加载 `code-conventions` 作规范基准，对每条 finding 复核存在性（含「关联问题修复后是否仍存在」）后产出标准推荐方案结构的 `suggest` 字段，合并为与输入同目录的 \<issues 文档名\>-remediation.md（带推荐方案的镜像）。**只分析不修复**：不改被审代码、不跑测试、不提交 |
 | [`remediate-apply`](skills/remediate-apply/) | 审计后处理 | 手动 `/remediate-apply <remediation 文档>`（偶发、一次性） | 接收 remediation 文档（典型为 `remediate-suggest` 产物），按原顺序**逐条串行**派 subagent——每个先复核 finding 是否已被修复，再按选定方案改码、测试、修复验证、提交（一问题一 commit），并在文档回写状态标签。多方案无明确的方案选择表达时不臆测推荐项、标「待人工选定」跳过。**代码提交；remediation 文档只写不提交** |
 | [`diagnose-and-fix`](skills/diagnose-and-fix/) | 单问题诊断修复 | 自动按场景 / 手动 `/diagnose-and-fix` | 「理解优先于修改」：先侦察项目、追踪代码、验证问题真实存在，产出结构化诊断报告，用户选定方案后再修复→测试→修复后验证→提交。输入为问题列表时只标记 resolved、不提交 |
-| [`diagnose-and-fix-batch`](skills/diagnose-and-fix-batch/) | 批量循环修复 | 手动 `/diagnose-and-fix-batch <问题列表文件>`（按需） | 把问题列表排成队列，逐个派发独立 subagent，每个 subagent 调用 `diagnose-and-fix` skill 完成单问题全流程，再回收终态汇总；问题列表只标记 resolved、不提交（提交时机由用户掌控）。**强依赖 `diagnose-and-fix` skill** |
 | [`test-and-fix`](skills/test-and-fix/) | 测试修复 | 手动 `/test-and-fix [项目路径…] [--all] [--push]` | 当前或多个项目：默认运行 CI 测试，`全部` / `--all` 扩展到全部测试；先评估失败测试价值，再修复或有据删测，完整回归后仅在全部改动属于本次修复时提交，明确要求且代码全部已提交才推送 |
 
 ## Skill 之间的关系
@@ -48,13 +47,6 @@
    顺序逐条串行派 subagent：先复核是否已被修复，再按选定方案改码 →
    测试 → 修复验证 → 提交（一问题一 commit）。多方案无明确选择
    不臆测、标「待人工选定」跳过。代码提交；remediation 文档只写不提交
-
-  diagnose-and-fix  ◀────────  diagnose-and-fix-batch
-   （单问题诊断修复）   强依赖      （批量循环修复）
-   自动按场景/手动              手动；把问题列表排成队列，逐个派
-   /diagnose-and-fix          subagent 调用 diagnose-and-fix 处理
-                              单问题。二者都只标记 resolved、不提交
-                              列表，提交时机交用户掌控
 ```
 
 设计原则：
@@ -64,9 +56,8 @@
 - **正交而非合并**：`agents-scaffold`（偶发结构操作）与 `code-conventions`（写码时高频引用）正交，各自独立；spec-first/SDD 工作流由单仓库模板的 `AGENTS.md` 和 `WORKFLOW.md` 承载。
 - `docs-maintain` 负责已有项目文档的核对、更新与清理；与 `agents-scaffold` 的初始化、`code-conventions` 的规范参考分工独立，无前置 skill 依赖。
 - `codebase-audit` 设 `disable-model-invocation: true`，仅手动 `/codebase-audit` 触发，可对任意代码库独立运行。其「规范符合性」维度会在运行时按需加载 `code-conventions` skill 作为审计基准（skill 级引用，不链入对方目录文件）；该 skill 缺失时此维度优雅降级、其余维度照常，故独立性不受影响。原独立的接口审计 skill 已并入本 skill：接口审计（仅 HTTP 项目激活）与业务流程审计（识别出重要流程即激活，不限 HTTP）成为条件维度，产出统一为「审计报告 + 问题汇总」两份文档。
-- `diagnose-and-fix` 聚焦**单个**问题的诊断优先修复，可由 agent 按场景自动触发，也可手动 `/diagnose-and-fix`；`diagnose-and-fix-batch` 设 `disable-model-invocation: true` 仅手动触发，把一个**问题列表**排队循环修复，**各问题在独立 subagent 中调用 `diagnose-and-fix` skill 处理**——故 batch **强依赖** `diagnose-and-fix`（按 skill 名调用、不链入对方目录文件，仍属 skill 级引用）。两者均只在文件内标记 resolved、**不提交**问题列表（提交时机交用户掌控）。
 - `remediate-suggest` 设 `disable-model-invocation: true` 仅手动触发，是 `codebase-audit` 的下游后处理——接收其 `issues-report` 产物，按问题根因/维度分派**并行** subagent 给每条 finding 补 `suggest` 字段（推荐修复方案），**只分析不修复**（不改被审代码、不跑测试、不提交），产物命名跟随输入（`<issues 文档名>-remediation.md`，与输入同目录）。推荐方案的字段口径（整体方案+落点+实现细节与注意事项+改动量、`[quick-fix]`/`[推荐]` 标记）是本 skill 自身定义的标准结构，不依赖其它 skill；subagent 写方案前按 skill 级引用加载 `code-conventions` 作规范基准（缺失则降级、摘要注明）。支持渐进补全——同目录已有该产物时自动**追加**（补剩余 finding、原地更新），存在未合并的片段目录时自动**续传**（复用有效片段、只重派缺失组）。
-- `remediate-apply` 设 `disable-model-invocation: true` 仅手动触发，与 `remediate-suggest` 对仗——后者只分析给推荐方案，本 skill **落地执行**那些方案。接收 remediation 文档（典型为 `remediate-suggest` 的 `*-remediation.md` 产物，但**不强依赖**其精确字段名，任何「finding + 推荐方案」表达都可），按原文档顺序**逐条串行**派 subagent：每个先复核该 finding 是否已被修复（含关联消解），再按选定方案改码 → 测试 → 修复验证 → 提交。**一问题一 commit**；多方案无明确的方案选择表达（字段名不限，`[推荐]` 标记不算人工选择）时不臆测推荐项、标「待人工选定」后跳过该条继续下一条。**代码改动提交；remediation 文档的状态标签只写回、不提交**（提交时机交用户掌控，与 `diagnose-and-fix` 处理问题列表的惯例一致）。subagent 改码前按 skill 级引用加载 `code-conventions` 作规范基准（缺失则降级、摘要注明）。与 `diagnose-and-fix` / `diagnose-and-fix-batch` 正交——后两者处理自由文本单问题与泛型问题列表（非 remediation 文档形态）。
+- `remediate-apply` 设 `disable-model-invocation: true` 仅手动触发，与 `remediate-suggest` 对仗——后者只分析给推荐方案，本 skill **落地执行**那些方案。接收 remediation 文档（典型为 `remediate-suggest` 的 `*-remediation.md` 产物，但**不强依赖**其精确字段名，任何「finding + 推荐方案」表达都可），按原文档顺序**逐条串行**派 subagent：每个先复核该 finding 是否已被修复（含关联消解），再按选定方案改码 → 测试 → 修复验证 → 提交。**一问题一 commit**；多方案无明确的方案选择表达（字段名不限，`[推荐]` 标记不算人工选择）时不臆测推荐项、标「待人工选定」后跳过该条继续下一条。**代码改动提交；remediation 文档的状态标签只写回、不提交**（提交时机交用户掌控，与 `diagnose-and-fix` 处理问题列表的惯例一致）。subagent 改码前按 skill 级引用加载 `code-conventions` 作规范基准（缺失则降级、摘要注明）。
 
 ## 使用
 
@@ -83,7 +74,7 @@
 
 装载后 skill 调用名带 `kang-skills:` 前缀（如手动触发审计为 `/kang-skills:codebase-audit`）。版本随本仓 GitHub Release 演进（release-please 自动发版），可在 `/plugin` 界面查看与更新。
 
-> 已知上游 bug（anthropics/claude-code#22345）：plugin 内 skill 的 `disable-model-invocation: true` 会被忽略。本仓 5 个手动型 skill（`codebase-audit`、`remediate-suggest`、`remediate-apply`、`diagnose-and-fix-batch`、`test-and-fix`）已在正文加「未收到 /命令 不执行」的兜底文案。
+> 已知上游 bug（anthropics/claude-code#22345）：plugin 内 skill 的 `disable-model-invocation: true` 会被忽略。本仓 5 个手动型 skill（`agents-scaffold`、`codebase-audit`、`remediate-suggest`、`remediate-apply`、`test-and-fix`）均在正文要求用户显式调用。
 
 ### 单个 skill：`npx skills add`
 
@@ -134,6 +125,5 @@ skills/
     ├── remediate-suggest/          # SKILL.md + agents/（remediate-group 子指令）
     ├── remediate-apply/            # SKILL.md + agents/（remediate-one 子指令）
     ├── diagnose-and-fix/           # SKILL.md
-    ├── diagnose-and-fix-batch/     # SKILL.md
     └── test-and-fix/               # SKILL.md
 ```
