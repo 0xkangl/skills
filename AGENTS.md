@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 无 lint/format 工具链、无构建/测试 CI（唯一的 workflow 是 release-please 发版自动化）——所有脚本**零依赖**（仅 `node:` 内置模块）。这是刻意设计，不要引入依赖或构建工具。
 - 仓库根即 Claude Code plugin（`.claude-plugin/plugin.json` + 自指 `marketplace.json`，plugin 名 `kang-skills`）。skills 由 Claude Code 从根 `skills/` 自动发现——新增/删除 skill 无需改 manifest。版本由 release-please 依 Conventional Commits 自动管理（`feat:`→minor、`fix:`→patch、`!`→major；`docs:` 等类型不触发发版，随下次发版带出）——**不要手改** `plugin.json` 的 `version`、`version.txt` 和 `CHANGELOG.md`。
 - `docs/superpowers/`（计划/设计文档）与 `.superpowers/`（SDD 执行产物）是长期保留的 spec-driven 工作流目录。
-- `.claude/skills/` 默认 gitignore（外部安装 skill 的本地缓存）；本仓自研的项目级 skill（如 `skill-check`、`new-skill`）在 `.gitignore` 用 `!` 例外显式纳管。
+- `.claude/skills/` 用于本地安装的 skill，目录中的条目默认由 Git 忽略。
 
 ## 核心原则
 
@@ -45,10 +45,8 @@ cd skills/agents-scaffold && node --test scripts/scaffold.test.mjs
 
 ## 提交前检查
 
-可直接跑 `/skill-check` 自动完成以下各项：
-
 - [ ] 改动的 SKILL.md `name` 与目录名一致。
 - [ ] 没有引入跨 skill 的内容级（文件路径）引用。
 - [ ] 没有指向不存在文件的死链（尤其 agents-scaffold 模板）。
 - [ ] 涉及 agents-scaffold 的改动已 `node --test` 全绿。
-- [ ] 新增/重命名/删除 skill 时，README 的「Skills 一览」表与「使用 → 方式一」的 `npx skills add` 命令块已同步。
+- [ ] 新增、重命名或删除 skill 时，更新 README 的「Skills 一览」表，并核对「单个 skill」一节的安装示例。
