@@ -1,17 +1,11 @@
-# {{PROJECT}}-server
-
 ## Role
 Server application
 
-## Project Rules
-
-Before project work, read [../{{PROJECT}}-spec-center/AGENTS.md](../{{PROJECT}}-spec-center/AGENTS.md). When planning or continuing tracked work, also read [../{{PROJECT}}-spec-center/ROADMAP.md](../{{PROJECT}}-spec-center/ROADMAP.md). If the sibling spec-center is unavailable, report the missing shared context instead of guessing contracts.
-
 ## Mandatory Specs
-<!-- Link only to project-private conventions committed under ../{{PROJECT}}-spec-center/conventions/. Universal conventions come from the `code-conventions` skill at runtime (http-constitution, observability, testing, error-codes, deployment, golang/go-project, golang/go-style, golang/go-testing, golang/go-validation) — do not relink them here. -->
+<!-- Link only to project-private conventions committed under docs/. Universal conventions come from the `code-conventions` skill at runtime (http-constitution, observability, testing, error-codes, deployment, golang/go-project, golang/go-style, golang/go-testing, golang/go-validation) — do not relink them here. -->
 
 ## Key Responsibilities
-<!-- Define module-specific responsibilities here -->
+<!-- Define project-specific responsibilities here -->
 
 ## Tech Stack
 <!-- Define technology choices here: language, framework, database, etc. -->
@@ -25,7 +19,7 @@ Before project work, read [../{{PROJECT}}-spec-center/AGENTS.md](../{{PROJECT}}-
 
 - **Documentation**: 首次部署前，按 `code-conventions` skill 维护部署文档（沿用已有位置，否则使用 `docs/deployment.md`），在本节添加实际文档链接；README 如存在则同步入口。流程或配置变更时同步更新。初始化时方案尚未确定，待确定后再创建文档。
 
-<!-- 只记本模块的部署事实。发版前置资料、[env] 与 secret 的归属判据、发版执行顺序、验证与回滚规则见 `code-conventions` skill 的部署规范 —— 不要在此重复。 -->
+<!-- 只记本项目的部署事实。发版前置资料、[env] 与 secret 的归属判据、发版执行顺序、验证与回滚规则见 `code-conventions` skill 的部署规范 —— 不要在此重复。 -->
 
 - **Platform / App**: Fly.io <!-- app 名;staging 与 production 各一个 app -->
 - **Config**: `fly.toml`(由 `fly.toml.example` 复制,入仓并 review)。非敏感且启动后通常不改的配置写 `[env]`;敏感项走 `flyctl secrets set`,同一个 key 不得两处都写。

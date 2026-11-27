@@ -1,10 +1,10 @@
 # ==============================================================================
-# {{PROJECT}}-server - Makefile
+# {{PROJECT}} - Makefile
 # ==============================================================================
 
 # --- Variables ----------------------------------------------------------------
 
-APP_NAME        := {{PROJECT}}-server
+APP_NAME        := {{PROJECT}}
 BIN_DIR         := bin
 
 VERSION         ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -38,7 +38,7 @@ BOLD  := \033[1m
 .PHONY: help
 help: ## Show this help
 	@echo ""
-	@echo "$(BOLD){{PROJECT}}-server$(RESET)"
+	@echo "$(BOLD){{PROJECT}}$(RESET)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""

@@ -1,10 +1,10 @@
 # ==============================================================================
-# {{PROJECT}}-client - Makefile
+# {{PROJECT}} - Makefile
 # ==============================================================================
 
 # --- Variables ----------------------------------------------------------------
 
-APP_NAME        := {{PROJECT}}-client
+APP_NAME        := {{PROJECT}}
 
 # Colors
 CYAN  := \033[36m
@@ -20,7 +20,7 @@ BOLD  := \033[1m
 .PHONY: help
 help: ## Show this help
 	@echo ""
-	@echo "$(BOLD){{PROJECT}}-client$(RESET)"
+	@echo "$(BOLD){{PROJECT}}$(RESET)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""

@@ -1,167 +1,33 @@
 ---
 name: agents-scaffold
 disable-model-invocation: true
-description: 使用零依赖 Node 脚本初始化带 spec-center 的多仓工作区、添加模块，或原地初始化独立单仓库；生成模板与 AGENTS.md 治理文档，预览冲突并按授权备份或覆盖。
+description: 使用零依赖 Node 脚本在目标目录初始化单仓库项目，生成所选技术栈的脚手架和治理文档，预览文件冲突并按授权备份或覆盖。
 allowed-tools: Bash, Read, AskUserQuestion
 ---
 
 # Agents Scaffold
 
-> 偶发的结构性操作:搭建多仓工作区、向其中新增模块,或原地初始化单个独立仓库。所有确定性产物——拷模板、`{{PROJECT}}` 替换、`git init`,以及 `spec-center/AGENTS.md` 的 Module Map 表与 Repository Structure 树——全部由零依赖脚本 `scripts/scaffold.mjs` 完成,以工作区实际存在的模块目录为单一真相,幂等。agent 只负责:意图判定、收集输入、dry-run 预览、调脚本、(失败时)处理残留、转述输出——不手工编辑生成产物。
+在目标目录原地初始化一个独立仓库。仅在用户明确调用本 skill 时执行，接受宿主支持的调用语法。工具权限以宿主为准。
 
-仅在用户明确调用本 skill 时执行,接受宿主支持的语法与命名空间。仅提及或审阅不算调用。工具名以宿主实际能力为准,frontmatter 的 `allowed-tools` 不授予额外权限。
+## 输入与预览
 
-## 1. 模式选择(两步推导)
+1. 确定技术栈 `--template`（后端 `server`、Web 应用 `web`、移动或桌面客户端 `client`）和目标目录 `--dir`（默认当前目录）。`--name` 默认取目标目录名。项目名须为 2–50 个字符，以小写字母开头，由小写字母、数字和分隔用的连字符组成。目录名不符合要求时显式提供项目名。
+2. 运行 `--dry-run` 核对目标、项目名、模板和冲突路径。输入已明确且无冲突，或冲突策略已有授权时，直接执行。只在缺少影响结果的输入、存在未授权冲突或用户要求先看计划时询问。
+3. 目录逐层合并。有文件冲突时，列出具体路径供用户选择备份、覆盖或取消。默认备份将原文件改名为 `*.bak`，重名时依次使用 `*.bak.1`、`*.bak.2`。仅在明确授权覆盖时，在预览和正式命令中都加 `--on-conflict overwrite`。
 
-三种模式:**workspace**(从零建多仓工作区:root + `spec-center` + 所选模块,每个模块落 `<project>-<module>/`)、**module**(往已有工作区加模块)、**single**(单仓库:目标目录**原地**用单个 stack 模板初始化,无 spec-center)。
+## 执行
 
-判断顺序:**先看文件系统状态,再判用户意图**。先 `ls` 目标目录看有没有 `*-spec-center/`:
-
-1. **有 `*-spec-center/`** → **module**(目录已是工作区,这次必是加模块,无需再判单/多仓)。
-2. **没有 `*-spec-center/`** → 再从用户需求判**单仓还是多仓**:
-   - 多仓信号:「多仓工作区 / 微服务 / 拆成多个仓 / 要 spec-center」→ **workspace**。
-   - 单仓信号:「单仓库 / 单个仓库 / monorepo / 不要 spec-center / 就地建一个项目」→ **single**。
-   - **推导不出来再问**:使用宿主实际的用户输入能力二选一,并简述两种最终目录结构差异(多仓:`<name>-spec-center/` + 各 `<name>-<module>/`;单仓:当前目录原地、无 spec-center)。「初始化 server 项目」里 `server` 只表明所选模板,不表明仓库形态——这类纯模板措辞**不要擅自默认**成某一种。
-
-> 脚本侧有兜底,模式判断只需大方向对、边界由脚本纠正:`module` 子命令若发现目录里没有任何 `*-spec-center/`,会自动按 `workspace` 处理;`workspace` 子命令若发现已存在 `*-spec-center/` 则报错(已是工作区)。
-
-## 2. Workspace 工作流
-
-1. **收集输入**:
-   - 项目名 `name`(kebab-case;可按需求替用户推荐一个)。
-   - 工作区目录 `dir`(**默认当前目录 `.`,原地初始化,不再套一层 `<name>` 子目录**)。判据不是"目录是否为空",而是"是否已有 `<name>-spec-center/`":只要目录里没有任何 `*-spec-center/`,即使已装 skills(`.agents`、`skills-lock.json` 等隐藏/无关文件)也可原地初始化;已含 `*-spec-center` 则脚本报错(已是工作区)。
-   - 模块列表 `modules`:逗号分隔。`spec-center` 始终包含,无需用户指定。
-2. **dry-run 预览**:列出将创建的目录(`<name>-spec-center` + 各模块)、目标目录(默认 `.`)、是否建 git 与文件冲突。
-   - 用户已明确提供 `name` / `dir` / `modules` 与冲突策略,或当前语境已能唯一推导且 dry-run 无冲突时,不重复请求确认。
-   - 只在缺少会改变结果的输入、dry-run 发现未授权的文件冲突,或用户要求先看计划时再问。冲突的选择见 §10。
-3. **调脚本**:见 §6。脚本会自动生成 `spec-center/AGENTS.md` 的模块表与目录树,无需 agent 介入。
-4. **汇报**:转述脚本输出的 `created:` / `skipped:` 行,以及 `backed up:` 列出的备份文件(见 §10);若出现 `partial:` 段(中途失败),按 §7 处理残留。完成后提示后续开发规则见 `<project>-spec-center/AGENTS.md`,详细流程按需见其链接的 `WORKFLOW.md`。
-
-## 3. Module 工作流
-
-1. **确认上下文**:工作区目录 `dir`。项目前缀 `name` **可省略**——脚本会从 `dir` 下唯一的 `<name>-spec-center/` 自动推断;agent 可先 `ls` 工作区,并在 dry-run 中展示推断结果,无需单独请求确认。目录下有多个 `*-spec-center` 时脚本会报错,须显式传 `--name`。**若 `dir` 下根本没有 `*-spec-center/`**,脚本自动按 workspace 初始化(此时 `name` 取传入值或目录名),汇总会显示 `workspace:`——这正是 §1 的兜底,按 workspace 汇报即可。
-2. **收集新模块** `modules`:已存在的模块、`spec-center` 会被脚本自动跳过并在汇总里标注 `skipped`。
-3. **dry-run 预览**:按 Workspace 工作流的授权判据决定是否需要追问,不重复请求确认。
-4. **调脚本**:见 §6。脚本会按工作区实际模块自动把新模块并入 `spec-center/AGENTS.md` 的表与树。
-5. **汇报**:转述 `added:` / `skipped:` 行,以及 `backed up:` 备份文件(见 §10);若出现 `partial:` 段,按 §7 处理残留。
-
-## 4. Single 工作流(单仓库原地初始化)
-
-1. **收集输入**:
-   - 模板 `template`:单个 stack 模板(`server` / `web` / `client`),决定 Makefile、`.env.example`、Role 等 stack 特定脚手架。**必填**。
-   - 工作区目录 `dir`(默认当前目录 `.`)。
-   - 项目名 `name`:**可省略**——默认取 `dir` 的目录名;非 kebab-case 时脚本报错,提示显式传 `--name`。
-2. **dry-run 预览**:列出目标目录、模板、项目名、是否复用/新建 git 与文件冲突;按 Workspace 工作流的授权判据决定是否需要追问。
-3. **调脚本**:见 §6。脚本把模板铺进目录根(去掉 `-<template>` 后缀,命名统一为 `<name>`),用「综合 spec-center、去多仓库」的治理文档合并生成 `AGENTS.md`。契约/约定文档(API、错误码、约定)直接放 `docs/` 根,功能 specs / 计划复用 stack 模板自带的 `docs/specs`、`docs/plans`——**不建额外子目录**。
-4. **汇报**:转述 `single:` / `created:` 行,以及 `backed up:` 备份文件(见 §10);若出现 `partial:` 段,按 §7 处理残留(单仓库只回收本次新建的条目,绝不动预存的 `.git`/用户文件)。完成后提示项目规则见生成的 `AGENTS.md`。
-
-**冲突处理(默认备份,见 §10)**:目录自动合并;目标目录里若已存在模板要写的文件(`AGENTS.md`、`Makefile` 等),**默认备份**为 `*.bak` 再写(`.git` 不在模板内,永不冲突)。
-
-## 5. 模块模板对照
-
-| 模板 | 用途 |
-|---|---|
-| `spec-center` | SSOT:跨模块契约 / 约定 / 错误码 / API。**workspace 始终包含,不可省略;module 不重复创建。** |
-| `server` | 后端服务 |
-| `web` | Web 应用 |
-| `client` | 移动端 / 客户端应用 |
-
-**模块语法**:`name`(内建模板,名即模板名)或 `name=template`(用 `template` 模板生成自定义名模块,如 `api-gateway=server`、`mobile=client`)。同一模板可多次生成不同名模块。
-
-## 6. 脚本调用参考
-
-脚本非交互,全部参数经 flag 传入。以下命令在**本 skill 目录**执行;从其它目录调用时,把 `"scripts/scaffold.mjs"` 换成脚本的绝对路径或正确相对路径。`--dir` 相对执行命令时的当前目录解析,路径始终加引号。示例项目名与目录可按需求替换,三种模式按需选一种。
-
-每组先预览,输入与授权已明确后再执行下一条;正式执行仅移除 `--dry-run`,其余参数保持一致:
+以下示例从本 skill 目录运行。从其它位置调用时使用脚本的实际路径，`--dir` 相对命令执行目录解析。正式执行沿用预览参数，只移除 `--dry-run`。
 
 ```bash
-# 初始化多仓工作区
-node "scripts/scaffold.mjs" workspace \
-  --name myapp \
-  --dir "./my workspace" \
-  --modules "server,web" \
-  --dry-run
-node "scripts/scaffold.mjs" workspace \
-  --name myapp \
-  --dir "./my workspace" \
-  --modules "server,web"
-
-# 向已有工作区添加模块;省略 --name 时自动推断前缀
-node "scripts/scaffold.mjs" module \
-  --dir "./my workspace" \
-  --modules "api-gateway=server" \
-  --dry-run
-node "scripts/scaffold.mjs" module \
-  --dir "./my workspace" \
-  --modules "api-gateway=server"
-
-# 单仓库原地初始化;目录名含空格时显式指定 kebab-case 项目名
-node "scripts/scaffold.mjs" single \
-  --template server \
-  --name my-service \
-  --dir "./my service" \
-  --dry-run
-node "scripts/scaffold.mjs" single \
-  --template server \
-  --name my-service \
-  --dir "./my service"
+node "scripts/scaffold.mjs" --template server --dir "./my service" --name my-service --dry-run
+node "scripts/scaffold.mjs" --template server --dir "./my service" --name my-service
 ```
 
-- `--dir` 可省略,默认当前目录 `.`;不会额外套一层项目名目录。模式推导与兜底规则见 §1。
-- 文件冲突默认备份。用户已授权备份时无需加参数;仅明确授权覆盖时,在**预览与正式命令中同时**追加 `--on-conflict overwrite`。策略已有授权时不重复确认;未授权冲突按 §10 处理。
-- `--dry-run`:只打印计划,不落盘。先检查其输出;已有授权且无未决输入/冲突时可在同一任务中继续正式执行。
-- `--no-git`:跳过 git 初始化;需要时在预览与正式命令中同时追加。
-- `node "scripts/scaffold.mjs" --help`:查看用法。取值型参数后必须给值,不得省略或接另一个 flag。
+脚本复用目标目录已有的 `.git` 和分支。新建仓库时初始化空的 `main` 分支，首次提交留给用户。需要跳过 Git 初始化时，两条命令都加 `--no-git`。
 
-## 7. `spec-center/AGENTS.md` 由脚本维护 + 失败残留处理
+## 产物与结果
 
-**结构生成全由脚本完成,agent 不手工编辑。** 脚本在 workspace/module 末尾,按工作区实际存在的 `<project>-<module>/` 目录,重写 `spec-center/AGENTS.md` 里两处锚点区块(`<!-- MODULE_MAP_START/END -->`、`<!-- REPO_TREE_START/END -->`):Module Map 角色取自各模块自身 `AGENTS.md` 的 `## Role`,目录树连接线由结构计算。这是幂等操作——workspace/module/重跑结果一致,不依赖解析旧内容。**不要手动改这两个区块之间的内容**(锚点是 HTML 注释,不渲染)。
+脚本将技术栈文件和共用治理文档写到仓库根目录。项目规则与技术栈说明见 `AGENTS.md`，`CLAUDE.md` 指向该文件。术语、进度与详细开发流程分别见 `CONTEXT.md`、`ROADMAP.md`、`WORKFLOW.md`。契约与项目私有约定放在 `docs/`，功能规格和实施计划分别放在 `docs/specs/`、`docs/plans/`。
 
-模块的语义留空块(各模块 `AGENTS.md` 的 Key Responsibilities / Tech Stack、词汇表 `CONTEXT.md` 的 Language 小节等)属于后续开发,不是 scaffold 职责,按需在开发中填。
-
-**词汇表落点**:项目的 ubiquitous language 落在 `CONTEXT.md`,位置固定在**仓库根**——workspace 模式是 `<project>-spec-center/CONTEXT.md`,single 模式是项目根。这与外部 grilling / domain-modeling 类工具默认读写的路径一致,避免同一个项目分叉出两份词汇表。`AGENTS.md` 的 Core Domain Concepts 只留指针,不重复定义术语。目标位置已有 `CONTEXT.md` 时按 §10 备份,绝不无声覆盖。
-
-**进度表落点**:项目的活状态文档 `ROADMAP.md`(当前阶段/进行中/阻塞/待确认/待办/已完成)同样固定在**仓库根**——workspace 是 `<project>-spec-center/ROADMAP.md`(一个工作区只有一份,模块仓不各自留),single 是项目根。只在规划/继续已跟踪工作或当前阶段、阻塞、顺序会影响任务时读取;普通未跟踪小改不强制读写。目标位置已有同名文件时按 §10 备份。
-
-**工作流落点**:详细 SDD/TDD、契约修订与计划拆分规则落在根目录 `WORKFLOW.md`,只在任务涉及这些流程时加载。workspace 是 `<project>-spec-center/WORKFLOW.md`,single 是项目根。
-
-**失败残留处理(脚本非原子)**:脚本中途失败时会在 stderr 打印:
-
-```
-partial: created before failure (not rolled back):
-  <path1>
-  <path2>
-```
-
-agent 须读出这些路径,只在尚无具体清理授权时请用户决定是否删除;已有授权则核对精确路径与恢复方式后执行:
-
-- **workspace 失败**:原地初始化,只列出**本次新建或备份后重写**的条目(目录由本次创建则含该目录;既有目录只列本次写入的文件,绝不把整个既有模块目录列入删除清单)——**只删这些,绝不动用户既有文件/目录**。若同时打印了 `backed up (originals preserved)`,那是被备份的用户原文件(`*.bak`),**绝不删除**,提示用户自行核对/恢复。
-- **module 失败**:只列出本次新建的模块目录——**只删这些,绝不动既有模块**。
-- **single 失败**:只列出本次新建的条目(若目标目录由本次创建,则含该目录;否则只列铺进去的文件/目录)——**绝不动预存的 `.git` 或用户文件**。
-
-用户选择保留时,原样留下,提示其手工检查。
-
-## 8. Git 行为
-
-- **workspace / module**:每个新建模块只执行 `git init` + `git branch -M main`,**不** `git add`、**不** commit——交给用户自行首次提交。workspace 合并既有模块目录时,已有 `.git` 则复用,不改分支。
-- **single**:目标目录已有 `.git` 则**复用**(不重复 init、不改分支);否则 `git init` + `git branch -M main`。同样不 add、不 commit。
-- `--no-git` 时整段跳过。
-
-## 9. 后续与相关 skill
-
-- **开发流程**:生成的 `AGENTS.md` 保留高频、简短的指令;`WORKFLOW.md` 按需承载 spec-first、契约修订、跨模块 plan 拆分与 TDD 详情,无需独立 skill。
-- `code-conventions`:横切规范文档体系。模板留空 `conventions/` 目录——通用规范运行时引用本 skill,不落地;`conventions/` 仅承载项目私有规范。
-- `engineering-guidelines`:LLM/agent 编码行为准则。
-
-## 10. 冲突与备份(三种模式统一)
-
-脚本对所有模式用同一套策略:
-
-- **目录自动合并**:模板里的目录撞上目标目录既有同名目录,逐层合并,既有内容保留。
-- **文件冲突默认备份**:模板文件落点已存在同名文件时,**默认**把原文件改名为 `*.bak`(已占用则 `*.bak.1`、`*.bak.2`…)再写模板。原文件全部留档,不丢。
-- **仅用户明确说「覆盖」时**才传 `--on-conflict overwrite`:直接覆盖、不留 `*.bak`。
-- **`.git` 与无关文件永不触碰**:它们不在模板树内,既不合并也不备份。
-
-dry-run 无冲突且输入已定时直接继续。出现冲突时,若用户尚未授权处理策略,列出精确路径并请其选择默认备份、明确覆盖或取消;已授权的策略不重复确认。
-
-汇报时:dry-run 阶段转述 `conflicts (will back up): ...` 让用户预览将被备份的文件;正式执行后,把脚本输出的所有 `backed up: <path>.bak` 行**完整列给用户**,提示其自行核对/恢复。
+完成后转述 `created:` 和全部 `backed up:` 路径。若中途失败，报告 stderr 中 `partial:` 列出的已写入路径，以及另列的原文件备份。清理前核对具体路径和授权，保留备份、已有的 `.git` 和用户文件。

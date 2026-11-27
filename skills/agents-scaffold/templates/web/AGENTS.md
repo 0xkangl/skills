@@ -1,17 +1,11 @@
-# {{PROJECT}}-web
-
 ## Role
 Web application
 
-## Project Rules
-
-Before project work, read [../{{PROJECT}}-spec-center/AGENTS.md](../{{PROJECT}}-spec-center/AGENTS.md). When planning or continuing tracked work, also read [../{{PROJECT}}-spec-center/ROADMAP.md](../{{PROJECT}}-spec-center/ROADMAP.md). If the sibling spec-center is unavailable, report the missing shared context instead of guessing contracts.
-
 ## Mandatory Specs
-<!-- Link only to project-private conventions committed under ../{{PROJECT}}-spec-center/conventions/. Universal conventions come from the `code-conventions` skill at runtime (http-constitution, observability, testing, error-codes, deployment) — do not relink them here. -->
+<!-- Link only to project-private conventions committed under docs/. Universal conventions come from the `code-conventions` skill at runtime (http-constitution, observability, testing, error-codes, deployment) — do not relink them here. -->
 
 ## Key Responsibilities
-<!-- Define module-specific responsibilities here -->
+<!-- Define project-specific responsibilities here -->
 
 ## Tech Stack
 <!-- Define technology choices here: language, framework, database, etc. -->
@@ -25,7 +19,7 @@ Before project work, read [../{{PROJECT}}-spec-center/AGENTS.md](../{{PROJECT}}-
 
 - **Documentation**: 首次部署前，按 `code-conventions` skill 维护部署文档（沿用已有位置，否则使用 `docs/deployment.md`），在本节添加实际文档链接；README 如存在则同步入口。流程或配置变更时同步更新。初始化时方案尚未确定，待确定后再创建文档。
 
-<!-- 只记本模块的部署事实。发版前置资料、vars 与 secret 的归属判据、发版执行顺序、验证与回滚规则见 `code-conventions` skill 的部署规范 —— 不要在此重复。 -->
+<!-- 只记本项目的部署事实。发版前置资料、vars 与 secret 的归属判据、发版执行顺序、验证与回滚规则见 `code-conventions` skill 的部署规范 —— 不要在此重复。 -->
 
 - **Platform / Project**: Cloudflare Workers <!-- 或 Pages;项目名 -->。部署只经 `wrangler` CLI + 最小权限 API token；GitHub 自动部署通过 Actions 调用 CLI，**不采用安装 Cloudflare GitHub App、连接仓库的托管构建部署方案**。
 - **CI credentials**: GitHub Actions Secrets 存放 `CLOUDFLARE_API_TOKEN`，Variables 存放 `CLOUDFLARE_ACCOUNT_ID`，workflow 分别通过 `secrets` / `vars` 映射为同名环境变量；详细配置见 `code-conventions` skill 的部署规范。

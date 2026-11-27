@@ -1,5 +1,5 @@
 # ==============================================================================
-# {{PROJECT}}-server - Fly.io config (sample)
+# {{PROJECT}} - Fly.io config (sample)
 #
 # Copy to fly.toml (committed, reviewed like code) and fill in app / region.
 # One app + one config file per environment: fly.toml (production),
@@ -9,7 +9,7 @@
 # `code-conventions` skill (deployment convention).
 # ==============================================================================
 
-app            = "{{PROJECT}}-server"
+app            = "{{PROJECT}}"
 primary_region = "sjc"
 
 [build]

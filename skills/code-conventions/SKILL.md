@@ -69,5 +69,5 @@ React 建在 TypeScript 之上，其文档相对互链 `references/typescript/`�
 
 ## 相关 Skill
 
-- 规约驱动开发流程（spec-first、spec 划分/所有权、跨模块 plan 拆分、spec 索引维护）属于 polyrepo 工作区规范，见各项目 `<project>-spec-center/AGENTS.md`（由 `agents-scaffold` 模板生成）；本 skill 的 [references/testing.md](references/testing.md) 承载其实现阶段的 TDD workflow 与测试细则。
+- 规约驱动开发遵循项目自身的工作流。由 `agents-scaffold` 初始化的项目在仓库根 `AGENTS.md` 和 `WORKFLOW.md` 中维护相关规则；本 skill 的 [references/testing.md](references/testing.md) 承载其实现阶段的 TDD workflow 与测试细则。
 - 工程行为规范（think-before-code、simplicity-first、surgical-changes、root-cause reasoning 等 LLM/agent 编码行为准则）不在本 skill 内，见独立 skill **`engineering-guidelines`**。

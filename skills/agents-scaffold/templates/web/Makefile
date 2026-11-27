@@ -1,10 +1,10 @@
 # ==============================================================================
-# {{PROJECT}}-web - Makefile
+# {{PROJECT}} - Makefile
 # ==============================================================================
 
 # --- Variables ----------------------------------------------------------------
 
-APP_NAME        := {{PROJECT}}-web
+APP_NAME        := {{PROJECT}}
 
 # Cloudflare (wrangler)
 WRANGLER        ?= npx wrangler
@@ -27,7 +27,7 @@ BOLD  := \033[1m
 .PHONY: help
 help: ## Show this help
 	@echo ""
-	@echo "$(BOLD){{PROJECT}}-web$(RESET)"
+	@echo "$(BOLD){{PROJECT}}$(RESET)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""

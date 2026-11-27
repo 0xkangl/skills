@@ -4,7 +4,7 @@
 
 This is a **single-repository** project. All code, specifications, contracts, and conventions live in this one repo. Contracts (API, error codes) and project-private conventions are documented under `docs/` and govern the code in the same tree.
 
-<!-- MODULE_STACK -->
+<!-- STACK_GUIDE -->
 
 ## Specifications & Contracts
 
@@ -89,7 +89,7 @@ A static map of the repo. Contract and convention documents live directly under 
 
 ```
 {{PROJECT}}/
-├── AGENTS.md          # This file - project rules, conventions, and module guide
+├── AGENTS.md          # This file - project rules, conventions, and stack guide
 ├── CLAUDE.md          # → @AGENTS.md
 ├── CONTEXT.md         # Ubiquitous language (project glossary)
 ├── ROADMAP.md         # Live project status (phase, in progress, blocked, done)

@@ -1,5 +1,5 @@
 // ============================================================================
-// {{PROJECT}}-web - Cloudflare Workers config (sample)
+// {{PROJECT}} - Cloudflare Workers config (sample)
 //
 // Copy to wrangler.jsonc (committed, reviewed like code).
 // Deploy only via `wrangler deploy` (local and CI run the same command) with a
@@ -10,7 +10,7 @@
 // the `code-conventions` skill (deployment convention).
 // ============================================================================
 {
-  "name": "{{PROJECT}}-web",
+  "name": "{{PROJECT}}",
   "main": "src/index.ts",
   // 固定运行时行为，避免平台默认值随时间漂移
   "compatibility_date": "2026-01-01",
@@ -28,7 +28,7 @@
   // 顶层即 production；其它环境在这里 override，用 `wrangler deploy --env staging` 发布
   "env": {
     "staging": {
-      "name": "{{PROJECT}}-web-staging",
+      "name": "{{PROJECT}}-staging",
       "vars": {
         "APP_ENV": "staging",
         "LOG_LEVEL": "debug"
