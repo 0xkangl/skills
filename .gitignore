@@ -15,6 +15,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Tooling
+/.worktrees/
 # skills-lock.json and .agents/ are local state for installed skills;
 # treat them like a package cache and keep them out of the repo.
 skills-lock.json
