@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0](https://github.com/0xkangl/skills/compare/v1.5.0...v2.0.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **diagnose-and-fix-batch:** remove the batch repair skill
+* **engineering-guidelines:** The plugin no longer bundles engineering-guidelines. Install the global guidelines from https://github.com/0xkangl/agents.
+* **agents-scaffold:** Invoke scaffold.mjs directly with --template. The workspace, module, and single subcommands have been removed.
+
+### Bug Fixes
+
+* **agents-scaffold:** create documentation directories only on demand ([7b531e3](https://github.com/0xkangl/skills/commit/7b531e3332d34382f3e385c412506d575b63d8c3))
+
+
+### Code Refactoring
+
+* **agents-scaffold:** support only single-repository scaffolding ([8ee937d](https://github.com/0xkangl/skills/commit/8ee937db26e1de4daf994ca3967898f2e90dd089))
+* **diagnose-and-fix-batch:** remove the batch repair skill ([2a9f0b5](https://github.com/0xkangl/skills/commit/2a9f0b5a64dcbf4f3f4ef5e8130389c68eb1a826))
+* **engineering-guidelines:** remove the migrated skill ([55202ca](https://github.com/0xkangl/skills/commit/55202ca3512d1a6d913589641a2bd0c4ba7cc7e7))
+
 ## [1.5.0](https://github.com/0xkangl/skills/compare/v1.4.1...v1.5.0) (2026-11-18)
 
 
