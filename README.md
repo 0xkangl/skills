@@ -1,12 +1,13 @@
 # SKILLS
 
-一组可独立装载的 **Agent / Claude Code Skills**，覆盖从「行为准则 → 规范 → 流程 → 工程脚手架 → 代码审计」的完整链路。每个 skill 自包含、可单独启用，彼此**只做 skill 级引用，不做内容级引用**。
+一组可独立装载的 **Agent / Claude Code Skills**，涵盖编码规范、项目脚手架、文档维护、代码审计与修复。每个 skill 自包含、可单独启用，彼此**只做 skill 级引用，不做内容级引用**。
+
+原 `engineering-guidelines` 已迁移至 [0xkangl/agents](https://github.com/0xkangl/agents)，安装全局工程准则请参阅该仓库的说明。
 
 ## Skills 一览
 
 | Skill | 性质 | 触发时机 | 作用 |
 |---|---|---|---|
-| [`engineering-guidelines`](skills/engineering-guidelines/) | 行为准则 | 每次写/改代码前 | LLM/agent 编码行为：think-before-coding、simplicity-first、surgical-changes、goal-driven、root-cause reasoning |
 | [`code-conventions`](skills/code-conventions/) | 规范索引 + 文档库 | 编码、文档维护、Git 与部署任务中按需 | 横切规范的统一入口：编码风格、设计模式、安全基线、HTTP API、可观测性、测试、项目文档、仓库工作流、提交信息、部署及多语言专项规范（Go/Python/TypeScript/Rust/React/Flutter，见 `references/`） |
 | [`agents-scaffold`](skills/agents-scaffold/) | 结构性操作 | 偶发、一次性 | 按 server、web 或 client 模板原地初始化单仓库，生成项目规则和开发流程文档 |
 | [`docs-maintain`](skills/docs-maintain/) | 文档维护 | 自动按场景 / 手动 `/docs-maintain` | 依据代码和验证证据校准 README、Agent 指令、工作流与路线图；区分实现事实、规范和计划，清理过时描述及冗长已完成记录，保留有效约束与未完成事项 |
@@ -20,13 +21,8 @@
 ## Skill 之间的关系
 
 ```
-engineering-guidelines   code-conventions
-        （行为）           （规范）
-            \                /
-             \               /
-              └─ agents-scaffold ─┘
-   （生成单仓库骨架，项目规则见 AGENTS.md，
-    详细开发流程见 WORKFLOW.md）
+  agents-scaffold 生成单仓库骨架
+        └─ 生成的 AGENTS.md 引用 code-conventions，详细开发流程见 WORKFLOW.md
 
   codebase-audit  ——  手动 /codebase-audit；可对任意代码库
                        做多维度审计（HTTP 项目自动附带接口审计，
@@ -101,7 +97,7 @@ npx skills add https://github.com/0xkangl/skills --skill test-and-fix
 npx skills add https://github.com/0xkangl/skills --skill docs-maintain
 ```
 
-将 `<skill-name>` 替换为上方「Skills 一览」表中的 skill 目录名（如 `engineering-guidelines`、`code-conventions`、`agents-scaffold` 等）。可多次执行以装载多个 skill。
+将 `<skill-name>` 替换为上方「Skills 一览」表中的 skill 目录名（如 `code-conventions`、`agents-scaffold`）。可多次执行以装载多个 skill。
 
 ### 本仓开发：本地软链
 
@@ -131,7 +127,6 @@ skills/
 ├── .claude-plugin/                 # plugin.json + marketplace.json（plugin 名 kang-skills）
 ├── CHANGELOG.md                    # release-please 自动维护
 └── skills/
-    ├── engineering-guidelines/     # SKILL.md
     ├── code-conventions/           # SKILL.md + references/（含 golang/）
     ├── agents-scaffold/            # SKILL.md + README.md + scripts/ + templates/
     ├── docs-maintain/              # SKILL.md

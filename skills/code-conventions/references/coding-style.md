@@ -6,8 +6,6 @@ For the full convention index, see [../SKILL.md](../SKILL.md).
 
 本篇只收**语言无关**的命名、文件组织、注释哲学与代码味道。各语言在其上扩展（见各 `references/<lang>/<lang>-style.md`）。
 
-**边界声明**：工程**行为准则**——simplicity-first（最小可行解）、KISS/DRY/YAGNI、surgical-changes（外科手术式改动）、root-cause reasoning——不在本篇，属独立 skill **`engineering-guidelines`**。本篇与之互补、不重复：前者管「怎么决策与下手」，本篇管「落到代码上的命名与组织形态」。
-
 ## 目录
 
 - [1. Design Principles](#1-design-principles)

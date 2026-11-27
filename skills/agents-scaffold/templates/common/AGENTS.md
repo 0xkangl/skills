@@ -21,7 +21,7 @@ This repo documents its own **contracts** and **specs** under `docs/` (contract 
 
 ## Development Workflow
 
-Follow the `engineering-guidelines` skill for scope, autonomy, implementation, and verification. User instructions and applicable project rules take precedence over skill defaults.
+Apply the agent's configured global engineering guidelines to scope, autonomy, implementation, and verification. User instructions and applicable project rules take precedence over those defaults.
 
 - **Routine, reversible changes** with clear scope may be implemented directly. Do not create a spec, plan, approval pause, or test solely for ceremony.
 - Changes to **material behavior or contracts**, architecture, data handling, or migrations require the applicable spec to be updated before implementation.
